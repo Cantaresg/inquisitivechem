@@ -1,0 +1,811 @@
+/**
+ * css/chem-lab.css
+ * Three-column grid layout for the virtual chemistry lab.
+ * Left: chemical store panel | Centre: bench + test bar | Right: observation log
+ */
+
+/* ── Reset / base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --store-w:      240px;
+  --obs-w:        300px;
+  --bench-bg:     #1a1a2e;
+  --store-bg:     #16213e;
+  --obs-bg:       #0d2137;
+  --panel-border: rgba(255,255,255,0.08);
+  --vessel-border:rgba(255,255,255,0.22);
+  --heat-glow:    rgba(255,80,0,0.35);
+  --btn-hover:    rgba(255,255,255,0.10);
+  --toast-bg:     rgba(15,20,40,0.94);
+  --text:         #dde8f2;
+  --text-dim:     #6a8098;
+  --accent:       #4fc3f7;
+  --danger:       #ef5350;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bench-bg);
+  overflow: hidden;
+}
+
+/* ── App shell ───────────────────────────────────────────────────────────── */
+#chem-lab-app {
+  display: grid;
+  height: 100vh;
+  grid-template-columns: var(--store-w) 1fr var(--obs-w);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "store  testbar  obs"
+    "store  bench    obs"
+    "store  tools    obs";
+  overflow: hidden;
+}
+
+/* ── Test bar (top centre strip) ─────────────────────────────────────────── */
+#test-bar {
+  grid-area: testbar;
+  background: #12122a;
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  min-height: 64px;
+  scroll-behavior: smooth;
+}
+#test-bar::-webkit-scrollbar { height: 4px; }
+
+/* ── Chemical store panel ─────────────────────────────────────────────────── */
+#chem-store {
+  grid-area: store;
+  background: var(--store-bg);
+  border-right: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#chem-store-header {
+  padding: 11px 14px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+#chem-store-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 12px;
+}
+
+/* Store category row */
+.store-category { }
+
+.store-category-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  user-select: none;
+  text-align: left;
+  transition: background 0.12s;
+}
+.store-category-btn:hover { background: var(--btn-hover); color: var(--text); }
+
+.store-caret {
+  display: inline-block;
+  transition: transform 0.15s;
+  font-size: 9px;
+  margin-left: auto;
+  opacity: 0.6;
+}
+.store-category[aria-expanded="false"] .store-caret { transform: rotate(-90deg); }
+.store-category[aria-expanded="false"] .store-subcategory-list { display: none; }
+
+.store-subcategory-list { padding: 2px 0; }
+
+/* Store subcategory row */
+.store-subcategory-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px 5px 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: left;
+  user-select: none;
+  transition: color 0.12s;
+}
+.store-subcategory-btn:hover { color: var(--text); }
+.store-subcategory[aria-expanded="false"] .store-item-list { display: none; }
+.store-subcategory-caret {
+  display: inline-block;
+  transition: transform 0.15s;
+  font-size: 8px;
+  margin-left: auto;
+  opacity: 0.5;
+}
+.store-subcategory[aria-expanded="false"] .store-subcategory-caret { transform: rotate(-90deg); }
+
+/* Store reagent item */
+.store-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 34px;
+  cursor: grab;
+  font-size: 12px;
+  color: var(--text);
+  border-radius: 4px;
+  margin: 1px 6px;
+  transition: background 0.1s;
+  user-select: none;
+}
+.store-item:hover,
+.store-item:focus { background: var(--btn-hover); outline: none; }
+.store-item:active { cursor: grabbing; }
+.store-item.picked { outline: 2px solid var(--accent); background: rgba(79,195,247,0.10); }
+
+.store-item-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.25);
+}
+
+/* ── Bench area ──────────────────────────────────────────────────────────── */
+#bench-area {
+  grid-area: bench;
+  background: var(--bench-bg);
+  overflow: auto;
+  padding: 20px;
+  display: flex;
+  align-items: flex-end;   /* vessel bottoms always aligned */
+  align-content: flex-end;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+/* ── Lab tools panel (below bench) ──────────────────────────────────────── */
+#lab-tools {
+  grid-area: tools;
+  background: #12122a;
+  border-top: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  min-height: 50px;
+}
+
+.lab-tools-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-right: 4px;
+  user-select: none;
+}
+
+.tool-btn {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.tool-btn:hover { background: rgba(255,255,255,0.14); }
+.tool-btn[data-tool="heat"].active {
+  background: rgba(255,100,0,0.30);
+  border-color: #ff6a00;
+  color: #ffa040;
+}
+.tool-btn[data-tool="cool"].active {
+  background: rgba(0,160,230,0.25);
+  border-color: #00a0e6;
+  color: #60ccff;
+}
+.tool-btn[data-tool="wash"].active {
+  background: rgba(239,83,80,0.25);
+  border-color: var(--danger);
+  color: #ff8a80;
+}
+
+/* ── Vessel container (outer wrapper — drop zone) ───────────────────────── */
+.vessel-container {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* Drop-target highlight on the inner card when dragging over the container */
+.vessel-container.drag-over .vessel-card {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.vessel-container.drag-over .vessel-card[data-type="conical_flask"] {
+  filter: drop-shadow(0 0 0.6px rgba(255,255,255,0.22))
+          drop-shadow(0 0 4px rgba(79,195,247,0.80));
+}
+
+/* ── Vessel caption (drag handle + name — sits above the flask shape) ────── */
+.vessel-caption {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  padding: 2px 4px 6px;
+  cursor: grab;
+  max-width: 140px;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+}
+.vessel-caption::before {
+  /* subtle grip lines to hint draggability */
+  content: '⠿ ';
+  font-size: 9px;
+  opacity: 0.40;
+  vertical-align: middle;
+}
+.vessel-caption:active { cursor: grabbing; }
+
+/* ── Vessel card ─────────────────────────────────────────────────────────── */
+.vessel-card {
+  position: relative;
+  width: 120px;
+  height: 180px;           /* explicit height — label/controls no longer stretch it */
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--vessel-border);
+  border-radius: 6px 6px 14px 14px;
+  overflow: hidden;
+  transition: box-shadow 0.3s;
+  flex-shrink: 0;
+}
+
+.vessel-card[data-type="test_tube"] {
+  width: 72px;
+  height: 200px;
+  border-radius: 4px 4px 50% 50%;
+}
+
+.vessel-card[data-type="evaporating_dish"] {
+  width: 160px;
+  height: 80px;
+  border-radius: 6px 6px 60% 60%;
+}
+
+/* Solid reagent watch-glass: smaller, shallower dish. Accepts drops. */
+.vessel-card[data-type="solid_dish"] {
+  width: 130px;
+  height: 70px;
+  border-radius: 6px 6px 55% 55%;
+  background: rgba(255,255,255,0.03);
+}
+
+/* ── Conical flask (Erlenmeyer) shape ───────────────────────────────────── */
+/* clip-path clips the border, so we simulate it with filter: drop-shadow.  */
+.vessel-card[data-type="conical_flask"] {
+  border-radius: 0;
+  border: none;
+  clip-path: polygon(
+    28% 0%,   72% 0%,
+    72% 30%,  100% 87%,
+    100% 100%, 0% 100%,
+    0%  87%,  28% 30%
+  );
+  filter: drop-shadow(0 0 0.6px rgba(255,255,255,0.22));
+}
+
+/* Heating glow — applied to the card directly */
+.vessel-card.is-hot {
+  box-shadow: 0 0 18px 5px var(--heat-glow), inset 0 -4px 10px var(--heat-glow);
+}
+.vessel-card[data-type="conical_flask"].is-hot {
+  box-shadow: none;
+  filter: drop-shadow(0 0 0.6px rgba(255,255,255,0.22))
+          drop-shadow(0 0 10px rgba(255,80,0,0.50));
+}
+
+/* Standalone drag-over (for backward compat — container-level preferred) */
+.vessel-card.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ── Vessel: liquid layer ────────────────────────────────────────────────── */
+.vessel-liquid {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 55%;
+  background: rgba(190,215,255,0.08);
+  transition: background 0.9s ease, height 0.5s ease;
+  pointer-events: none;
+  border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+/* ── Vessel: precipitate layer ───────────────────────────────────────────── */
+.vessel-ppt {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 0;
+  transition: height 0.7s ease;
+  pointer-events: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  overflow: hidden;
+  padding: 2px 4px;
+  gap: 2px;
+  z-index: 2;
+}
+
+.vessel-ppt-chip {
+  width: 16px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  opacity: 0.90;
+}
+
+/* ── Vessel: solid-chunk layer ───────────────────────────────────────────── */
+.vessel-solids {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 0;
+  transition: height 0.5s ease;
+  pointer-events: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  overflow: hidden;
+  padding: 3px 5px;
+  gap: 3px;
+  z-index: 1;
+}
+
+.vessel-solid-chip {
+  width: 16px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  opacity: 0.90;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+
+/* ── Vessel: bubble layer ────────────────────────────────────────────────── */
+.vessel-bubble {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 55%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ── Vessel: ppt formula pills ───────────────────────────────────────────── */
+.vessel-ppt-labels {
+  position: absolute;
+  top: 28px;
+  left: 0; right: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.ppt-pill {
+  background: rgba(0,0,0,0.60);
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-size: 9px;
+  color: #fff;
+  max-width: 92%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Vessel: gas indicator ───────────────────────────────────────────────── */
+/* Centred in the flask body so clip-path never hides it (Bug-4). */
+.vessel-gas-indicator {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  font-size: 9px;
+  color: rgba(255,255,200,0.95);
+  background: rgba(0,0,0,0.65);
+  border-radius: 10px;
+  padding: 2px 7px;
+  pointer-events: none;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* ── Vessel: label ───────────────────────────────────────────────────────── */
+.vessel-label {
+  position: relative;
+  z-index: 2;
+  padding: 6px 6px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  word-break: break-word;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  flex-shrink: 0;
+}
+
+/* ── Vessel: controls ────────────────────────────────────────────────────── */
+.vessel-controls {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 4px 7px;
+  flex-shrink: 0;
+}
+
+.vessel-btn {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: var(--text);
+  border-radius: 4px;
+  width: 28px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.14s;
+  padding: 0;
+  line-height: 1;
+}
+.vessel-btn:hover { background: rgba(255,255,255,0.16); }
+.vessel-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.vessel-btn.heat-active {
+  background: rgba(255,100,0,0.40);
+  border-color: #ff6a00;
+  color: #ffa040;
+}
+.vessel-btn.cool-active {
+  background: rgba(0,160,230,0.30);
+  border-color: #00a0e6;
+  color: #60ccff;
+}
+.vessel-btn.danger:hover {
+  background: rgba(239,83,80,0.35);
+  border-color: var(--danger);
+  color: #ff8a80;
+}
+
+/* ── Observation panel (right) ───────────────────────────────────────────── */
+#obs-panel {
+  grid-area: obs;
+  background: var(--obs-bg);
+  border-left: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Collapsed: keep panel visible at full width — hide content, show header (Bug-5). */
+#obs-panel[data-collapsed="true"] #obs-tabs,
+#obs-panel[data-collapsed="true"] #obs-list,
+#obs-panel[data-collapsed="true"] #obs-equations,
+#obs-panel[data-collapsed="true"] #obs-export-btn {
+  display: none;
+}
+
+/* Panel header / toggle */
+#obs-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--panel-border);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+#obs-panel-header:hover { background: var(--btn-hover); }
+#obs-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+}
+#obs-panel-chevron {
+  font-size: 10px;
+  color: var(--text-dim);
+  transition: transform 0.15s;
+}
+#obs-panel[data-collapsed="true"] #obs-panel-chevron { transform: rotate(180deg); }
+
+/* Tabs */
+#obs-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.obs-tab {
+  flex: 1;
+  padding: 8px 0;
+  text-align: center;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-dim);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  transition: color 0.14s, border-color 0.14s;
+  user-select: none;
+}
+.obs-tab:hover { color: var(--text); }
+.obs-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Log lists */
+#obs-list,
+#obs-equations {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+#obs-equations { display: none; }
+#obs-equations.visible { display: block; }
+#obs-list.hidden { display: none; }
+
+/* Log entries */
+.obs-entry {
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  margin-bottom: 6px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.02);
+}
+.obs-entry > summary {
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-dim);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+.obs-entry > summary::-webkit-details-marker { display: none; }
+.obs-entry > summary::before {
+  content: '▶';
+  font-size: 8px;
+  transition: transform 0.14s;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.obs-entry[open] > summary::before { transform: rotate(90deg); }
+
+.obs-entry-time {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.obs-entry-type {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.obs-type-precipitation { background: rgba(100,200,255,0.14); color: #4fc3f7; }
+.obs-type-gas           { background: rgba(255,220,80,0.14);  color: #ffd740; }
+.obs-type-redox         { background: rgba(185,100,255,0.14); color: #ce93d8; }
+.obs-type-complexation  { background: rgba(100,255,150,0.14); color: #69f0ae; }
+.obs-type-dissolution   { background: rgba(255,150,80,0.14);  color: #ffab40; }
+.obs-type-neutralisation{ background: rgba(200,200,200,0.10); color: #90a4ae; }
+.obs-type-test          { background: rgba(80,200,150,0.14);  color: #4db6ac; }
+
+.obs-entry-body {
+  padding: 6px 10px 9px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.55;
+  border-top: 1px solid var(--panel-border);
+}
+
+/* Equation entries */
+.eq-entry {
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  margin-bottom: 6px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.02);
+}
+.eq-entry > summary {
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-dim);
+  list-style: none;
+  user-select: none;
+}
+.eq-entry > summary::-webkit-details-marker { display: none; }
+.eq-body {
+  padding: 6px 10px 9px;
+  font-size: 11.5px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: #b0cce8;
+  border-top: 1px solid var(--panel-border);
+  word-break: break-all;
+}
+
+/* Export button */
+#obs-export-btn {
+  margin: 8px;
+  padding: 7px 0;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  width: calc(100% - 16px);
+  transition: background 0.14s;
+  flex-shrink: 0;
+}
+#obs-export-btn:hover { background: rgba(255,255,255,0.11); color: var(--text); }
+
+/* ── Test tool items ─────────────────────────────────────────────────────── */
+.test-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  cursor: grab;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background 0.14s, border-color 0.14s;
+  user-select: none;
+  flex-shrink: 0;
+  min-width: 58px;
+  max-width: 80px;
+}
+.test-tool:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: var(--panel-border);
+}
+.test-tool:focus-visible { outline: 2px solid var(--accent); }
+.test-tool:active { cursor: grabbing; }
+
+.test-tool-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+.test-tool-icon-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.09);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.test-tool-label {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  text-align: center;
+  max-width: 64px;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+/* ── Drag ghost ──────────────────────────────────────────────────────────── */
+.drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.88;
+  transform: translate(-50%, -50%);
+  border-radius: 6px;
+  background: rgba(22,33,62,0.92);
+  border: 1px solid var(--accent);
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--toast-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 13px;
+  color: var(--text);
+  box-shadow: 0 5px 22px rgba(0,0,0,0.45);
+  animation: toastIn 0.18s ease, toastOut 0.28s ease 2.72s forwards;
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+.toast.error { border-color: var(--danger); color: #ff8a80; }
+.toast.info  { border-color: var(--accent); color: #90caf9; }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.13); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* ── Utility ─────────────────────────────────────────────────────────────── */
+.sr-only {
+  position: absolute; clip: rect(0 0 0 0);
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; white-space: nowrap; border: 0;
+}
+[hidden] { display: none !important; }

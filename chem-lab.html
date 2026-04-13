@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual Chemistry Lab</title>
+  <link rel="stylesheet" href="css/chem-lab.css">
+  <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+
+  <div id="chem-lab-app">
+
+    <!-- ── Left: chemical store ──────────────────────────────────────────── -->
+    <aside id="chem-store" aria-label="Chemical store">
+      <div id="chem-store-header" aria-hidden="true">Chemical Store</div>
+      <div id="chem-store-tree" role="tree" aria-label="Available reagents"></div>
+    </aside>
+
+    <!-- ── Top centre: confirmatory test bar ─────────────────────────────── -->
+    <div id="test-bar" role="toolbar" aria-label="Confirmatory tests — drag to a vessel"></div>
+
+    <!-- ── Centre: lab bench ─────────────────────────────────────────────── -->
+    <main id="bench-area" aria-label="Lab bench — drop reagents here to create vessels"></main>
+    <!-- ── Lab action tools ──────────────────────────────────────────────────── -->
+    <div id="lab-tools" role="toolbar" aria-label="Lab tools">
+      <span class="lab-tools-hint">Select a tool, then click a vessel:</span>
+      <button class="tool-btn" data-tool="heat" type="button" title="Heat the vessel">🔥 Heat</button>
+      <button class="tool-btn" data-tool="cool" type="button" title="Cool the vessel">❄️ Cool</button>
+      <button class="tool-btn" data-tool="wash" type="button" title="Wash and discard vessel">✕ Wash</button>
+    </div>
+    <!-- ── Right: observation log ────────────────────────────────────────── -->
+    <aside id="obs-panel" aria-label="Observation log">
+
+      <div id="obs-panel-header" role="button" tabindex="0" aria-expanded="false"
+           aria-controls="obs-tabs obs-list obs-equations obs-export-btn">
+        <span id="obs-panel-title">Observations</span>
+        <span id="obs-panel-chevron" aria-hidden="true">▾</span>
+      </div>
+
+      <div id="obs-tabs" role="tablist">
+        <button class="obs-tab active"
+                role="tab"
+                aria-selected="true"
+                aria-controls="obs-list"
+                data-tab="observations">Observations</button>
+        <button class="obs-tab"
+                role="tab"
+                aria-selected="false"
+                aria-controls="obs-equations"
+                data-tab="equations">Equations</button>
+      </div>
+
+      <div id="obs-list"      role="tabpanel" aria-label="Observations"
+           aria-live="polite"></div>
+      <div id="obs-equations" role="tabpanel" aria-label="Equations"
+           aria-live="polite"></div>
+
+      <button id="obs-export-btn" type="button">Export as .docx</button>
+
+    </aside>
+
+  </div><!-- /#chem-lab-app -->
+
+  <!-- ── Toast container ───────────────────────────────────────────────────── -->
+  <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- ── Screen-reader announcements (keyboard drag-drop) ──────────────────── -->
+  <div id="aria-announce" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <!-- ── Entry point ───────────────────────────────────────────────────────── -->
+  <script type="module" src="ui/main.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,151 @@
+/**
+ * css/animations.css
+ * All @keyframe definitions used by AnimationManager.
+ * Class names here correspond to animId values in the registry.
+ * DOM elements appended by AnimationManager are removed on animation end.
+ */
+
+/* ═══════════════════════════════════════════════════════════
+   REACTION ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Bubbles (anim_bubbles) ──────────────────────────────── */
+@keyframes bubbleRise {
+  0%   { transform: translateY(0)       scale(0.8); opacity: 0.65; }
+  20%  { transform: translateY(-20px)   scale(1.0); opacity: 0.80; }
+  70%  { transform: translateY(-80px)   scale(1.2); opacity: 0.50; }
+  100% { transform: translateY(-120px)  scale(1.4); opacity: 0;    }
+}
+
+/* ── Precipitate fall (anim_precipitate) ───────────────────── */
+@keyframes precipFall {
+  0%   { transform: translateY(0);    opacity: 0.90; }
+  80%  { opacity: 0.75; }
+  100% { transform: translateY(85px); opacity: 0.65; }
+}
+
+/* ── Colour flash — redox, complexation, solid dissolve ──── */
+@keyframes liquidColorFlash {
+  0%   { filter: brightness(2.2) saturate(1.6); }
+  60%  { filter: brightness(1.4) saturate(1.2); }
+  100% { filter: brightness(1)   saturate(1);   }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GOLDEN RAIN (anim_golden_rain)
+   TRAP-05: polygon count capped at 50 in AnimationManager.
+   ═══════════════════════════════════════════════════════════ */
+@keyframes goldenRainFall {
+  0%   { transform: translateY(-12px) rotate(0deg);   opacity: 1;   }
+  85%  { opacity: 0.8; }
+  100% { transform: translateY(210px) rotate(720deg); opacity: 0;   }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FLAME TEST (anim_flame_colour, anim_flame_no_colour)
+   BUG-15: animation shows colour only — no text label.
+   ═══════════════════════════════════════════════════════════ */
+@keyframes flameColorShow {
+  0%   { opacity: 0; transform: scaleY(0.4) scaleX(0.7); }
+  25%  { opacity: 1; transform: scaleY(1.1) scaleX(1.05); }
+  75%  { opacity: 1; transform: scaleY(1)   scaleX(1); }
+  100% { opacity: 0; transform: scaleY(0.8) scaleX(0.9); }
+}
+@keyframes flamePulse {
+  0%   { opacity: 0.6; transform: scale(1);   }
+  45%  { opacity: 0.9; transform: scale(1.15) translateY(-3px); }
+  100% { opacity: 0;   transform: scale(0.7) translateY(-10px); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SPLINT TESTS
+   ═══════════════════════════════════════════════════════════ */
+
+/* Burning splint: squeaky pop on H₂ */
+@keyframes squeakyPop {
+  0%   { transform: scale(1);    opacity: 1;   filter: brightness(1); }
+  12%  { transform: scale(1.55); opacity: 1;   filter: brightness(5) drop-shadow(0 0 14px yellow); }
+  35%  { transform: scale(0.85); opacity: 0.6; filter: brightness(1.2); }
+  100% { transform: scale(1);    opacity: 0;   filter: brightness(1); }
+}
+
+/* Splint extinguished */
+@keyframes splintOut {
+  0%   { opacity: 1;   filter: brightness(1.4) sepia(0); }
+  50%  { opacity: 0.7; filter: brightness(0.7) sepia(0.4) grayscale(0.3); }
+  100% { opacity: 0.3; filter: brightness(0.4) sepia(0.8) grayscale(1); }
+}
+
+/* Glowing splint relights */
+@keyframes splintRelight {
+  0%   { opacity: 0.4; filter: brightness(0.5) grayscale(0.9); }
+  40%  { opacity: 1;   filter: brightness(4)   drop-shadow(0 0 12px orange); }
+  100% { opacity: 1;   filter: brightness(1.5) drop-shadow(0 0 5px orange); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LIMEWATER (anim_limewater_milky, anim_limewater_clear)
+   ═══════════════════════════════════════════════════════════ */
+@keyframes limewaterMilky {
+  0%   { background: rgba(200,220,255,0.12); }
+  40%  { background: rgba(235,235,235,0.62); }
+  100% { background: rgba(225,225,225,0.52); }
+}
+@keyframes limewaterClear {
+  0%   { opacity: 0.8; }
+  100% { opacity: 0.8; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LITMUS PAPER (anim_litmus_blue, anim_litmus_red, anim_litmus_unchanged)
+   ═══════════════════════════════════════════════════════════ */
+@keyframes litmusToBlue {
+  0%   { background: rgba(180,30,30,0.50); }
+  100% { background: rgba(25,70,220,0.50); }
+}
+@keyframes litmusToRed {
+  0%   { background: rgba(25,70,220,0.50); }
+  100% { background: rgba(180,30,30,0.50); }
+}
+@keyframes litmusUnchanged {
+  0%   { opacity: 0.9; }
+  50%  { opacity: 0.6; }
+  100% { opacity: 0.9; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UNIVERSAL INDICATOR (anim_indicator_colour)
+   ═══════════════════════════════════════════════════════════ */
+@keyframes indicatorColorReveal {
+  0%   { opacity: 0;   transform: scale(0.75); }
+  30%  { opacity: 1;   transform: scale(1.08); }
+  100% { opacity: 0.92; transform: scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ION / PPT DROP TESTS
+   (anim_ion_ppt_white, anim_ion_ppt_cream, anim_ion_ppt_yellow,
+    anim_drops_no_change)
+   ═══════════════════════════════════════════════════════════ */
+@keyframes dropsFall {
+  0%   { transform: translateY(-16px); opacity: 0;    }
+  25%  { opacity: 1; }
+  100% { transform: translateY(12px);  opacity: 0.15; }
+}
+@keyframes testPptForm {
+  0%   { opacity: 0; transform: scale(0); }
+  55%  { opacity: 1; transform: scale(1.25); }
+  100% { opacity: 0.90; transform: scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════════════════════ */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(8px); }
+}

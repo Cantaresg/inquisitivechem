@@ -1,0 +1,2458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TitrationLab — Virtual Titration Laboratory</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inconsolata:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0e1117;
+  --surface: #161b25;
+  --surface2: #1e2535;
+  --border: #2c3548;
+  --border2: #3d4f6a;
+  --text: #dde4f0;
+  --muted: #6b7a96;
+  --accent: #5cb8ff;
+  --accent2: #ff9f5c;
+  --accent3: #5cffb8;
+  --accent4: #d45cff;
+  --danger: #ff5c7a;
+  --warning: #ffd45c;
+  --positive: #5cffb8;
+  --shadow: rgba(0,0,0,0.5);
+
+  /* Liquid colours */
+  --liq-clear:    rgba(180,220,255,0.12);
+  --liq-naoh:     rgba(180,255,220,0.18);
+  --liq-hcl:     rgba(180,200,255,0.15);
+  --liq-h2so4:   rgba(255,220,180,0.15);
+  --liq-ethanoic: rgba(220,255,180,0.15);
+  --liq-nh3:     rgba(200,255,200,0.18);
+  --liq-na2co3:  rgba(200,220,255,0.15);
+  --ind-mo-acid:  #e85040;
+  --ind-mo-alk:   #f0c040;
+  --ind-pp-acid:  rgba(200,220,255,0.12);
+  --ind-pp-alk:   #e060c0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inconsolata', monospace;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(92,184,255,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(92,255,184,0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app { position: relative; z-index: 1; height: 100vh; display: flex; flex-direction: column; }
+
+/* ── HEADER ── */
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.logo {
+  font-family: 'Fraunces', serif;
+  font-size: 20px;
+  font-weight: 300;
+  letter-spacing: -0.5px;
+}
+.logo em { font-style: italic; color: var(--accent); }
+
+.stage-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 16px;
+}
+.stage-pip {
+  width: 28px; height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: all 0.3s;
+  cursor: pointer;
+  position: relative;
+}
+.stage-pip.done    { background: var(--accent3); }
+.stage-pip.active  { background: var(--accent); width: 40px; }
+.stage-pip.locked  { background: var(--border); cursor: not-allowed; }
+
+.stage-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 8px;
+}
+.stage-label span { color: var(--accent); }
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  transition: all 0.15s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { background: #3da0e8; }
+.btn.sm { padding: 4px 10px; font-size: 11px; }
+.btn.danger { border-color: var(--danger); color: var(--danger); }
+
+/* toggle */
+.toggle-wrap { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); cursor: pointer; }
+.toggle { width: 30px; height: 15px; background: var(--border); border-radius: 8px; position: relative; transition: background 0.2s; }
+.toggle.on { background: var(--accent3); }
+.toggle::after { content: ''; position: absolute; width: 11px; height: 11px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.toggle.on::after { left: 17px; }
+
+/* ── MAIN LAYOUT ── */
+.lab-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 220px 1fr 280px;
+  overflow: hidden;
+}
+
+/* ── LEFT: CHEMICALS ── */
+.left-panel {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-title {
+  padding: 12px 14px 8px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chem-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.chem-list::-webkit-scrollbar { width: 3px; }
+.chem-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+.chem-group-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 8px 3px;
+}
+
+.chem-item {
+  padding: 7px 10px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chem-item:hover { background: var(--surface2); border-color: var(--border); }
+.chem-item.selected { background: var(--surface2); border-color: var(--accent); }
+.chem-item.in-use { border-color: var(--accent3); }
+
+.chem-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.chem-formula { font-size: 12px; color: var(--text); }
+.chem-name { font-size: 10px; color: var(--muted); }
+.chem-conc { font-size: 10px; color: var(--accent2); margin-left: auto; }
+
+/* ── CENTRE: ANIMATION ── */
+.centre-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+  position: relative;
+}
+
+.stage-header {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.stage-title {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 300;
+}
+.stage-title em { font-style: italic; color: var(--accent); }
+.stage-instructions {
+  font-size: 11px;
+  color: var(--muted);
+  flex: 1;
+  line-height: 1.5;
+}
+
+.anim-area {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Grid lines in background */
+.anim-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(92,184,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92,184,255,0.03) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.stage-controls {
+  border-top: 1px solid var(--border);
+  padding: 12px 20px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  min-height: 56px;
+}
+
+/* ── RIGHT: LOG + RESULTS ── */
+.right-panel {
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.right-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.right-tab {
+  flex: 1;
+  padding: 9px 4px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  font-family: 'Inconsolata', monospace;
+  transition: all 0.15s;
+}
+.right-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.right-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+.right-content::-webkit-scrollbar { width: 3px; }
+.right-content::-webkit-scrollbar-thumb { background: var(--border); }
+.right-content.hidden { display: none; }
+
+/* Results table */
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 12px;
+}
+.results-table th {
+  text-align: left;
+  padding: 5px 6px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.results-table td {
+  padding: 6px 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.results-table td input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: 'Inconsolata', monospace;
+  font-size: 11px;
+  outline: none;
+  border-bottom: 1px solid var(--border2);
+}
+.results-table td input:focus { border-bottom-color: var(--accent); }
+.results-table tr.concordant td { color: var(--accent3); }
+.results-table tr.rough td { color: var(--muted); font-style: italic; }
+
+.concordant-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  margin-top: 6px;
+}
+.concordant-badge.ok  { background: rgba(92,255,184,0.1); color: var(--positive); border: 1px solid rgba(92,255,184,0.3); }
+.concordant-badge.no  { background: rgba(255,92,122,0.08); color: var(--danger);   border: 1px solid rgba(255,92,122,0.2); }
+
+/* Calculation area */
+.calc-area {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  font-size: 11px;
+}
+.calc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.calc-label { color: var(--muted); min-width: 110px; }
+.calc-val   { color: var(--accent2); font-weight: 600; }
+.calc-val.final { color: var(--accent3); font-size: 13px; }
+
+/* Log entries */
+.log-entry {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 7px 9px;
+  margin-bottom: 5px;
+  font-size: 10px;
+  background: var(--bg);
+  line-height: 1.5;
+}
+.log-entry .log-type { color: var(--accent); margin-bottom: 2px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; }
+.log-entry .log-text { color: var(--text); }
+.log-entry .log-time { color: var(--muted); font-size: 9px; margin-top: 2px; }
+.log-entry.warn .log-type { color: var(--warning); }
+.log-entry.error .log-type { color: var(--danger); }
+
+/* pH graph */
+#ph-graph-container {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  padding: 8px;
+  margin-bottom: 8px;
+}
+#ph-canvas { width: 100%; height: 160px; display: block; }
+
+/* ════════════════════════════════════════════
+   ANIMATION ELEMENTS
+   ════════════════════════════════════════════ */
+
+/* ── BALANCE ── */
+.balance-scene {
+  position: relative;
+  width: 340px;
+  user-select: none;
+}
+.balance-body {
+  width: 280px;
+  height: 120px;
+  background: linear-gradient(180deg, #2a3040 0%, #1e2535 100%);
+  border: 1.5px solid var(--border2);
+  border-radius: 8px;
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.balance-display {
+  background: #0a1a0a;
+  border: 1.5px solid #1a3a1a;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font-family: 'Inconsolata', monospace;
+  font-size: 28px;
+  font-weight: 600;
+  color: #40ff80;
+  letter-spacing: 2px;
+  min-width: 140px;
+  text-align: right;
+  text-shadow: 0 0 10px rgba(64,255,128,0.5);
+}
+.balance-pan {
+  width: 180px;
+  height: 12px;
+  background: linear-gradient(180deg, #8090b0 0%, #5060808 100%);
+  border-radius: 2px;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.balance-pan::before {
+  content: '';
+  position: absolute;
+  top: -40px; left: 50%;
+  transform: translateX(-50%);
+  width: 1.5px;
+  height: 40px;
+  background: var(--border2);
+}
+.weighing-boat {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 16px;
+  background: linear-gradient(180deg, #c0c8d8 0%, #8090a8 100%);
+  border-radius: 0 0 6px 6px;
+  border: 1px solid #707888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.solid-in-boat {
+  width: 0; height: 8px;
+  background: linear-gradient(180deg, #e0d8c0 0%, #c0b890 100%);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  max-width: 60px;
+}
+.balance-noise {
+  position: absolute;
+  top: 8px; right: 8px;
+  font-size: 9px;
+  color: var(--muted);
+  opacity: 0;
+}
+.balance-noise.show { opacity: 1; animation: flicker 0.1s infinite; }
+@keyframes flicker { 0%,100%{opacity:0.7} 50%{opacity:1} }
+
+/* ── VOLUMETRIC FLASK ── */
+.vol-flask-scene {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── PIPETTE ── */
+.pipette-scene {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── MAIN TITRATION SCENE ── */
+.titration-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 40px;
+  gap: 60px;
+}
+
+/* Burette */
+.burette-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.burette-clamp {
+  width: 60px;
+  height: 12px;
+  background: linear-gradient(90deg, #404858, #2a3040);
+  border-radius: 2px;
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+.burette-clamp::after {
+  content: '';
+  position: absolute;
+  top: -20px; left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 40px;
+  background: var(--border2);
+}
+.burette-tube {
+  width: 28px;
+  background: rgba(180,220,255,0.06);
+  border: 1.5px solid rgba(180,220,255,0.25);
+  border-radius: 3px 3px 0 0;
+  position: relative;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.burette-liquid {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  transition: height 0.3s ease;
+  border-radius: 2px 2px 0 0;
+}
+.burette-meniscus {
+  position: absolute;
+  left: 0; right: 0;
+  height: 6px;
+  border-radius: 50%;
+  filter: blur(1px);
+}
+.burette-markings {
+  position: absolute;
+  top: 0; right: -28px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.burette-mark {
+  font-size: 9px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.burette-mark::before {
+  content: '';
+  display: block;
+  width: 6px; height: 1px;
+  background: var(--muted);
+}
+.burette-tip {
+  width: 6px;
+  height: 40px;
+  background: rgba(180,220,255,0.2);
+  border: 1px solid rgba(180,220,255,0.2);
+  border-radius: 0 0 3px 3px;
+  position: relative;
+}
+.burette-tap {
+  width: 22px; height: 10px;
+  background: linear-gradient(90deg, #5070a0, #3a5080);
+  border-radius: 3px;
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: pointer;
+  transition: background 0.1s;
+  border: 1px solid var(--border2);
+}
+.burette-tap:hover { background: linear-gradient(90deg, #6080c0, #4a60a0); }
+.burette-tap.open  { background: linear-gradient(90deg, #5cffb8, #3cb890); }
+
+/* Funnel */
+.burette-funnel {
+  position: absolute;
+  top: -30px;
+  width: 36px;
+  height: 30px;
+}
+
+/* Drop animation */
+.drop {
+  position: absolute;
+  width: 6px; height: 8px;
+  border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+  animation: dropFall linear forwards;
+  pointer-events: none;
+  z-index: 10;
+}
+@keyframes dropFall {
+  0%   { transform: translateY(0) scaleY(1); opacity: 0.9; }
+  80%  { transform: translateY(var(--drop-dist)) scaleY(1); opacity: 0.9; }
+  100% { transform: translateY(var(--drop-dist)) scaleY(0.3); opacity: 0; }
+}
+
+/* Flask */
+.flask-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: grab;
+}
+.flask-wrap:active { cursor: grabbing; }
+.flask-wrap.swirling { animation: swirl 0.4s ease-in-out; }
+@keyframes swirl {
+  0%   { transform: rotate(0deg); }
+  25%  { transform: rotate(8deg); }
+  75%  { transform: rotate(-8deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.flask-svg { width: 120px; height: 160px; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.4)); }
+.tile { width: 160px; height: 12px; background: #f0f0f0; border-radius: 2px; margin-top: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+/* Ripple on drop landing */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid rgba(180,220,255,0.5);
+  animation: rippleOut 0.4s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes rippleOut {
+  from { width: 4px; height: 4px; opacity: 0.8; transform: translate(-50%,-50%); }
+  to   { width: 40px; height: 12px; opacity: 0; transform: translate(-50%,-50%); }
+}
+
+/* pH graph overlay on flask */
+.endpoint-glow {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  animation: endpointPulse 0.8s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes endpointPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(212,92,255,0.6); opacity: 1; }
+  100% { box-shadow: 0 0 0 40px rgba(212,92,255,0); opacity: 0; }
+}
+
+/* ── READING MODAL ── */
+.reading-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reading-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  width: 380px;
+  animation: popIn 0.2s ease-out;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.reading-box h3 {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 300;
+  margin-bottom: 4px;
+}
+
+/* Burette zoom for reading */
+.burette-zoom {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+}
+.zoom-liquid {
+  position: absolute;
+  left: 60px; right: 60px;
+  background: var(--liq-naoh);
+  border-radius: 2px 2px 0 0;
+  transition: all 0.3s;
+}
+.zoom-meniscus {
+  position: absolute;
+  left: 60px; right: 60px;
+  height: 10px;
+  border-radius: 0 0 50% 50%;
+  filter: blur(1px);
+}
+.zoom-scale {
+  position: absolute;
+  right: 8px;
+  top: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--muted);
+}
+.reading-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.reading-input {
+  width: 100px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: 'Inconsolata', monospace;
+  font-size: 16px;
+  padding: 6px 10px;
+  outline: none;
+  text-align: center;
+}
+.reading-input:focus { border-color: var(--accent); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 18px;
+  font-size: 12px;
+  color: var(--text);
+  z-index: 999;
+  animation: toastIn 0.2s ease-out;
+  pointer-events: none;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.toast.warn  { border-color: var(--warning); color: var(--warning); }
+.toast.error { border-color: var(--danger);  color: var(--danger); }
+.toast.ok    { border-color: var(--positive); color: var(--positive); }
+
+/* ── MISC ── */
+.hidden { display: none !important; }
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* pH graph colours */
+.ph-low    { color: #ff5c5c; }
+.ph-mid    { color: #ffd45c; }
+.ph-neut   { color: #5cff90; }
+.ph-high   { color: #5cb8ff; }
+
+/* Indicator preview dot */
+.ind-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+  box-shadow: 0 0 4px rgba(255,255,255,0.2);
+}
+
+/* Setup selector cards */
+.setup-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg);
+}
+.setup-card:hover { border-color: var(--accent); }
+.setup-card.selected { border-color: var(--accent); background: rgba(92,184,255,0.05); }
+.setup-card h4 { font-family: 'Fraunces', serif; font-size: 14px; font-weight: 400; margin-bottom: 4px; }
+.setup-card p  { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* concentration badge */
+.conc-badge {
+  display: inline-block;
+  background: rgba(255,159,92,0.12);
+  border: 1px solid rgba(255,159,92,0.3);
+  color: var(--accent2);
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 10px;
+  margin-left: 6px;
+}
+
+/* Overshooted flash */
+.overshoot-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255,92,122,0.15) 0%, transparent 70%);
+  pointer-events: none;
+  animation: flashFade 0.8s ease-out forwards;
+}
+@keyframes flashFade { from{opacity:1} to{opacity:0} }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<header>
+  <div class="logo"><em>Titration</em>Lab</div>
+
+  <div class="stage-nav" id="stage-nav"></div>
+  <div class="stage-label">Stage: <span id="stage-name-label">Setup</span></div>
+
+  <div class="header-right">
+    <label class="toggle-wrap" onclick="togglePHGraph()">
+      <div class="toggle" id="ph-toggle"></div>
+      pH graph
+    </label>
+    <button class="btn sm" onclick="resetLab()">Reset</button>
+    <button class="btn sm" onclick="downloadCSV()">Export CSV</button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="lab-body">
+
+  <!-- LEFT: Chemicals -->
+  <div class="left-panel">
+    <div class="panel-title">Chemicals</div>
+    <div class="chem-list" id="chem-list"></div>
+  </div>
+
+  <!-- CENTRE: Animation -->
+  <div class="centre-panel">
+    <div class="stage-header">
+      <div>
+        <div class="stage-title" id="stage-title">Select titration type</div>
+        <div class="stage-instructions" id="stage-instructions">Choose the chemicals you want to titrate below, then click Begin.</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="btn" id="prev-btn" onclick="prevStage()" style="display:none;">← Back</button>
+        <button class="btn primary" id="next-btn" onclick="nextStage()">Begin →</button>
+      </div>
+    </div>
+
+    <div class="anim-area" id="anim-area">
+      <!-- Stage content rendered here -->
+    </div>
+
+    <div class="stage-controls" id="stage-controls">
+      <!-- Contextual controls per stage -->
+    </div>
+  </div>
+
+  <!-- RIGHT: Log + Results -->
+  <div class="right-panel">
+    <div class="right-tabs">
+      <button class="right-tab active" onclick="switchRTab('results')">Results</button>
+      <button class="right-tab" onclick="switchRTab('log')">Log</button>
+      <button class="right-tab" onclick="switchRTab('calc')">Calculate</button>
+    </div>
+
+    <!-- Results -->
+    <div class="right-content" id="rtab-results">
+      <div id="ph-graph-container" class="hidden">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">pH vs Volume added</div>
+        <canvas id="ph-canvas" width="260" height="160"></canvas>
+      </div>
+
+      <table class="results-table" id="results-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Initial (mL)</th>
+            <th>Final (mL)</th>
+            <th>Titre (mL)</th>
+          </tr>
+        </thead>
+        <tbody id="results-body">
+          <tr><td colspan="4" style="color:var(--muted);font-size:11px;padding:12px 6px;">No titrations yet.</td></tr>
+        </tbody>
+      </table>
+      <div id="concordant-status"></div>
+    </div>
+
+    <!-- Log -->
+    <div class="right-content hidden" id="rtab-log">
+      <div id="action-log">
+        <div style="color:var(--muted);font-size:11px;text-align:center;margin-top:16px;">Actions will be logged here.</div>
+      </div>
+    </div>
+
+    <!-- Calculate -->
+    <div class="right-content hidden" id="rtab-calc">
+      <div id="calc-area">
+        <div style="color:var(--muted);font-size:11px;margin-bottom:10px;">Complete at least 2 concordant titrations to calculate.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reading Modal -->
+<div class="reading-modal hidden" id="reading-modal">
+  <div class="reading-box">
+    <h3 id="reading-title">Read the burette</h3>
+    <p style="font-size:11px;color:var(--muted);margin-top:4px;" id="reading-subtitle">Read the bottom of the meniscus to 2 decimal places.</p>
+    <div class="burette-zoom" id="reading-zoom"></div>
+    <div class="reading-input-row">
+      <input class="reading-input" type="number" id="reading-input" step="0.01" min="0" max="50" placeholder="0.00">
+      <span style="font-size:13px;color:var(--muted);">mL</span>
+      <span id="reading-hint" style="font-size:11px;color:var(--muted);"></span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn primary" style="flex:1;" onclick="submitReading()">Record Reading</button>
+    </div>
+    <div id="reading-feedback" style="font-size:11px;margin-top:8px;min-height:16px;"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// pH COMPUTATION ENGINE
+// ════════════════════════════════════════════
+const Ka = {
+  ethanoic: 1.8e-5,
+  oxalic1:  5.9e-2,
+  oxalic2:  6.4e-5,
+  carbonic1: 4.3e-7,
+  carbonic2: 4.7e-11,
+};
+const Kb = { nh3: 1.8e-5 };
+const Kw = 1.0e-14;
+
+// Strong acid + strong base
+function pH_SA_SB(nAcid, nBase, vol_L) {
+  const excess = nAcid - nBase;
+  if (Math.abs(excess) < 1e-12) return 7.0;
+  if (excess > 0) return -Math.log10(excess / vol_L);
+  return 14 + Math.log10(-excess / vol_L);
+}
+
+// Weak acid (HA) + strong base (NaOH)
+function pH_WA_SB(nAcid, nBase, vol_L, Ka_val) {
+  if (nBase <= 0) {
+    // Pure weak acid
+    const H = Math.sqrt(Ka_val * nAcid / vol_L);
+    return -Math.log10(H);
+  }
+  if (nBase >= nAcid) {
+    // Past equivalence — excess base + hydrolysis of A-
+    const excessBase = nBase - nAcid;
+    if (excessBase > 1e-10) return 14 + Math.log10(excessBase / vol_L);
+    // At equivalence — A- hydrolysis
+    const conc_A = nAcid / vol_L;
+    const OH = Math.sqrt(Kw / Ka_val * conc_A);
+    return 14 + Math.log10(OH);
+  }
+  // Buffer region — Henderson-Hasselbalch
+  const nSalt = nBase;
+  const nAcidLeft = nAcid - nBase;
+  return -Math.log10(Ka_val) + Math.log10(nSalt / nAcidLeft);
+}
+
+// Strong acid + weak base (NH3)
+function pH_SA_WB(nBase, nAcid, vol_L, Kb_val) {
+  if (nAcid <= 0) {
+    const OH = Math.sqrt(Kb_val * nBase / vol_L);
+    return 14 + Math.log10(OH);
+  }
+  if (nAcid >= nBase) {
+    const excess = nAcid - nBase;
+    if (excess > 1e-10) return -Math.log10(excess / vol_L);
+    // At equivalence — NH4+ hydrolysis
+    const Ka_nh4 = Kw / Kb_val;
+    const conc_NH4 = nBase / vol_L;
+    const H = Math.sqrt(Ka_nh4 * conc_NH4);
+    return -Math.log10(H);
+  }
+  // Buffer — using pKa of conjugate acid
+  const Ka_conj = Kw / Kb_val;
+  const nSalt = nAcid;
+  const nBaseLeft = nBase - nAcid;
+  return -Math.log10(Ka_conj) + Math.log10(nBaseLeft / nSalt);
+}
+
+// Na2CO3 + strong acid (two equivalence points)
+function pH_Na2CO3_SA(nCO3, nAcid, vol_L) {
+  const eq1 = nCO3;     // CO3 2- -> HCO3-
+  const eq2 = 2 * nCO3; // HCO3- -> H2CO3 -> CO2
+  if (nAcid <= 0) {
+    const conc = nCO3 / vol_L;
+    const OH = Math.sqrt(Kw / Ka.carbonic2 * conc);
+    return Math.min(14, 14 + Math.log10(OH));
+  }
+  if (nAcid < eq1) {
+    // Buffer CO3 2- / HCO3-
+    const nSalt = nAcid;
+    const nLeft = nCO3 - nAcid;
+    return -Math.log10(Ka.carbonic2) + Math.log10(nLeft / nSalt);
+  }
+  if (nAcid < eq2) {
+    // Buffer HCO3- / H2CO3
+    const nSalt = nAcid - eq1;
+    const nLeft = eq1 - (nAcid - eq1);
+    if (nLeft <= 0) return -Math.log10(Ka.carbonic1);
+    return -Math.log10(Ka.carbonic1) + Math.log10(nLeft / nSalt);
+  }
+  // Past eq2
+  const excess = nAcid - eq2;
+  if (excess < 1e-10) return 3.9; // CO2 saturation
+  return -Math.log10(excess / vol_L);
+}
+
+// Master pH calculator
+function computePH(titrant, analyte, volTitrant_mL, volAnalyte_mL, concTitrant, concAnalyte) {
+  const vT = volTitrant_mL / 1000;
+  const vA = volAnalyte_mL / 1000;
+  const vol = vT + vA;
+  const nT = concTitrant * vT;
+  const nA = concAnalyte * vA;
+
+  // Determine system type
+  const key = `${titrant.id}_${analyte.id}`;
+
+  // Strong acid + Strong base combos
+  const SA = ['hcl','h2so4_dil'];
+  const SB = ['naoh'];
+  const WA = ['ethanoic'];
+  const WB = ['nh3'];
+  const CB = ['na2co3'];
+
+  // Titrant in burette (T), analyte in flask (A)
+  if (SA.includes(titrant.id) && SB.includes(analyte.id)) {
+    return pH_SA_SB(nT, nA, vol);
+  }
+  if (SB.includes(titrant.id) && SA.includes(analyte.id)) {
+    return pH_SA_SB(nA, nT, vol);
+  }
+  if (SB.includes(titrant.id) && WA.includes(analyte.id)) {
+    return pH_WA_SB(nA, nT, vol, Ka.ethanoic);
+  }
+  if (WA.includes(analyte.id) && SB.includes(titrant.id)) {
+    return pH_WA_SB(nA, nT, vol, Ka.ethanoic);
+  }
+  if (SA.includes(titrant.id) && WB.includes(analyte.id)) {
+    return pH_SA_WB(nA, nT, vol, Kb.nh3);
+  }
+  if (WB.includes(analyte.id) && SA.includes(titrant.id)) {
+    return pH_SA_WB(nA, nT, vol, Kb.nh3);
+  }
+  if (SA.includes(titrant.id) && CB.includes(analyte.id)) {
+    return pH_Na2CO3_SA(nA, nT, vol);
+  }
+  if (CB.includes(analyte.id) && SA.includes(titrant.id)) {
+    return pH_Na2CO3_SA(nA, nT, vol);
+  }
+  if (SB.includes(titrant.id) && CB.includes(analyte.id)) {
+    // NaOH titrating Na2CO3 — unusual, treat as SB+SB ~ pH 12-13
+    return pH_SA_SB(0, nT + nA, vol);
+  }
+  // Default fallback
+  return pH_SA_SB(nT, nA, vol);
+}
+
+// ════════════════════════════════════════════
+// CHEMICAL DATABASE
+// ════════════════════════════════════════════
+const CHEMICALS = [
+  // Acids
+  { id:'hcl',       formula:'HCl',        name:'Hydrochloric acid',  type:'acid',   strong:true,  dot:'#5cb8ff', group:'Acids',   indicator_ok:['mo','smo','pp'] },
+  { id:'h2so4_dil', formula:'H₂SO₄',      name:'Sulfuric acid (dil)',type:'acid',   strong:true,  dot:'#ff9f5c', group:'Acids',   indicator_ok:['mo','smo','pp'] },
+  { id:'ethanoic',  formula:'CH₃COOH',    name:'Ethanoic acid',      type:'acid',   strong:false, dot:'#a0d060', group:'Acids',   indicator_ok:['pp'], Ka: Ka.ethanoic },
+  // Bases
+  { id:'naoh',      formula:'NaOH',       name:'Sodium hydroxide',   type:'base',   strong:true,  dot:'#5cffb8', group:'Bases',   indicator_ok:['mo','smo','pp'] },
+  { id:'na2co3',    formula:'Na₂CO₃',     name:'Sodium carbonate',   type:'base',   strong:false, dot:'#80c0f0', group:'Bases',   indicator_ok:['mo','smo'] },
+  { id:'nh3',       formula:'NH₃',        name:'Ammonia solution',   type:'base',   strong:false, dot:'#c0f080', group:'Bases',   indicator_ok:['mo','smo'], Kb: Kb.nh3 },
+];
+
+const INDICATORS = [
+  { id:'mo',  name:'Methyl orange',         acidCol:'#e85040', alkCol:'#f0c040', pKin:3.7, range:[3.1,4.4], desc:'Red (acid) → Yellow (alkali). Use for strong acid/carbonate.' },
+  { id:'smo', name:'Screened methyl orange', acidCol:'#8050a0', alkCol:'#4a8040', pKin:3.7, range:[3.1,4.4], desc:'Purple (acid) → Green (alkali). Sharper endpoint.' },
+  { id:'pp',  name:'Phenolphthalein',        acidCol:'rgba(180,200,255,0.12)', alkCol:'#e060c0', pKin:9.1, range:[8.2,10.0], desc:'Colourless (acid) → Pink (alkali). Use for weak acid/strong base.' },
+];
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let state = {
+  // Setup
+  level: 'jc',          // 'jc' | 'o_level'
+  titrant: null,         // chemical in burette
+  analyte: null,         // chemical in flask
+  indicator: null,
+  concTitrant: 0,        // mol/dm3
+  concAnalyte: 0,
+  concAnalyteTrue: 0,    // hidden true value for open lab
+  volAnalyte: 25.0,      // mL pipetted
+  isOpenLab: false,
+  concKnownRange: null,
+
+  // Standard solution prep
+  targetMass: 0,
+  actualMass: 0,
+  standardMade: false,
+  standardVolume: 250,   // mL volumetric flask
+
+  // Burette
+  buretteVolume: 50.0,   // mL
+  buretteLevel: 50.0,    // mL remaining (top = full)
+  buretteInitial: 0.0,   // reading at start of run
+  buretteFinal: 0.0,
+  funnelPresent: true,   // forgotten funnel?
+  bubblePresent: false,
+
+  // Titration run
+  currentRun: 0,         // 0=rough, 1,2,3...=accurate
+  runs: [],              // [{initial, final, titre, rough}]
+  volAdded: 0,           // mL added this run
+  currentPH: 7,
+  phData: [],            // [{vol, pH}]
+  endpointReached: false,
+  overshot: false,
+  isDropping: false,
+  dropInterval: null,
+  dropRate: 'drop',      // 'drop' | 'slow' | 'fast'
+  isSwirling: false,
+  swirls: 0,             // swirls since last drop
+  dropsWithoutSwirl: 0,
+  falseEndpointShown: false,
+  flaskLiquidCol: '',
+  phGraphVisible: false,
+  lastDropVol: 0,
+
+  // Stage
+  stage: 0,
+  // 0 = setup, 1 = standard prep (JC), 2 = pipette, 3 = fill burette, 4 = titrate, 5 = results
+
+  // Log
+  actionLog: [],
+};
+
+// ════════════════════════════════════════════
+// STAGE DEFINITIONS
+// ════════════════════════════════════════════
+function getStages() {
+  const base = [
+    { id:'setup',     label:'Setup',          jcOnly: false },
+    { id:'standard',  label:'Std. Solution',  jcOnly: true  },
+    { id:'pipette',   label:'Pipette',         jcOnly: false },
+    { id:'burette',   label:'Burette',         jcOnly: false },
+    { id:'titrate',   label:'Titrate',         jcOnly: false },
+    { id:'results',   label:'Results',         jcOnly: false },
+  ];
+  return base.filter(s => !s.jcOnly || state.level === 'jc');
+}
+
+function currentStageId() {
+  return getStages()[state.stage]?.id;
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+function init() {
+  renderChemList();
+  renderStageNav();
+  renderStage();
+}
+
+// ════════════════════════════════════════════
+// CHEMICAL LIST
+// ════════════════════════════════════════════
+function renderChemList() {
+  const el = document.getElementById('chem-list');
+  const groups = {};
+  CHEMICALS.forEach(c => {
+    if (!groups[c.group]) groups[c.group] = [];
+    groups[c.group].push(c);
+  });
+  el.innerHTML = Object.entries(groups).map(([g, chems]) => `
+    <div class="chem-group-label">${g}</div>
+    ${chems.map(c => `
+      <div class="chem-item ${state.titrant?.id===c.id||state.analyte?.id===c.id?'in-use':''}"
+           onclick="selectChem('${c.id}')" id="chem-${c.id}">
+        <div class="chem-dot" style="background:${c.dot}"></div>
+        <div>
+          <div class="chem-formula">${c.formula}</div>
+          <div class="chem-name">${c.name}</div>
+        </div>
+        ${state.concTitrant&&state.titrant?.id===c.id ? `<span class="conc-badge">${state.concTitrant.toFixed(2)}M</span>` : ''}
+        ${state.concAnalyte&&state.analyte?.id===c.id ? `<span class="conc-badge">${state.isOpenLab?state.concKnownRange:state.concAnalyte.toFixed(2)+'M'}</span>` : ''}
+      </div>`).join('')}
+  `).join('');
+}
+
+// ════════════════════════════════════════════
+// STAGE NAVIGATION
+// ════════════════════════════════════════════
+function renderStageNav() {
+  const stages = getStages();
+  const nav = document.getElementById('stage-nav');
+  nav.innerHTML = stages.map((s,i) => `
+    <div class="stage-pip ${i<state.stage?'done':i===state.stage?'active':'locked'}"
+         title="${s.label}" onclick="jumpStage(${i})"></div>
+  `).join('');
+  document.getElementById('stage-name-label').textContent = stages[state.stage]?.label || '';
+}
+
+function jumpStage(i) {
+  if (i > state.stage) return; // can't skip forward
+  state.stage = i;
+  renderStageNav();
+  renderStage();
+}
+
+function nextStage() {
+  const stages = getStages();
+  if (state.stage < stages.length - 1) {
+    if (!validateStage()) return;
+    state.stage++;
+    renderStageNav();
+    renderStage();
+  }
+}
+
+function prevStage() {
+  if (state.stage > 0) {
+    state.stage--;
+    renderStageNav();
+    renderStage();
+  }
+}
+
+function validateStage() {
+  const id = currentStageId();
+  if (id === 'setup') {
+    if (!state.titrant || !state.analyte) { toast('Select both a titrant and analyte.', 'warn'); return false; }
+    if (!state.indicator) { toast('Select an indicator.', 'warn'); return false; }
+    if (state.titrant.id === state.analyte.id) { toast('Titrant and analyte must be different.', 'warn'); return false; }
+    return true;
+  }
+  if (id === 'standard') {
+    if (!state.standardMade) { toast('Complete standard solution preparation first.', 'warn'); return false; }
+    return true;
+  }
+  if (id === 'pipette') {
+    return true;
+  }
+  if (id === 'burette') {
+    return true;
+  }
+  return true;
+}
+
+// ════════════════════════════════════════════
+// STAGE RENDERER
+// ════════════════════════════════════════════
+function renderStage() {
+  const id = currentStageId();
+  const area = document.getElementById('anim-area');
+  const controls = document.getElementById('stage-controls');
+  const title = document.getElementById('stage-title');
+  const instr = document.getElementById('stage-instructions');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+
+  prevBtn.style.display = state.stage > 0 ? '' : 'none';
+  nextBtn.style.display = id === 'titrate' || id === 'results' ? 'none' : '';
+  nextBtn.textContent = id === 'burette' ? 'Start Titrating →' : 'Next →';
+
+  if (id === 'setup')    renderSetupStage(area, controls, title, instr);
+  if (id === 'standard') renderStandardStage(area, controls, title, instr);
+  if (id === 'pipette')  renderPipetteStage(area, controls, title, instr);
+  if (id === 'burette')  renderBuretteStage(area, controls, title, instr);
+  if (id === 'titrate')  renderTitrateStage(area, controls, title, instr);
+  if (id === 'results')  renderResultsStage(area, controls, title, instr);
+}
+
+// ════════════════════════════════════════════
+// STAGE 0: SETUP
+// ════════════════════════════════════════════
+function renderSetupStage(area, controls, title, instr) {
+  title.innerHTML = '<em>Titration</em> Setup';
+  instr.textContent = 'Select your titrant (burette) and analyte (flask), then choose an indicator.';
+
+  area.innerHTML = `
+    <div style="width:100%;max-width:620px;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <!-- Titrant -->
+      <div>
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">In Burette (Titrant)</div>
+        ${CHEMICALS.map(c => `
+          <div class="setup-card ${state.titrant?.id===c.id?'selected':''}" onclick="setTitrant('${c.id}')">
+            <h4><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.dot};margin-right:6px;"></span>${c.formula}</h4>
+            <p>${c.name} · ${c.strong?'Strong':'Weak'} ${c.type}</p>
+          </div>`).join('')}
+      </div>
+
+      <!-- Analyte + indicator -->
+      <div>
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">In Flask (Analyte)</div>
+        ${CHEMICALS.map(c => `
+          <div class="setup-card ${state.analyte?.id===c.id?'selected':''}" onclick="setAnalyte('${c.id}')">
+            <h4><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.dot};margin-right:6px;"></span>${c.formula}</h4>
+            <p>${c.name} · ${c.strong?'Strong':'Weak'} ${c.type}</p>
+          </div>`).join('')}
+
+        <div style="margin-top:16px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Indicator</div>
+        ${INDICATORS.map(ind => `
+          <div class="setup-card ${state.indicator?.id===ind.id?'selected':''}" onclick="setIndicator('${ind.id}')">
+            <h4>
+              <span class="ind-dot" style="background:${ind.alkCol}"></span>${ind.name}
+            </h4>
+            <p>${ind.desc}</p>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  controls.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;width:100%;">
+      <label style="font-size:11px;color:var(--muted);">Level:</label>
+      <select onchange="setLevel(this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Inconsolata',monospace;font-size:12px;padding:4px 8px;border-radius:4px;outline:none;">
+        <option value="jc" ${state.level==='jc'?'selected':''}>JC / IB (Full)</option>
+        <option value="o_level" ${state.level==='o_level'?'selected':''}>O-Level / IGCSE</option>
+      </select>
+      <label style="font-size:11px;color:var(--muted);margin-left:12px;">
+        <input type="checkbox" ${state.isOpenLab?'checked':''} onchange="toggleOpenLab(this.checked)" style="accent-color:var(--accent);margin-right:4px;">
+        Open Lab (randomise analyte concentration)
+      </label>
+      <div style="margin-left:auto;font-size:11px;color:var(--muted);" id="setup-validity"></div>
+    </div>`;
+
+  updateSetupValidity();
+}
+
+function setTitrant(id) {
+  state.titrant = CHEMICALS.find(c => c.id === id);
+  // Assign concentration
+  state.concTitrant = +(Math.random() * 0.15 + 0.05).toFixed(2); // 0.05–0.20 M for open, or standard
+  if (!state.isOpenLab) state.concTitrant = 0.10; // standard concentration
+  renderSetupStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+  renderChemList();
+  updateSetupValidity();
+}
+
+function setAnalyte(id) {
+  state.analyte = CHEMICALS.find(c => c.id === id);
+  if (state.isOpenLab) {
+    state.concAnalyteTrue = +(Math.random() * 0.12 + 0.04).toFixed(3);
+    state.concKnownRange = '0.04 – 0.16 M';
+    state.concAnalyte = state.concAnalyteTrue;
+  } else {
+    state.concAnalyte = 0.10;
+    state.concAnalyteTrue = 0.10;
+  }
+  renderSetupStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+  renderChemList();
+  updateSetupValidity();
+}
+
+function setIndicator(id) {
+  state.indicator = INDICATORS.find(i => i.id === id);
+  renderSetupStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+  updateSetupValidity();
+}
+
+function setLevel(v) {
+  state.level = v;
+  renderStageNav();
+}
+
+function toggleOpenLab(v) {
+  state.isOpenLab = v;
+  if (v && state.analyte) {
+    state.concAnalyteTrue = +(Math.random() * 0.12 + 0.04).toFixed(3);
+    state.concKnownRange = '0.04 – 0.16 M';
+    state.concAnalyte = state.concAnalyteTrue;
+  }
+}
+
+function updateSetupValidity() {
+  const el = document.getElementById('setup-validity');
+  if (!el) return;
+  if (!state.titrant) { el.textContent = 'Select titrant'; return; }
+  if (!state.analyte) { el.textContent = 'Select analyte'; return; }
+  if (!state.indicator) { el.textContent = 'Select indicator'; return; }
+  if (state.titrant.id === state.analyte.id) { el.style.color='var(--danger)'; el.textContent = 'Titrant ≠ analyte'; return; }
+  el.style.color = 'var(--accent3)';
+  el.textContent = '✓ Ready';
+}
+
+function selectChem(id) { /* handled by setTitrant/setAnalyte in setup */ }
+
+// ════════════════════════════════════════════
+// STAGE 1: STANDARD SOLUTION PREP (JC only)
+// ════════════════════════════════════════════
+function renderStandardStage(area, controls, title, instr) {
+  title.innerHTML = '<em>Standard</em> Solution';
+  instr.textContent = 'Prepare a standard solution. Weigh the solid accurately using the electronic balance.';
+
+  const isBase = state.analyte?.type === 'base';
+  const solidName = isBase ? state.analyte?.formula : state.titrant?.formula;
+  const Mw = getMolarMass(isBase ? state.analyte?.id : state.titrant?.id);
+  const targetConc = isBase ? state.concAnalyte : state.concTitrant;
+  state.targetMass = +(targetConc * state.standardVolume / 1000 * Mw).toFixed(3);
+  if (!state.actualMass) state.actualMass = 0;
+
+  const massDisplayed = state.actualMass.toFixed(4);
+  const fillPct = Math.min(state.actualMass / state.targetMass, 1.2);
+
+  area.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:24px;padding:24px;">
+
+      <!-- Balance -->
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Electronic Balance — Target: ~${state.targetMass}g of ${solidName}</div>
+        <div class="balance-body" style="width:280px;height:100px;">
+          <div class="balance-display" id="balance-display">${massDisplayed}</div>
+        </div>
+        <div style="position:relative;width:280px;margin:0 auto;">
+          <div style="width:180px;height:10px;background:linear-gradient(180deg,#8090b0,#506080);border-radius:2px;margin:0 auto;box-shadow:0 4px 12px rgba(0,0,0,0.4);">
+            <div style="position:absolute;top:-26px;left:50%;transform:translateX(-50%);width:90px;height:24px;background:linear-gradient(180deg,#c0c8d8,#8090a8);border-radius:0 0 6px 6px;border:1px solid #707888;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+              <div id="solid-in-boat" style="width:${Math.min(fillPct*60,60)}px;height:8px;background:linear-gradient(180deg,#e0d8c0,#c0b890);border-radius:2px;transition:width 0.3s;"></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;">
+          <button class="btn" onclick="addSolid('small')" ${state.standardMade?'disabled':''}>+ Small scoop</button>
+          <button class="btn" onclick="addSolid('large')" ${state.standardMade?'disabled':''}>+ Large scoop</button>
+          <button class="btn danger" onclick="resetBalance()" ${state.standardMade?'disabled':''}>Restart</button>
+        </div>
+        ${state.actualMass > state.targetMass * 1.15 ?
+          '<div style="color:var(--danger);font-size:11px;margin-top:8px;">⚠ Overshot! Dispose and restart — you cannot remove solid from a weighing boat.</div>' : ''}
+        ${state.actualMass >= state.targetMass * 0.95 && state.actualMass <= state.targetMass * 1.15 ?
+          '<div style="color:var(--accent3);font-size:11px;margin-top:8px;">✓ Acceptable mass. Proceed to dissolve.</div>' : ''}
+      </div>
+
+      <!-- Transfer steps -->
+      <div style="display:flex;gap:16px;align-items:flex-end;">
+        ${renderVolFlaskSVG(state.standardStep >= 1, state.standardStep >= 2)}
+        <div style="font-size:11px;color:var(--muted);max-width:200px;line-height:1.7;">
+          ${state.standardStep === 0 ? '① Weigh the solid accurately.' : ''}
+          ${state.standardStep === 1 ? '② Transfer quantitatively to a beaker. Rinse weighing boat 3×.' : ''}
+          ${state.standardStep === 2 ? '③ Dissolve in ~100mL distilled water. Stir.' : ''}
+          ${state.standardStep === 3 ? '④ Transfer to ${state.standardVolume}mL volumetric flask. Rinse beaker 3×.' : ''}
+          ${state.standardStep === 4 ? '⑤ Make up to the mark with distilled water. Stopper and invert 10×.' : ''}
+          ${state.standardStep >= 5 ? '✓ Standard solution complete! Concentration = <strong>${state.concTitrant.toFixed(4)} mol/dm³</strong>' : ''}
+        </div>
+      </div>
+    </div>`;
+
+  const canProceed = state.actualMass >= state.targetMass * 0.95 && state.actualMass <= state.targetMass * 1.15 && !state.standardMade;
+  controls.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;width:100%;">
+      ${!state.standardMade && state.actualMass >= state.targetMass * 0.95 && state.actualMass <= state.targetMass * 1.15 ?
+        `<button class="btn primary" onclick="advanceStandardStep()">Next step →</button>` : ''}
+      ${state.standardMade ? '<div style="color:var(--accent3);font-size:12px;">✓ Standard solution prepared. Proceed to pipetting.</div>' : ''}
+      <div style="margin-left:auto;font-size:11px;color:var(--muted);">
+        Actual mass: <span style="color:var(--accent2);">${state.actualMass.toFixed(4)}g</span>
+        &nbsp;|&nbsp; Target: ~${state.targetMass}g
+      </div>
+    </div>`;
+}
+
+function getMolarMass(id) {
+  const Mw = { hcl:36.46, h2so4_dil:98.08, ethanoic:60.05, naoh:40.00, na2co3:105.99, nh3:17.03 };
+  return Mw[id] || 58.44;
+}
+
+function renderVolFlaskSVG(hasSolution, atMark) {
+  const liqH = hasSolution ? (atMark ? 140 : 80) : 0;
+  return `<svg width="80" height="200" viewBox="0 0 80 200">
+    <path d="M35,10 L35,100 L8,170 Q4,185 12,188 L68,188 Q76,185 72,170 L45,100 L45,10 Z"
+      fill="rgba(180,220,255,0.06)" stroke="rgba(180,220,255,0.35)" stroke-width="1.5"/>
+    ${hasSolution ? `
+    <clipPath id="vfc"><path d="M35,10 L35,100 L8,170 Q4,185 12,188 L68,188 Q76,185 72,170 L45,100 L45,10 Z"/></clipPath>
+    <rect x="0" y="${190-liqH}" width="80" height="${liqH}" clip-path="url(#vfc)" fill="rgba(92,255,184,0.25)"/>` : ''}
+    ${atMark ? `<line x1="28" y1="78" x2="52" y2="78" stroke="var(--accent)" stroke-width="1.5"/>` : ''}
+    <rect x="33" y="2" width="14" height="12" rx="2" fill="rgba(180,220,255,0.06)" stroke="rgba(180,220,255,0.3)" stroke-width="1.5"/>
+    <text x="40" y="195" text-anchor="middle" font-size="8" fill="var(--muted)">${state.standardVolume}mL</text>
+  </svg>`;
+}
+
+let standardStep = 0;
+function advanceStandardStep() {
+  if (!state.standardStep) state.standardStep = 0;
+  state.standardStep++;
+  if (state.standardStep >= 5) {
+    state.standardMade = true;
+    logAction('Standard solution prepared', `Mass used: ${state.actualMass.toFixed(4)}g — Concentration: ${state.concTitrant.toFixed(4)} mol/dm³`);
+  }
+  renderStandardStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+}
+
+function addSolid(size) {
+  if (state.standardMade) return;
+  if (state.actualMass > state.targetMass * 1.15) return;
+  // Noise on balance + random scoop size
+  const base = size === 'large' ? 0.08 : 0.015;
+  const noise = (Math.random() - 0.5) * base * 0.3;
+  const added = Math.max(0, base + noise);
+  state.actualMass += added;
+  state.standardStep = 0; // Reset to step 1
+
+  // Animate balance noise
+  const disp = document.getElementById('balance-display');
+  if (disp) {
+    let flickers = 0;
+    const flicker = setInterval(() => {
+      const noise = (Math.random()-0.5) * 0.0008;
+      disp.textContent = (state.actualMass + noise).toFixed(4);
+      if (++flickers > 8) { clearInterval(flicker); disp.textContent = state.actualMass.toFixed(4); }
+    }, 60);
+  }
+  const boat = document.getElementById('solid-in-boat');
+  if (boat) { const pct = Math.min(state.actualMass / state.targetMass * 60, 60); boat.style.width = pct + 'px'; }
+
+  renderStandardStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+}
+
+function resetBalance() {
+  state.actualMass = 0;
+  state.standardStep = 0;
+  state.standardMade = false;
+  renderStandardStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+}
+
+// ════════════════════════════════════════════
+// STAGE 2: PIPETTE
+// ════════════════════════════════════════════
+function renderPipetteStage(area, controls, title, instr) {
+  title.innerHTML = '<em>Pipette</em> the Analyte';
+  instr.textContent = `Use a 25.00 mL pipette to transfer ${state.analyte?.formula || 'analyte'} into a conical flask. Add ${state.indicator?.name || 'indicator'}.`;
+
+  const liqCol = getChemColour(state.analyte?.id);
+  const indCol = state.indicator?.acidCol || 'rgba(180,220,255,0.12)';
+
+  area.innerHTML = `
+    <div style="display:flex;align-items:flex-end;justify-content:center;gap:40px;padding:30px;height:100%;">
+
+      <!-- Pipette -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <svg width="30" height="280" viewBox="0 0 30 280">
+          <!-- Bulb -->
+          <ellipse cx="15" cy="80" rx="14" ry="50" fill="rgba(180,220,255,0.06)" stroke="rgba(180,220,255,0.3)" stroke-width="1.5"/>
+          <!-- Liquid in bulb -->
+          <ellipse cx="15" cy="95" rx="12" ry="33" fill="${liqCol}" opacity="0.8"/>
+          <!-- Graduation mark -->
+          <line x1="4" y1="50" x2="26" y2="50" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="28" y="54" font-size="7" fill="var(--accent)">25.00</text>
+          <!-- Stem top -->
+          <rect x="13" y="10" width="4" height="42" fill="rgba(180,220,255,0.12)" stroke="rgba(180,220,255,0.25)" stroke-width="1"/>
+          <!-- Stem bottom -->
+          <rect x="13" y="130" width="4" height="130" fill="rgba(180,220,255,0.12)" stroke="rgba(180,220,255,0.25)" stroke-width="1"/>
+          <!-- Tip -->
+          <path d="M13,260 L15,275 L17,260Z" fill="rgba(180,220,255,0.3)"/>
+        </svg>
+        <div style="font-size:10px;color:var(--muted);">25.00mL pipette</div>
+      </div>
+
+      <!-- Flask -->
+      <div id="pip-flask-wrap" style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+        ${renderFlaskSVG(state.pipetteStep >= 1 ? liqCol : 'transparent', state.pipetteStep >= 2 ? indCol : null, 'pip')}
+        <div class="tile"></div>
+        <div style="font-size:10px;color:var(--muted);">conical flask</div>
+      </div>
+
+    </div>`;
+
+  controls.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;">
+      ${state.pipetteStep < 1 ? `<button class="btn primary" onclick="doPipette()">🧪 Pipette into flask</button>` : ''}
+      ${state.pipetteStep === 1 ? `<button class="btn primary" onclick="addIndicatorDrops()">💧 Add indicator (${state.indicator?.name})</button>` : ''}
+      ${state.pipetteStep >= 2 ? `
+        <div style="color:var(--accent3);font-size:12px;">✓ Flask ready — 25.00mL ${state.analyte?.formula} + ${state.indicator?.name}</div>
+        <button class="btn primary" style="margin-left:auto;" onclick="nextStage()">Proceed to burette →</button>` : ''}
+    </div>`;
+}
+
+let pipetteStep = 0;
+function doPipette() {
+  state.pipetteStep = 1;
+  logAction('Pipette', `25.00 mL of ${state.analyte?.formula} (${state.isOpenLab ? state.concKnownRange : state.concAnalyte.toFixed(2)+'M'}) transferred to flask`);
+  renderPipetteStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+}
+
+function addIndicatorDrops() {
+  state.pipetteStep = 2;
+  logAction('Indicator', `3 drops of ${state.indicator?.name} added`);
+  // Initialise flask colour
+  state.flaskLiquidCol = state.indicator?.acidCol || 'rgba(180,220,255,0.12)';
+  renderPipetteStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+}
+
+// ════════════════════════════════════════════
+// STAGE 3: FILL BURETTE
+// ════════════════════════════════════════════
+function renderBuretteStage(area, controls, title, instr) {
+  title.innerHTML = 'Fill the <em>Burette</em>';
+  instr.textContent = 'Fill the burette with titrant. Remove the funnel. Run off below the tap to expel any air bubble. Record the initial reading.';
+
+  const liqCol = getChemColour(state.titrant?.id);
+  const fillPct = (state.buretteLevel / 50) * 100;
+
+  area.innerHTML = `
+    <div style="display:flex;align-items:flex-end;justify-content:center;gap:40px;padding:30px;height:100%;">
+
+      <!-- Burette setup -->
+      <div style="display:flex;flex-direction:column;align-items:center;position:relative;">
+        <!-- Funnel -->
+        ${state.funnelPresent ? `
+        <div id="burette-funnel-el" style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);">
+          <svg width="50" height="40" viewBox="0 0 50 40">
+            <path d="M5,5 L45,5 L30,35 L20,35 Z" fill="rgba(180,220,255,0.12)" stroke="rgba(180,220,255,0.35)" stroke-width="1.5"/>
+          </svg>
+        </div>` : ''}
+
+        <!-- Burette tube -->
+        <div style="position:relative;margin-top:30px;">
+          ${renderBuretteSVG(liqCol, fillPct)}
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">50mL burette</div>
+
+        ${state.bubblePresent ? '<div style="position:absolute;bottom:60px;font-size:10px;color:var(--warning);">⚠ Air bubble in tip</div>' : ''}
+      </div>
+
+      <!-- Instructions panel -->
+      <div style="max-width:220px;font-size:11px;color:var(--muted);line-height:2;">
+        ${[
+          { done: state.buretteLevel > 0,        text: '① Pour titrant into burette via funnel' },
+          { done: !state.funnelPresent,           text: '② Remove funnel before titrating' },
+          { done: state.buretteStep >= 2,         text: '③ Run off ~5mL below tap — expel air bubble' },
+          { done: state.buretteReadingRecorded,   text: '④ Record initial burette reading' },
+        ].map(s => `<div style="color:${s.done?'var(--accent3)':'var(--muted)'};">${s.done?'✓':'○'} ${s.text}</div>`).join('')}
+      </div>
+    </div>`;
+
+  controls.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      ${state.buretteLevel === 0 ? `<button class="btn primary" onclick="fillBurette()">Fill burette</button>` : ''}
+      ${state.buretteLevel > 0 && state.funnelPresent ? `<button class="btn" onclick="removeFunnel()">Remove funnel</button>` : ''}
+      ${state.buretteLevel > 0 && !state.funnelPresent && !state.buretteStep ? `<button class="btn" onclick="runOffBubble()">Run off air bubble (→ waste)</button>` : ''}
+      ${state.buretteStep >= 2 && !state.buretteReadingRecorded ? `<button class="btn primary" onclick="openReadingModal('initial')">📏 Read initial burette</button>` : ''}
+      ${state.buretteReadingRecorded ? `<div style="color:var(--accent3);font-size:12px;">✓ Initial reading: ${state.buretteInitial.toFixed(2)} mL</div>` : ''}
+      <div style="margin-left:auto;font-size:11px;color:var(--muted);">Level: ${state.buretteLevel.toFixed(2)} mL remaining</div>
+    </div>`;
+}
+
+function fillBurette() {
+  state.buretteLevel = 50.0;
+  state.buretteStep = 0;
+  state.funnelPresent = true;
+  state.bubblePresent = Math.random() < 0.6; // 60% chance of bubble
+  logAction('Burette filled', `${state.titrant?.formula} added to burette`);
+  renderBuretteStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+}
+
+function removeFunnel() {
+  state.funnelPresent = false;
+  logAction('Funnel removed', 'Funnel removed from burette top');
+  renderBuretteStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+}
+
+function runOffBubble() {
+  if (state.bubblePresent) {
+    state.bubblePresent = false;
+    logAction('Air bubble expelled', '~3mL run off to waste to remove air bubble');
+    state.buretteLevel -= 3 + Math.random() * 1;
+    state.buretteLevel = Math.max(0, state.buretteLevel);
+  }
+  state.buretteStep = 2;
+  renderBuretteStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+}
+
+// ════════════════════════════════════════════
+// STAGE 4: TITRATE (main stage)
+// ════════════════════════════════════════════
+function renderTitrateStage(area, controls, title, instr) {
+  title.innerHTML = `<em>Titrate</em> — Run ${state.currentRun === 0 ? '0 (Rough)' : state.currentRun}`;
+  instr.textContent = state.currentRun === 0
+    ? 'Rough titration: add titrant quickly to get an approximate endpoint. You can add a stream here.'
+    : 'Accurate titration: add dropwise near the endpoint. Swirl the flask between additions.';
+
+  const liqCol = getChemColour(state.analyte?.id);
+  const fillPct = Math.max(0, (state.buretteLevel / 50) * 100);
+
+  area.innerHTML = `
+    <div class="titration-scene" id="titration-scene">
+
+      <!-- Burette side -->
+      <div class="burette-wrap" id="burette-wrap" style="height:${Math.min(window.innerHeight*0.65, 500)}px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;">
+        ${state.funnelPresent ? `<div style="position:absolute;top:0;"><svg width="50" height="40" viewBox="0 0 50 40"><path d="M5,5 L45,5 L30,35 L20,35 Z" fill="rgba(180,220,255,0.08)" stroke="rgba(180,220,255,0.3)" stroke-width="1.5"/></svg></div>` : ''}
+        <div style="position:relative;flex:1;display:flex;flex-direction:column;align-items:center;">
+          <div style="position:absolute;top:0;width:3px;height:100%;background:var(--border2);border-radius:2px;"></div>
+          <div style="position:absolute;top:20px;" class="burette-clamp" style="left:50%;transform:translateX(-50%);"></div>
+          ${renderBuretteSVG(getChemColour(state.titrant?.id), fillPct)}
+        </div>
+        <div id="burette-reading" style="font-size:10px;color:var(--accent2);margin-top:4px;">
+          ${state.buretteInitial.toFixed(2)} → ${(state.buretteInitial + state.volAdded).toFixed(2)} mL
+        </div>
+      </div>
+
+      <!-- Flask side -->
+      <div class="flask-wrap" id="flask-wrap" title="Drag in circles to swirl">
+        <div id="endpoint-indicator"></div>
+        ${renderFlaskSVG(state.flaskLiquidCol, null, 'tit', true)}
+        <div class="tile"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Click to swirl · ${state.volAnalyte.toFixed(2)}mL analyte</div>
+      </div>
+
+    </div>
+
+    <!-- Drop animation container -->
+    <div id="drop-container" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
+    `;
+
+  // Flask swirl handler
+  setupFlaskSwirl();
+
+  controls.innerHTML = buildTitrateControls();
+}
+
+function buildTitrateControls() {
+  const vol = state.volAdded.toFixed(2);
+  const ph = state.currentPH.toFixed(2);
+  const runLabel = state.currentRun === 0 ? 'Rough' : `Run ${state.currentRun}`;
+  return `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;">
+      <!-- Drop controls -->
+      <button class="btn primary" id="btn-drop" onmousedown="startDrop('drop')" onmouseup="stopDrop()" ontouchstart="startDrop('drop')" ontouchend="stopDrop()">
+        + 1 Drop
+      </button>
+      <button class="btn" id="btn-slow" onmousedown="startDrop('slow')" onmouseup="stopDrop()" ontouchstart="startDrop('slow')" ontouchend="stopDrop()">
+        Slow stream
+      </button>
+      ${state.currentRun === 0 ? `
+      <button class="btn" id="btn-fast" onmousedown="startDrop('fast')" onmouseup="stopDrop()" ontouchstart="startDrop('fast')" ontouchend="stopDrop()">
+        Fast stream
+      </button>` : ''}
+      <button class="btn" id="btn-swirl" onclick="doSwirl()">🔄 Swirl</button>
+
+      <div style="margin-left:auto;display:flex;gap:16px;align-items:center;font-size:11px;">
+        ${state.phGraphVisible ? `<span style="color:var(--muted);">pH: <span class="${getPHClass(state.currentPH)}">${ph}</span></span>` : ''}
+        <span style="color:var(--muted);">Added: <span style="color:var(--accent2);">${vol} mL</span></span>
+        <span style="color:var(--muted);">Run: <span style="color:var(--accent);">${runLabel}</span></span>
+        ${state.endpointReached ? `<span style="color:var(--accent3);">✓ Endpoint!</span>` : ''}
+        ${state.funnelPresent ? `<span style="color:var(--warning);">⚠ Funnel still on!</span>` : ''}
+      </div>
+
+      ${state.endpointReached ? `
+        <button class="btn primary" onclick="recordTitration()">📏 Record reading & save</button>
+        <button class="btn" onclick="nextRun()">New run</button>
+      ` : ''}
+    </div>`;
+}
+
+// ════════════════════════════════════════════
+// DROP MECHANICS
+// ════════════════════════════════════════════
+const DROP_RATES = { drop: 0, slow: 120, fast: 40 }; // ms between drops (0=single)
+const DROP_VOL   = { drop: 0.05, slow: 0.10, fast: 0.40 }; // mL per event
+
+function startDrop(rate) {
+  if (state.endpointReached) return;
+  state.dropRate = rate;
+  state.isDropping = true;
+  addDrop();
+  if (rate !== 'drop') {
+    state.dropInterval = setInterval(() => {
+      if (!state.isDropping || state.endpointReached) { stopDrop(); return; }
+      addDrop();
+    }, DROP_RATES[rate]);
+  }
+}
+
+function stopDrop() {
+  state.isDropping = false;
+  if (state.dropInterval) { clearInterval(state.dropInterval); state.dropInterval = null; }
+}
+
+function addDrop() {
+  const vol = DROP_VOL[state.dropRate];
+  if (state.buretteLevel - vol < 0) { toast('Burette empty!', 'error'); stopDrop(); return; }
+
+  state.buretteLevel -= vol;
+  state.volAdded += vol;
+  state.dropsWithoutSwirl++;
+
+  // Compute new pH
+  const totalVol = state.volAdded + state.volAnalyte;
+  const newPH = computePH(
+    state.titrant, state.analyte,
+    state.volAdded, state.volAnalyte,
+    state.concTitrant, state.concAnalyte
+  );
+  state.currentPH = Math.max(0, Math.min(14, newPH));
+  state.phData.push({ vol: state.volAdded, pH: state.currentPH });
+
+  // Animate drop falling
+  animateDrop();
+
+  // Check endpoint
+  checkEndpoint();
+
+  // Update burette display
+  updateBuretteDisplay();
+  updatePHGraph();
+
+  // Update controls
+  const ctrl = document.getElementById('stage-controls');
+  if (ctrl) ctrl.innerHTML = buildTitrateControls();
+}
+
+function animateDrop() {
+  const scene = document.getElementById('drop-container');
+  if (!scene) return;
+  const buretteWrap = document.getElementById('burette-wrap');
+  const flaskWrap = document.getElementById('flask-wrap');
+  if (!buretteWrap || !flaskWrap) return;
+
+  const bRect = buretteWrap.getBoundingClientRect();
+  const fRect = flaskWrap.getBoundingClientRect();
+  const sceneRect = scene.getBoundingClientRect();
+
+  const startX = bRect.left + bRect.width/2 - sceneRect.left;
+  const startY = bRect.bottom - 40 - sceneRect.top;
+  const endY = fRect.top + fRect.height * 0.55 - sceneRect.top;
+  const dist = endY - startY;
+
+  const drop = document.createElement('div');
+  drop.className = 'drop';
+  drop.style.cssText = `left:${startX-3}px;top:${startY}px;background:${getChemColour(state.titrant?.id)};--drop-dist:${dist}px;animation-duration:${Math.max(0.3, dist/400)}s;`;
+  scene.appendChild(drop);
+
+  setTimeout(() => {
+    drop.remove();
+    addRipple(flaskWrap);
+    updateFlaskColour();
+  }, Math.max(300, dist/400*1000));
+}
+
+function addRipple(flaskWrap) {
+  const r = document.createElement('div');
+  r.className = 'ripple';
+  r.style.cssText = `position:absolute;bottom:35%;left:50%;transform:translate(-50%,-50%);`;
+  flaskWrap.style.position = 'relative';
+  flaskWrap.appendChild(r);
+  setTimeout(() => r.remove(), 400);
+}
+
+// ════════════════════════════════════════════
+// SWIRL MECHANICS
+// ════════════════════════════════════════════
+function setupFlaskSwirl() {
+  // Circular drag detection
+  const flask = document.getElementById('flask-wrap');
+  if (!flask) return;
+  let dragging = false, lastAngle = 0, circleCount = 0, points = [];
+
+  flask.onmousedown = flask.ontouchstart = (e) => { dragging = true; points = []; };
+  flask.onmousemove = flask.ontouchmove = (e) => {
+    if (!dragging) return;
+    const rect = flask.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const angle = Math.atan2(clientY - cy, clientX - cx);
+    points.push(angle);
+    if (points.length > 20) {
+      const diff = points[points.length-1] - points[0];
+      if (Math.abs(diff) > Math.PI) { doSwirl(); points = []; }
+    }
+  };
+  flask.onmouseup = flask.ontouchend = () => { dragging = false; points = []; };
+}
+
+function doSwirl() {
+  const flask = document.getElementById('flask-wrap');
+  if (flask) {
+    flask.classList.remove('swirling');
+    void flask.offsetWidth; // reflow
+    flask.classList.add('swirling');
+    setTimeout(() => flask.classList.remove('swirling'), 400);
+  }
+  state.swirls++;
+  state.dropsWithoutSwirl = 0;
+
+  // If a false endpoint was shown, swirling might dissipate it
+  if (state.falseEndpointShown && !state.endpointReached) {
+    state.falseEndpointShown = false;
+    state.flaskLiquidCol = state.indicator?.acidCol || 'rgba(180,220,255,0.12)';
+    updateFlaskColour();
+  }
+}
+
+// ════════════════════════════════════════════
+// ENDPOINT DETECTION
+// ════════════════════════════════════════════
+function checkEndpoint() {
+  if (state.endpointReached) return;
+  const ind = state.indicator;
+  if (!ind) return;
+
+  const pH = state.currentPH;
+  const inEndpointZone = pH >= ind.range[0] && pH <= ind.range[1] + 2;
+  const pastEndpoint = ind.id === 'pp' ? pH >= ind.pKin : pH >= ind.pKin;
+
+  if (pastEndpoint) {
+    // Check if student didn't swirl — false endpoint possible
+    if (state.dropsWithoutSwirl > 3 && !state.falseEndpointShown) {
+      state.falseEndpointShown = true;
+      state.flaskLiquidCol = ind.alkCol;
+      updateFlaskColour();
+      // Don't set endpointReached yet — swirling will dissipate it if not true
+      setTimeout(() => {
+        if (!state.endpointReached && state.falseEndpointShown) {
+          // True endpoint check — if pH is really past, it stays
+          if (state.currentPH > ind.pKin + 0.5) {
+            state.endpointReached = true;
+            logAction('Endpoint reached', `pH ${state.currentPH.toFixed(2)} — ${ind.name} colour change. Vol added: ${state.volAdded.toFixed(2)}mL`);
+            pulseEndpoint();
+          } else {
+            state.falseEndpointShown = false;
+            state.flaskLiquidCol = ind.acidCol;
+            updateFlaskColour();
+          }
+        }
+      }, 1200);
+      return;
+    }
+
+    if (state.dropsWithoutSwirl <= 3 || state.currentPH > ind.pKin + 1.0) {
+      state.endpointReached = true;
+      state.flaskLiquidCol = ind.alkCol;
+      updateFlaskColour();
+      logAction('Endpoint reached', `pH ${state.currentPH.toFixed(2)} — ${ind.name} colour change. Vol added: ${state.volAdded.toFixed(2)}mL`);
+      pulseEndpoint();
+    }
+  }
+
+  // Overshoot detection — pH went way past endpoint
+  if (state.currentPH > ind.pKin + 3 && state.endpointReached) {
+    flashOvershoot();
+    logAction('Overshoot detected', `pH ${state.currentPH.toFixed(2)} — too much titrant added beyond endpoint`, 'warn');
+  }
+}
+
+function pulseEndpoint() {
+  const fw = document.getElementById('flask-wrap');
+  if (!fw) return;
+  const pulse = document.createElement('div');
+  pulse.className = 'endpoint-glow';
+  fw.style.position = 'relative';
+  fw.appendChild(pulse);
+  setTimeout(() => pulse.remove(), 800);
+  toast('Endpoint reached! Record your reading.', 'ok');
+  const ctrl = document.getElementById('stage-controls');
+  if (ctrl) ctrl.innerHTML = buildTitrateControls();
+}
+
+function flashOvershoot() {
+  const scene = document.getElementById('anim-area');
+  if (!scene) return;
+  const flash = document.createElement('div');
+  flash.className = 'overshoot-flash';
+  scene.style.position = 'relative';
+  scene.appendChild(flash);
+  setTimeout(() => flash.remove(), 800);
+}
+
+// ════════════════════════════════════════════
+// FLASK COLOUR UPDATE
+// ════════════════════════════════════════════
+function updateFlaskColour() {
+  // Update the SVG liquid fill
+  const fill = document.getElementById('tit-liquid');
+  if (fill) fill.style.fill = state.flaskLiquidCol;
+  // Also update meniscus
+  const men = document.getElementById('tit-meniscus');
+  if (men) men.style.fill = state.flaskLiquidCol;
+}
+
+function updateBuretteDisplay() {
+  const rd = document.getElementById('burette-reading');
+  if (rd) rd.textContent = `${state.buretteInitial.toFixed(2)} → ${(state.buretteInitial + state.volAdded).toFixed(2)} mL`;
+  // Update burette SVG fill
+  const liq = document.getElementById('bur-liquid');
+  if (liq) {
+    const pct = Math.max(0, (state.buretteLevel / 50) * 100);
+    liq.setAttribute('height', pct.toFixed(1) + '%');
+  }
+}
+
+// ════════════════════════════════════════════
+// TITRATION RECORDING
+// ════════════════════════════════════════════
+function recordTitration() {
+  // Open reading modal for final reading
+  openReadingModal('final');
+}
+
+function openReadingModal(type) {
+  state._readingType = type;
+  const modal = document.getElementById('reading-modal');
+  const titleEl = document.getElementById('reading-title');
+  const subEl = document.getElementById('reading-subtitle');
+  const hint = document.getElementById('reading-hint');
+
+  if (type === 'initial') {
+    titleEl.textContent = 'Initial Burette Reading';
+    subEl.textContent = 'Read the bottom of the meniscus to 2 decimal places.';
+    hint.textContent = `True value: ~${state.buretteLevel.toFixed(2)} mL`;
+  } else {
+    titleEl.textContent = 'Final Burette Reading';
+    subEl.textContent = 'Read the bottom of the meniscus at the endpoint.';
+    const trueVal = state.buretteInitial + state.volAdded;
+    hint.textContent = `True value: ~${trueVal.toFixed(2)} mL`;
+  }
+
+  // Render zoom view
+  const zoom = document.getElementById('reading-zoom');
+  const trueVal = type === 'initial' ? state.buretteLevel : state.buretteInitial + state.volAdded;
+  const liqCol = getChemColour(state.titrant?.id);
+  zoom.innerHTML = renderBuretteZoom(trueVal, liqCol);
+
+  document.getElementById('reading-input').value = '';
+  document.getElementById('reading-feedback').textContent = '';
+  modal.classList.remove('hidden');
+}
+
+function submitReading() {
+  const val = parseFloat(document.getElementById('reading-input').value);
+  if (isNaN(val) || val < 0 || val > 50) {
+    document.getElementById('reading-feedback').textContent = 'Enter a value between 0.00 and 50.00 mL.';
+    document.getElementById('reading-feedback').style.color = 'var(--danger)';
+    return;
+  }
+
+  const type = state._readingType;
+  if (type === 'initial') {
+    const trueVal = state.buretteLevel;
+    const err = Math.abs(val - trueVal);
+    if (err > 0.15) {
+      document.getElementById('reading-feedback').textContent = `Reading seems off — check the meniscus. (Accepted within ±0.15mL)`;
+      document.getElementById('reading-feedback').style.color = 'var(--warning)';
+      return;
+    }
+    state.buretteInitial = val;
+    state.buretteReadingRecorded = true;
+    logAction('Initial reading', `${val.toFixed(2)} mL recorded`);
+    document.getElementById('reading-modal').classList.add('hidden');
+    // Move to next stage if in burette stage
+    if (currentStageId() === 'burette') {
+      renderBuretteStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+    }
+  } else {
+    const trueVal = state.buretteInitial + state.volAdded;
+    const err = Math.abs(val - trueVal);
+    if (err > 0.15) {
+      document.getElementById('reading-feedback').textContent = `Check your reading — meniscus may be misread.`;
+      document.getElementById('reading-feedback').style.color = 'var(--warning)';
+      return;
+    }
+    state.buretteFinal = val;
+    const titre = +(val - state.buretteInitial).toFixed(2);
+    const isRough = state.currentRun === 0;
+
+    state.runs.push({
+      run: state.currentRun,
+      initial: state.buretteInitial,
+      final: val,
+      titre,
+      rough: isRough,
+    });
+
+    logAction(`Titration ${isRough?'(rough)':'run '+state.currentRun} complete`, `Titre = ${titre.toFixed(2)} mL`);
+    document.getElementById('reading-modal').classList.add('hidden');
+    updateResultsTable();
+    nextRun();
+  }
+}
+
+function nextRun() {
+  state.currentRun++;
+  state.volAdded = 0;
+  state.endpointReached = false;
+  state.overshot = false;
+  state.falseEndpointShown = false;
+  state.dropsWithoutSwirl = 0;
+  state.swirls = 0;
+  state.phData = [];
+  state.currentPH = computePH(state.titrant, state.analyte, 0, state.volAnalyte, state.concTitrant, state.concAnalyte);
+  state.flaskLiquidCol = state.indicator?.acidCol || 'rgba(180,220,255,0.12)';
+  // Reset burette to full for next run (they re-fill between runs)
+  state.buretteLevel = 50.0;
+  state.buretteInitial = 0.0;
+  state.buretteReadingRecorded = false;
+  renderTitrateStage(document.getElementById('anim-area'), document.getElementById('stage-controls'), document.getElementById('stage-title'), document.getElementById('stage-instructions'));
+  document.getElementById('stage-title').innerHTML = `<em>Titrate</em> — Run ${state.currentRun === 0 ? '0 (Rough)' : state.currentRun}`;
+}
+
+// ════════════════════════════════════════════
+// RESULTS TABLE
+// ════════════════════════════════════════════
+function updateResultsTable() {
+  const tbody = document.getElementById('results-body');
+  if (!state.runs.length) return;
+  tbody.innerHTML = state.runs.map(r => `
+    <tr class="${r.rough?'rough':''}">
+      <td>${r.rough ? 'R' : r.run}</td>
+      <td>${r.initial.toFixed(2)}</td>
+      <td>${r.final.toFixed(2)}</td>
+      <td style="color:${r.rough?'var(--muted)':'var(--accent2)'};">${r.titre.toFixed(2)}</td>
+    </tr>`).join('');
+
+  // Check concordance
+  const accurate = state.runs.filter(r => !r.rough);
+  const titres = accurate.map(r => r.titre);
+  const concordantStatus = document.getElementById('concordant-status');
+
+  if (titres.length >= 2) {
+    const max = Math.max(...titres), min = Math.min(...titres);
+    const range = max - min;
+    if (range <= 0.10) {
+      concordantStatus.innerHTML = `<div class="concordant-badge ok">✓ Concordant (range: ${range.toFixed(2)} mL)</div>`;
+      const mean = (titres.reduce((a,b)=>a+b,0)/titres.length).toFixed(2);
+      updateCalculation(mean);
+    } else {
+      concordantStatus.innerHTML = `<div class="concordant-badge no">✗ Not concordant yet (range: ${range.toFixed(2)} mL) — need ≤0.10 mL</div>`;
+    }
+  }
+}
+
+function updateCalculation(meanTitre) {
+  const calcArea = document.getElementById('calc-area');
+  if (!calcArea) return;
+
+  const nTitrant = state.concTitrant * (parseFloat(meanTitre) / 1000);
+  // Mole ratio (simplified: 1:1 for most, 2:1 for H2SO4)
+  const ratio = state.titrant?.id === 'h2so4_dil' ? 2 : (state.analyte?.id === 'na2co3' ? 2 : 1);
+  const nAnalyte = nTitrant / ratio;
+  const calcConc = nAnalyte / (state.volAnalyte / 1000);
+
+  calcArea.innerHTML = `
+    <div class="calc-area">
+      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Calculation</div>
+      <div class="calc-row"><span class="calc-label">Mean titre:</span><span class="calc-val">${meanTitre} mL = ${(parseFloat(meanTitre)/1000).toFixed(5)} dm³</span></div>
+      <div class="calc-row"><span class="calc-label">n(titrant):</span><span class="calc-val">${state.concTitrant.toFixed(3)} × ${(parseFloat(meanTitre)/1000).toFixed(5)} = ${nTitrant.toFixed(5)} mol</span></div>
+      <div class="calc-row"><span class="calc-label">Mole ratio:</span><span class="calc-val">${ratio}:1 (${state.titrant?.formula} : ${state.analyte?.formula})</span></div>
+      <div class="calc-row"><span class="calc-label">n(analyte):</span><span class="calc-val">${nAnalyte.toFixed(5)} mol</span></div>
+      <div class="calc-row"><span class="calc-label">Vol analyte:</span><span class="calc-val">${state.volAnalyte} mL = ${state.volAnalyte/1000} dm³</span></div>
+      <div class="calc-row"><span class="calc-label">c(analyte):</span><span class="calc-val final">${calcConc.toFixed(4)} mol/dm³</span></div>
+      ${state.isOpenLab ? `
+        <div style="margin-top:10px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:11px;">
+          <div style="color:var(--muted);">Accuracy check:</div>
+          <div style="color:${Math.abs(calcConc-state.concAnalyteTrue)/state.concAnalyteTrue < 0.02 ? 'var(--positive)' : Math.abs(calcConc-state.concAnalyteTrue)/state.concAnalyteTrue < 0.05 ? 'var(--accent2)' : 'var(--danger)'};">
+            True value: ${state.concAnalyteTrue.toFixed(4)} mol/dm³ 
+            — Error: ${(Math.abs(calcConc-state.concAnalyteTrue)/state.concAnalyteTrue*100).toFixed(1)}%
+            ${Math.abs(calcConc-state.concAnalyteTrue)/state.concAnalyteTrue < 0.02 ? ' ✓ Excellent' : Math.abs(calcConc-state.concAnalyteTrue)/state.concAnalyteTrue < 0.05 ? ' Good' : ' ✗ Review technique'}
+          </div>
+        </div>` : ''}
+    </div>`;
+}
+
+// ════════════════════════════════════════════
+// STAGE 5: RESULTS
+// ════════════════════════════════════════════
+function renderResultsStage(area, controls, title, instr) {
+  title.innerHTML = '<em>Results</em> Summary';
+  instr.textContent = 'Review your titration results. Download a CSV for your records.';
+  area.innerHTML = `<div style="padding:20px;color:var(--muted);font-size:12px;">Results are displayed in the panel on the right. Check the Results and Calculate tabs.</div>`;
+  controls.innerHTML = `<button class="btn primary" onclick="downloadCSV()">Download CSV</button>`;
+}
+
+// ════════════════════════════════════════════
+// SVG HELPERS
+// ════════════════════════════════════════════
+function renderBuretteSVG(liqCol, fillPct) {
+  const h = 320; // px height of burette
+  const liqH = fillPct / 100 * (h - 40);
+  return `
+    <div style="position:relative;width:28px;height:${h}px;">
+      <!-- Tube -->
+      <div style="position:absolute;inset:0;background:rgba(180,220,255,0.05);border:1.5px solid rgba(180,220,255,0.2);border-radius:3px 3px 0 0;overflow:hidden;">
+        <!-- Liquid -->
+        <div id="bur-liquid" style="position:absolute;bottom:0;left:0;right:0;height:${liqH}px;background:${liqCol};border-radius:2px 2px 0 0;transition:height 0.2s ease;">
+          <div style="position:absolute;top:0;left:0;right:0;height:4px;background:rgba(255,255,255,0.15);border-radius:50%;"></div>
+        </div>
+      </div>
+      <!-- Markings -->
+      ${[0,10,20,30,40,50].map(v => {
+        const y = (v/50) * (h-40);
+        return `<div style="position:absolute;right:-28px;top:${y}px;font-size:8px;color:var(--muted);display:flex;align-items:center;gap:2px;"><span style="display:block;width:5px;height:1px;background:var(--muted);"></span>${v}</div>`;
+      }).join('')}
+      <!-- Tip -->
+      <div style="position:absolute;bottom:-40px;left:50%;transform:translateX(-50%);width:6px;height:40px;background:rgba(180,220,255,0.15);border:1px solid rgba(180,220,255,0.2);border-radius:0 0 3px 3px;">
+        <!-- Tap -->
+        <div id="burette-tap-el" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);width:22px;height:8px;background:linear-gradient(90deg,#5070a0,#3a5080);border-radius:3px;border:1px solid var(--border2);cursor:pointer;"></div>
+      </div>
+    </div>`;
+}
+
+function renderFlaskSVG(liqCol, indCol, idPrefix, withMeniscus) {
+  const col = liqCol || 'transparent';
+  return `
+    <svg class="flask-svg" viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Flask body -->
+      <path d="M48 20 L48 70 L10 128 Q6 140 18 143 L102 143 Q114 140 110 128 L72 70 L72 20 Z"
+        fill="rgba(180,220,255,0.05)" stroke="rgba(180,220,255,0.3)" stroke-width="2"/>
+      <!-- Liquid fill -->
+      <clipPath id="${idPrefix}-clip">
+        <path d="M48 70 L10 128 Q6 140 18 143 L102 143 Q114 140 110 128 L72 70 Z"/>
+      </clipPath>
+      <rect x="0" y="85" width="120" height="60" clip-path="url(#${idPrefix}-clip)"
+        id="${idPrefix}-liquid" style="fill:${col};transition:fill 0.8s ease;"/>
+      ${withMeniscus ? `<ellipse cx="60" cy="86" rx="30" ry="4" id="${idPrefix}-meniscus" style="fill:${col};opacity:0.6;transition:fill 0.8s ease;"/>` : ''}
+      <!-- Neck -->
+      <rect x="46" y="8" width="28" height="14" rx="3"
+        fill="rgba(180,220,255,0.05)" stroke="rgba(180,220,255,0.3)" stroke-width="1.5"/>
+      <!-- Highlight -->
+      <path d="M22 100 Q18 120 20 135" stroke="rgba(255,255,255,0.08)" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </svg>`;
+}
+
+function renderBuretteZoom(trueVal, liqCol) {
+  // Show meniscus region ±0.5mL around true value
+  const low = Math.max(0, trueVal - 0.6).toFixed(1);
+  const high = Math.min(50, trueVal + 0.6).toFixed(1);
+  const menY = 60; // px from top where meniscus bottom is
+  return `
+    <div style="position:relative;height:100%;background:rgba(180,220,255,0.03);border-radius:4px;overflow:hidden;">
+      <!-- Liquid -->
+      <div style="position:absolute;top:0;left:30px;right:30px;height:${menY+4}px;background:${liqCol};border-radius:0 0 50% 50%;"></div>
+      <!-- Meniscus curve -->
+      <div style="position:absolute;top:${menY-4}px;left:30px;right:30px;height:12px;border-radius:0 0 50% 50%;background:${liqCol};filter:blur(1px);"></div>
+      <!-- Red line at bottom of meniscus -->
+      <div style="position:absolute;top:${menY+4}px;left:20px;right:20px;height:1px;background:rgba(255,92,92,0.6);"></div>
+      <!-- Scale -->
+      <div style="position:absolute;right:4px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:space-between;font-size:9px;color:var(--muted);">
+        <span>${low}</span>
+        <span style="color:var(--accent2);">${trueVal.toFixed(2)}</span>
+        <span>${high}</span>
+      </div>
+      <!-- Parallax hint -->
+      <div style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--muted);">Read bottom of meniscus</div>
+    </div>`;
+}
+
+// ════════════════════════════════════════════
+// pH GRAPH
+// ════════════════════════════════════════════
+let phGraphVisible = false;
+
+function togglePHGraph() {
+  state.phGraphVisible = !state.phGraphVisible;
+  const toggle = document.getElementById('ph-toggle');
+  const container = document.getElementById('ph-graph-container');
+  toggle.classList.toggle('on', state.phGraphVisible);
+  container.classList.toggle('hidden', !state.phGraphVisible);
+  updatePHGraph();
+}
+
+function updatePHGraph() {
+  if (!state.phGraphVisible) return;
+  const canvas = document.getElementById('ph-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#0e1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(92,184,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let ph = 0; ph <= 14; ph += 2) {
+    const y = H - (ph/14)*H;
+    ctx.beginPath(); ctx.moveTo(30,y); ctx.lineTo(W,y); ctx.stroke();
+    ctx.fillStyle = 'rgba(107,122,150,0.8)';
+    ctx.font = '8px Inconsolata';
+    ctx.fillText(ph, 2, y+3);
+  }
+
+  if (!state.phData.length) return;
+
+  const maxVol = Math.max(60, Math.max(...state.phData.map(d=>d.vol)) * 1.2);
+
+  // Axis labels
+  ctx.fillStyle = 'rgba(107,122,150,0.8)';
+  ctx.font = '8px Inconsolata';
+  ctx.fillText('pH', 2, 10);
+  ctx.fillText('Vol (mL)', W-40, H-2);
+
+  // Plot line
+  ctx.beginPath();
+  ctx.lineWidth = 1.5;
+  state.phData.forEach((d, i) => {
+    const x = 30 + (d.vol/maxVol)*(W-35);
+    const y = H - (d.pH/14)*H;
+    i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+
+  // Gradient stroke
+  const grad = ctx.createLinearGradient(30, H, W, 0);
+  grad.addColorStop(0, '#ff5c5c');
+  grad.addColorStop(0.35, '#ffd45c');
+  grad.addColorStop(0.5, '#5cff90');
+  grad.addColorStop(0.7, '#5cb8ff');
+  grad.addColorStop(1, '#d45cff');
+  ctx.strokeStyle = grad;
+  ctx.stroke();
+
+  // Equivalence point marker
+  if (state.endpointReached) {
+    const epVol = state.volAdded;
+    const epX = 30 + (epVol/maxVol)*(W-35);
+    ctx.strokeStyle = 'rgba(92,255,184,0.5)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(epX,0); ctx.lineTo(epX,H); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'var(--accent3)';
+    ctx.font = '8px Inconsolata';
+    ctx.fillText('EP', epX+2, 12);
+  }
+}
+
+function getPHClass(pH) {
+  if (pH < 3) return 'ph-low';
+  if (pH < 6) return 'ph-mid';
+  if (pH <= 8) return 'ph-neut';
+  return 'ph-high';
+}
+
+// ════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════
+function getChemColour(id) {
+  const map = {
+    hcl: 'rgba(92,184,255,0.35)', h2so4_dil: 'rgba(255,159,92,0.3)',
+    ethanoic: 'rgba(160,208,96,0.3)', naoh: 'rgba(92,255,184,0.3)',
+    na2co3: 'rgba(128,192,240,0.3)', nh3: 'rgba(192,240,128,0.3)',
+  };
+  return map[id] || 'rgba(180,220,255,0.2)';
+}
+
+function logAction(type, text, level='') {
+  const time = new Date().toLocaleTimeString();
+  state.actionLog.push({ type, text, time, level });
+  const log = document.getElementById('action-log');
+  if (!log) return;
+  if (state.actionLog.length === 1) log.innerHTML = '';
+  const el = document.createElement('div');
+  el.className = `log-entry ${level}`;
+  el.innerHTML = `<div class="log-type">${type}</div><div class="log-text">${text}</div><div class="log-time">${time}</div>`;
+  log.prepend(el);
+}
+
+function toast(msg, type='') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+function switchRTab(tab) {
+  document.querySelectorAll('.right-tab').forEach((t,i) => t.classList.toggle('active', ['results','log','calc'][i]===tab));
+  document.querySelectorAll('.right-content').forEach(c => c.classList.add('hidden'));
+  document.getElementById('rtab-'+tab).classList.remove('hidden');
+}
+
+function downloadCSV() {
+  const rows = [
+    ['Run','Initial (mL)','Final (mL)','Titre (mL)','Type'],
+    ...state.runs.map(r => [r.run, r.initial.toFixed(2), r.final.toFixed(2), r.titre.toFixed(2), r.rough?'Rough':'Accurate']),
+    [],
+    ['Action Log'],
+    ['Time','Type','Detail'],
+    ...state.actionLog.map(l => [l.time, l.type, l.text]),
+  ];
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'titration_results.csv'; a.click();
+}
+
+function resetLab() {
+  if (!confirm('Reset the entire lab? All results will be lost.')) return;
+  Object.assign(state, {
+    titrant:null, analyte:null, indicator:null, concTitrant:0, concAnalyte:0,
+    standardMade:false, buretteLevel:50, buretteInitial:0, funnelPresent:true,
+    bubblePresent:false, currentRun:0, runs:[], volAdded:0, currentPH:7,
+    phData:[], endpointReached:false, overshot:false, isDropping:false,
+    dropsWithoutSwirl:0, swirls:0, falseEndpointShown:false,
+    flaskLiquidCol:'', actionLog:[], stage:0,
+    buretteStep:0, buretteReadingRecorded:false, pipetteStep:0, standardStep:0,
+  });
+  stopDrop();
+  renderChemList();
+  renderStageNav();
+  renderStage();
+  document.getElementById('results-body').innerHTML = '<tr><td colspan="4" style="color:var(--muted);font-size:11px;padding:12px 6px;">No titrations yet.</td></tr>';
+  document.getElementById('concordant-status').innerHTML = '';
+  document.getElementById('calc-area').innerHTML = '<div style="color:var(--muted);font-size:11px;margin-bottom:10px;">Complete at least 2 concordant titrations to calculate.</div>';
+  document.getElementById('action-log').innerHTML = '<div style="color:var(--muted);font-size:11px;text-align:center;margin-top:16px;">Actions will be logged here.</div>';
+}
+
+// ════════════════════════════════════════════
+// STARTUP
+// ════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>

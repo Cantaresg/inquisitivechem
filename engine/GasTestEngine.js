@@ -1,0 +1,114 @@
+/**
+ * engine/GasTestEngine.js
+ * Static logic for confirmatory test tools.
+ * Zero DOM access. Reads vessel.solution state only.
+ *
+ * BUG-07: positive gas result requires pressure > GAS_PRESSURE_THRESHOLD (never just id presence).
+ * BUG-16: negative animId is returned when gas pressure is zero or gas is absent.
+ */
+
+import { CONFIRMATORY_TESTS } from '../data/tests.js';
+import { GAS_PRESSURE_THRESHOLD } from './Solution.js';
+
+export class GasTestEngine {
+
+  /**
+   * Run a confirmatory test against the current vessel state.
+   *
+   * @param {import('./Vessel.js').Vessel} vessel
+   * @param {string} testId  — one of the ids from CONFIRMATORY_TESTS
+   * @returns {{
+   *   animId:      string,
+   *   observation: string,
+   *   isPositive:  boolean,
+   *   matchedKey:  string|null,   // which ion / gas id triggered the positive result
+   *   flameColour: string|null,   // CSS colour string for flame test animation only
+   *   phColour:    string|null,   // CSS colour string for indicator tests only
+   * }}
+   * @throws {Error} if testId is not registered
+   */
+  static runTest(vessel, testId) {
+    const test = CONFIRMATORY_TESTS.find(t => t.id === testId);
+    if (!test) throw new Error(`GasTestEngine: unknown test id "${testId}"`);
+
+    const sol = vessel.solution;
+
+    let isPositive  = false;
+    let matchedKey  = null;
+    let flameColour = null;
+    let phColour    = null;
+    let animId      = test.negativeAnimId;
+    let observation = test.negativeObservation;
+
+    const detects = test.detects;
+
+    // ── Single gas ────────────────────────────────────────────────────────────
+    if (detects.gas !== undefined) {
+      const gas = sol.gases.find(g => g.id === detects.gas);
+      isPositive = gas !== undefined && gas.pressure > GAS_PRESSURE_THRESHOLD;
+      if (isPositive) matchedKey = detects.gas;
+    }
+
+    // ── Array of gases (any match, OR) ─────────────────────────────────────
+    else if (detects.gases !== undefined) {
+      for (const gasId of detects.gases) {
+        const gas = sol.gases.find(g => g.id === gasId);
+        if (gas && gas.pressure > GAS_PRESSURE_THRESHOLD) {
+          isPositive = true;
+          matchedKey = gasId;
+          break;
+        }
+      }
+    }
+
+    // ── Ions (any match, OR) ───────────────────────────────────────────────
+    else if (detects.ions !== undefined) {
+      for (const ionSym of detects.ions) {
+        if ((sol.ions[ionSym] ?? 0) > 0) {
+          isPositive = true;
+          matchedKey = ionSym;
+          break;
+        }
+      }
+    }
+
+    // ── pH / indicator property ────────────────────────────────────────────
+    else if (detects.property === 'pH') {
+      const ranges = test.pHObservations ?? [];
+      const match  = ranges.find(
+        r => sol.pH >= r.range[0] && sol.pH < r.range[1],
+      );
+      // Treat as "positive" when pH is not neutral (7 ± 0.5)
+      isPositive = match !== undefined && !(sol.pH >= 6.5 && sol.pH < 7.5);
+      if (match) {
+        phColour    = match.cssColor;
+        observation = match.observation;
+      }
+      // pH test always plays an animation (even neutral) — use positiveAnimId
+      animId = test.positiveAnimId;
+      return { animId, observation, isPositive, matchedKey, flameColour, phColour };
+    }
+
+    // ── Resolve final animId and observation ─────────────────────────────────
+    if (isPositive) {
+      animId = test.positiveAnimId;
+      observation = test.positiveObservation;
+
+      // Per-key overrides (AgNO₃ test: different colour per halide; litmus: per gas)
+      if (matchedKey && test.detailAnimIds?.[matchedKey]) {
+        animId = test.detailAnimIds[matchedKey];
+      }
+      if (matchedKey && test.detailObservations?.[matchedKey]) {
+        observation = test.detailObservations[matchedKey];
+      }
+
+      // Flame test: resolve the specific flame colour for AnimationManager (BUG-15)
+      if (test.id === 'test_flame' && matchedKey && test.flameColours?.[matchedKey]) {
+        flameColour = test.flameColours[matchedKey].cssColor;
+        observation = test.flameColours[matchedKey].observationText;
+      }
+    }
+
+    return { animId, observation, isPositive, matchedKey, flameColour, phColour };
+  }
+}

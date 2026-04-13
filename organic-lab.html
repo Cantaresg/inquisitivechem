@@ -1,0 +1,2319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrganicLab — Functional Group Identification</title>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f14;
+  --bg2: #1a1e28;
+  --surface: #13161d;
+  --surface2: #1a1e28;
+  --border: #2a2f3d;
+  --border2: #3a4050;
+  --ink: #e8eaf0;
+  --ink2: #a0a8b8;
+  --ink3: #6b7280;
+  --accent: #4af0a0;
+  --accent2: #f0a04a;
+  --accent3: #4a9af0;
+  --accent4: #c06af0;
+  --gold: #f0c040;
+  --node-bg: #13161d;
+  --node-border: #2a2f3d;
+  --positive: #4af0a0;
+  --negative: #f04a4a;
+  --shadow: rgba(0,0,0,0.4);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Dark grid background matching chem-lab */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(74,240,160,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74,240,160,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app { position: relative; z-index: 1; }
+
+/* ===================== HOME SCREEN ===================== */
+#screen-home {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.home-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.home-title {
+  font-family: 'Spectral', serif;
+  font-size: 56px;
+  font-weight: 300;
+  letter-spacing: -2px;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.home-title em { font-style: italic; color: var(--accent); }
+
+.home-subtitle {
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 4px;
+}
+.home-desc {
+  font-size: 13px;
+  color: var(--ink2);
+  margin-top: 12px;
+}
+
+.home-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 280px);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.home-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 28px 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.home-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.home-card.explore::before { background: var(--accent2); }
+.home-card.session::before { background: var(--accent3); }
+.home-card.teacher::before { background: var(--accent); }
+
+.home-card:hover {
+  border-color: var(--border2);
+  box-shadow: 0 4px 20px var(--shadow);
+  transform: translateY(-2px);
+}
+
+.card-icon { font-size: 32px; margin-bottom: 16px; }
+.card-title {
+  font-family: 'Spectral', serif;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+.card-desc { font-size: 11px; color: var(--ink2); line-height: 1.6; }
+
+.session-entry {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.session-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+.session-input:focus { border-color: var(--accent3); }
+.session-input::placeholder { letter-spacing: 0; text-transform: none; color: var(--ink3); }
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+.btn:hover { border-color: var(--border2); background: var(--bg2); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primary:hover { background: #333; }
+.btn.accent-red { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.accent-red:hover { background: #a83518; }
+.btn.accent-green { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+.btn.accent-blue { background: var(--accent3); color: #fff; border-color: var(--accent3); }
+.btn.sm { padding: 5px 10px; font-size: 10px; }
+
+/* ===================== APP SHELL ===================== */
+#screen-app { display: none; flex-direction: column; height: 100vh; }
+
+.app-header {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.app-logo {
+  font-family: 'Spectral', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.app-logo em { font-style: italic; color: var(--accent); }
+.app-mode-badge {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 3px 8px;
+}
+.app-header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+.ib-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink3);
+  cursor: pointer;
+}
+.toggle-track {
+  width: 32px; height: 16px;
+  background: var(--border);
+  border-radius: 8px;
+  position: relative;
+  transition: background 0.2s;
+}
+.toggle-track.on { background: var(--accent4); }
+.toggle-thumb {
+  width: 12px; height: 12px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px; left: 2px;
+  transition: left 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-track.on .toggle-thumb { left: 18px; }
+
+/* ===================== MAIN LAYOUT ===================== */
+.app-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 240px 1fr 200px 280px;
+  overflow: hidden;
+}
+
+/* LEFT: Compound + Functional Group Checklist */
+.left-panel {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+
+/* Compound display */
+.compound-display {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.compound-label {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 8px;
+}
+.compound-name {
+  font-family: 'Spectral', serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.compound-formula {
+  font-size: 12px;
+  color: var(--ink2);
+  margin-bottom: 8px;
+}
+.compound-given {
+  background: var(--bg);
+  border-left: 3px solid var(--gold);
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--ink2);
+  line-height: 1.6;
+  border-radius: 0 3px 3px 0;
+}
+
+/* Functional group checklist */
+.fg-checklist {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+.fg-checklist::-webkit-scrollbar { width: 3px; }
+.fg-checklist::-webkit-scrollbar-thumb { background: var(--border); }
+
+.fg-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 3px;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.fg-item:hover { background: var(--bg); border-color: var(--border); }
+.fg-item.confirmed { background: rgba(42,110,63,0.06); border-color: rgba(42,110,63,0.3); }
+.fg-item.ruled-out { opacity: 0.4; }
+.fg-item.confirmed .fg-name { color: var(--accent2); }
+
+.fg-checkbox {
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--border2);
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  transition: all 0.15s;
+}
+.fg-item.confirmed .fg-checkbox { background: var(--accent2); border-color: var(--accent2); color: white; }
+.fg-item.ruled-out .fg-checkbox { background: var(--bg2); }
+
+.fg-name { font-size: 12px; color: var(--ink); font-weight: 500; }
+.fg-evidence { font-size: 10px; color: var(--ink3); margin-top: 2px; line-height: 1.4; }
+
+.fg-submit-area { padding: 12px; border-top: 1px solid var(--border); }
+
+/* ===================== CENTRE: FLOWCHART / BENCH ===================== */
+.centre-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.centre-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.centre-tab {
+  padding: 10px 20px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--ink3);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  font-family: 'JetBrains Mono', monospace;
+}
+.centre-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* FLOWCHART */
+#view-flowchart {
+  flex: 1;
+  overflow: auto;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.flowchart-wrap {
+  width: 100%;
+  max-width: 700px;
+}
+
+/* Flowchart nodes */
+.fc-node {
+  background: var(--surface);
+  border: 1.5px solid var(--node-border);
+  border-radius: 4px;
+  padding: 14px 18px;
+  margin: 0 auto;
+  max-width: 420px;
+  box-shadow: 0 2px 8px var(--shadow);
+  position: relative;
+}
+.fc-node.start {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+  text-align: center;
+}
+.fc-node.test {
+  border-color: var(--accent3);
+  border-left: 4px solid var(--accent3);
+}
+.fc-node.conclusion {
+  border-color: var(--accent2);
+  border-left: 4px solid var(--accent2);
+  background: rgba(42,110,63,0.04);
+}
+.fc-node.elimination {
+  border-color: var(--ink3);
+  border-style: dashed;
+}
+
+.fc-node-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 4px;
+}
+.fc-node.test .fc-node-label { color: var(--accent3); }
+.fc-node.conclusion .fc-node-label { color: var(--accent2); }
+
+.fc-node-title {
+  font-family: 'Spectral', serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.fc-node.start .fc-node-title { color: var(--bg); font-size: 16px; }
+
+.fc-node-detail {
+  font-size: 11px;
+  color: var(--ink2);
+  line-height: 1.5;
+}
+.fc-node.start .fc-node-detail { color: rgba(247,244,239,0.7); font-size: 11px; }
+
+/* Flowchart branches */
+.fc-branch-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 0;
+  position: relative;
+}
+
+.fc-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.fc-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 8px 0;
+}
+.fc-arrow {
+  width: 1.5px;
+  height: 24px;
+  background: var(--border2);
+  position: relative;
+}
+.fc-arrow::after {
+  content: '▼';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: var(--border2);
+}
+
+.fc-branch-label {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+}
+.fc-branch-label.pos { background: rgba(42,110,63,0.12); color: var(--positive); }
+.fc-branch-label.neg { background: rgba(196,64,28,0.1); color: var(--negative); }
+
+.fc-split-line {
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+  position: relative;
+}
+
+/* Interactive flowchart */
+.fc-test-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 14px;
+  background: var(--accent3);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.fc-test-btn:hover { background: #163d73; }
+.fc-test-btn.done { background: var(--accent2); cursor: default; }
+
+.fc-result-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 2px;
+  margin-top: 6px;
+}
+.fc-result-badge.pos { background: rgba(42,110,63,0.12); color: var(--positive); border: 1px solid rgba(42,110,63,0.3); }
+.fc-result-badge.neg { background: rgba(196,64,28,0.08); color: var(--negative); border: 1px solid rgba(196,64,28,0.2); }
+
+/* OPEN BENCH */
+#view-bench {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bench-reagents {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  background: var(--surface);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.reagent-chip {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-size: 11px;
+  cursor: pointer;
+  background: var(--bg);
+  color: var(--ink);
+  transition: all 0.15s;
+}
+.reagent-chip:hover { border-color: var(--accent3); color: var(--accent3); background: rgba(26,74,138,0.05); }
+.reagent-chip.selected { background: var(--accent3); color: white; border-color: var(--accent3); }
+
+.bench-workspace {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.test-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px 16px;
+  animation: slideIn 0.2s ease-out;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.test-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.test-card-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.test-card-conditions {
+  font-size: 10px;
+  color: var(--ink3);
+}
+
+.test-result-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.result-visual {
+  width: 48px; height: 64px;
+  border-radius: 3px;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: white;
+  position: relative;
+}
+.result-liquid {
+  width: 100%;
+  position: absolute;
+  bottom: 0;
+  transition: all 0.5s;
+}
+.result-ppt {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 12px;
+}
+
+.test-obs {
+  font-size: 11px;
+  color: var(--ink2);
+  line-height: 1.6;
+  flex: 1;
+}
+.test-obs .pos { color: var(--positive); font-weight: 500; }
+.test-obs .neg { color: var(--negative); }
+.test-obs .eq { font-size: 10px; color: var(--ink3); margin-top: 3px; }
+
+.test-evidence-btn {
+  font-size: 10px;
+  padding: 3px 8px;
+  border: 1px solid var(--accent2);
+  color: var(--accent2);
+  background: transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.15s;
+}
+.test-evidence-btn:hover { background: var(--accent2); color: white; }
+
+.bench-add-area {
+  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.bench-add-label { font-size: 11px; color: var(--ink3); }
+
+/* POLARIMETRY */
+.polarimetry-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px;
+  margin: 16px;
+}
+.polarimetry-title {
+  font-family: 'Spectral', serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent4);
+  margin-bottom: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.ib-badge {
+  font-size: 9px;
+  background: var(--accent4);
+  color: white;
+  padding: 1px 6px;
+  border-radius: 2px;
+  letter-spacing: 1px;
+}
+
+.polarimeter-visual {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.pol-source {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.pol-wave {
+  flex: 1;
+  height: 40px;
+  position: relative;
+  overflow: hidden;
+}
+.pol-wave-svg { width: 100%; height: 100%; }
+.pol-sample {
+  width: 60px; height: 40px;
+  background: rgba(122,58,138,0.1);
+  border: 1px solid rgba(122,58,138,0.3);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--accent4);
+  flex-shrink: 0;
+  text-align: center;
+}
+.pol-detector { font-size: 24px; flex-shrink: 0; }
+.pol-reading {
+  text-align: center;
+  padding: 10px;
+  background: var(--bg);
+  border-radius: 3px;
+  margin-top: 8px;
+}
+.pol-angle {
+  font-family: 'Spectral', serif;
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--accent4);
+}
+.pol-interpretation {
+  font-size: 11px;
+  color: var(--ink2);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* ===================== TEST REAGENTS PANEL ===================== */
+.test-reagents-panel {
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ===================== RIGHT PANEL — drawers ===================== */
+.right-panel {
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.right-panel::-webkit-scrollbar { width: 4px; }
+.right-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.side-drawer {
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.side-drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.side-drawer-header:hover { background: var(--surface2); }
+.side-drawer-header .s-arrow { font-size: 9px; color: var(--ink3); transition: transform 0.2s; flex-shrink: 0; }
+.side-drawer-header .s-arrow.open { transform: rotate(90deg); }
+.side-drawer-body { overflow: hidden; }
+.side-drawer-body.closed { display: none; }
+
+/* Drawer items in test-reagents panel */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.drawer-header:hover { background: var(--surface2); }
+.drawer-arrow { font-size: 9px; color: var(--ink3); transition: transform 0.2s; flex-shrink: 0; }
+.drawer-arrow.open-arrow { transform: rotate(90deg); }
+.drawer-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink3); flex: 1; }
+.drawer-count { font-size: 9px; color: var(--ink3); background: var(--surface2); border-radius: 8px; padding: 1px 6px; border: 1px solid var(--border); }
+.drawer-body { padding: 0 4px 6px; }
+.drawer-body.closed { display: none; }
+
+.reagent-tool-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  margin: 2px 4px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: grab;
+  font-size: 11px;
+  transition: all 0.15s;
+  user-select: none;
+  background: var(--bg);
+}
+.reagent-tool-item:hover { background: var(--surface2); border-color: var(--border); }
+.reagent-tool-item.dragging { opacity: 0.4; }
+.tool-icon { font-size: 16px; flex-shrink: 0; }
+.tool-name { color: var(--ink); font-weight: 500; font-size: 11px; }
+.tool-sub  { color: var(--ink3); font-size: 10px; margin-top: 1px; }
+
+/* Obs entries in right panel */
+.obs-entry-org {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  background: var(--bg);
+}
+.obs-entry-org .oe-test { color: var(--accent3); font-weight: 500; margin-bottom: 3px; }
+.obs-entry-org .oe-result { color: var(--ink); line-height: 1.5; }
+.obs-entry-org .oe-result.positive { color: var(--positive); }
+.obs-entry-org .oe-result.negative { color: var(--negative); }
+.obs-entry-org .oe-time { font-size: 9px; color: var(--ink3); margin-top: 3px; }
+
+/* Tutor inside drawer */
+.tutor-msgs-org { display: flex; flex-direction: column; gap: 6px; padding: 8px; max-height: 220px; overflow-y: auto; }
+.tutor-msg-org { padding: 8px 10px; border-radius: 6px; font-size: 11px; line-height: 1.6; }
+.tutor-msg-org.ai   { background: var(--bg); border: 1px solid var(--border); }
+.tutor-msg-org.user { background: rgba(74,154,240,0.08); border: 1px solid rgba(74,154,240,0.2); }
+.tutor-msg-org .who { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink3); margin-bottom: 3px; }
+.tutor-msg-org.ai .who   { color: var(--accent); }
+.tutor-msg-org.user .who { color: var(--accent3); }
+.tutor-bottom-org { border-top: 1px solid var(--border); padding: 8px; }
+.tutor-row-org { display: flex; gap: 6px; margin-top: 6px; }
+.tutor-inp-org {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 5px 8px;
+  outline: none;
+  resize: none;
+}
+.tutor-inp-org:focus { border-color: var(--accent3); }
+.tutor-send-org {
+  padding: 5px 10px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  align-self: flex-end;
+}
+.obs-count-badge {
+  font-size: 9px; color: var(--ink3); background: var(--surface2);
+  border-radius: 8px; padding: 1px 6px; border: 1px solid var(--border);
+}
+
+/* Drop target on bench test cards */
+.test-card.bench-drop-target { border-color: var(--accent3); box-shadow: 0 0 0 2px rgba(74,154,240,0.2); }
+
+/* ===================== TEACHER DESIGNER ===================== */
+#screen-teacher {
+  display: none;
+  min-height: 100vh;
+  padding: 40px;
+  background: var(--bg);
+}
+
+.teacher-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.teacher-title {
+  font-family: 'Spectral', serif;
+  font-size: 32px;
+  font-weight: 300;
+}
+.teacher-title em { font-style: italic; color: var(--accent); }
+
+.teacher-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 960px;
+}
+
+.teacher-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 24px;
+}
+.teacher-section h3 {
+  font-family: 'Spectral', serif;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--ink);
+}
+
+.form-group { margin-bottom: 14px; }
+.form-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 5px;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent3); }
+.form-textarea { resize: vertical; min-height: 80px; }
+
+.fg-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.fg-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.fg-pick-item:hover { background: var(--bg2); }
+.fg-pick-item input { accent-color: var(--accent3); }
+
+.session-key-display {
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 4px;
+  padding: 20px;
+  text-align: center;
+  margin-top: 16px;
+}
+.session-key-value {
+  font-family: 'Spectral', serif;
+  font-size: 36px;
+  font-weight: 300;
+  letter-spacing: 6px;
+  color: var(--accent2);
+  margin: 8px 0;
+}
+.session-key-hint { font-size: 11px; color: rgba(247,244,239,0.6); }
+
+/* PIN MODAL */
+.pin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26,23,20,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pin-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 32px;
+  width: 320px;
+  text-align: center;
+}
+.pin-title {
+  font-family: 'Spectral', serif;
+  font-size: 24px;
+  font-weight: 300;
+  margin-bottom: 8px;
+}
+.pin-subtitle { font-size: 11px; color: var(--ink3); margin-bottom: 20px; }
+.pin-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  padding: 12px;
+  outline: none;
+  text-align: center;
+  letter-spacing: 8px;
+  margin-bottom: 12px;
+}
+.pin-input:focus { border-color: var(--accent3); }
+.pin-error { font-size: 11px; color: var(--accent); min-height: 16px; margin-bottom: 8px; }
+
+/* RESULT MODAL */
+.result-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26,23,20,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.result-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 32px;
+  width: 440px;
+  max-width: 90vw;
+}
+.result-modal h2 {
+  font-family: 'Spectral', serif;
+  font-size: 26px;
+  font-weight: 300;
+  margin-bottom: 16px;
+}
+.mark-scheme-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.mark-tick { color: var(--positive); font-size: 14px; flex-shrink: 0; }
+.mark-cross { color: var(--negative); font-size: 14px; flex-shrink: 0; }
+
+.hidden { display: none !important; }
+.spinner {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border: 1.5px solid var(--border);
+  border-top-color: var(--accent3);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle; margin-right: 4px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- =================== HOME SCREEN =================== -->
+<div id="screen-home">
+  <div class="home-header">
+    <div class="home-subtitle">Virtual Chemistry Laboratory</div>
+    <div class="home-title"><em>Organic</em>Lab</div>
+    <div class="home-desc">Functional group identification · Flowchart reasoning · A-level & IB</div>
+  </div>
+
+  <div class="home-cards">
+    <!-- Free Explore -->
+    <div class="home-card explore" onclick="startExplore()">
+      <div class="card-icon">⚗️</div>
+      <div class="card-title">Free Exploration</div>
+      <div class="card-desc">Open bench mode. Choose any compound and run tests freely. Build your own identification flowchart as you go.</div>
+      <div style="margin-top:16px;">
+        <button class="btn accent-green" onclick="event.stopPropagation();startExplore()">Open Bench →</button>
+      </div>
+    </div>
+
+    <!-- Session Key -->
+    <div class="home-card session">
+      <div class="card-icon">🔑</div>
+      <div class="card-title">Enter Session</div>
+      <div class="card-desc">Your teacher has given you a session key. Enter it below to load your assigned question.</div>
+      <div class="session-entry">
+        <input class="session-input" id="key-input" placeholder="e.g. ORG-4729" maxlength="8">
+        <button class="btn accent-blue" onclick="loadSessionKey()">Load</button>
+      </div>
+      <div id="key-error" style="font-size:10px;color:var(--accent);margin-top:6px;min-height:14px;"></div>
+    </div>
+
+    <!-- Teacher -->
+    <div class="home-card teacher" onclick="openTeacher()">
+      <div class="card-icon">📋</div>
+      <div class="card-title">Teacher Mode</div>
+      <div class="card-desc">Design custom questions, set functional groups, add given information, and generate a session key for your class.</div>
+      <div style="margin-top:16px;">
+        <button class="btn accent-red" onclick="event.stopPropagation();openTeacher()">Design Question →</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size:11px;color:var(--ink3);text-align:center;">
+    A-level / IB Organic Chemistry · No account required · Works offline
+  </div>
+</div>
+
+<!-- =================== APP SCREEN =================== -->
+<div id="screen-app">
+  <div class="app-header">
+    <div class="app-logo"><em>Organic</em>Lab</div>
+    <div class="app-mode-badge" id="app-mode-badge">Free Exploration</div>
+    <div class="app-header-right">
+      <label class="ib-toggle" id="ib-toggle" title="Enable IB HL features (polarimetry, spectroscopy)">
+        <div class="toggle-track" id="ib-track">
+          <div class="toggle-thumb"></div>
+        </div>
+        IB HL
+      </label>
+      <button class="btn sm" onclick="showHome()">← Home</button>
+      <button class="btn sm" onclick="submitAnswer()">Submit →</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- LEFT: Compound + Checklist -->
+    <div class="left-panel">
+      <div class="panel-head">Compound</div>
+      <div class="compound-display" id="compound-display">
+        <div class="compound-label">Unknown</div>
+        <div class="compound-name" id="cpd-name">Compound X</div>
+        <div class="compound-formula" id="cpd-formula"></div>
+        <div class="compound-given" id="cpd-given" style="display:none;"></div>
+      </div>
+
+      <div class="panel-head" style="margin-top:0;">Functional Group Identification</div>
+      <div class="fg-checklist" id="fg-checklist"></div>
+      <div class="fg-submit-area">
+        <button class="btn primary" style="width:100%;" onclick="submitAnswer()">Submit Identification</button>
+      </div>
+    </div>
+
+    <!-- CENTRE -->
+    <div class="centre-panel">
+      <div class="centre-tabs">
+        <button class="centre-tab active" onclick="switchCentreTab('flowchart')">Flowchart</button>
+        <button class="centre-tab" onclick="switchCentreTab('bench')">Open Bench</button>
+        <button class="centre-tab ib-feature hidden" onclick="switchCentreTab('polarimetry')">Polarimetry</button>
+      </div>
+
+      <!-- FLOWCHART VIEW -->
+      <div id="view-flowchart" style="flex:1;overflow:auto;padding:30px;display:flex;flex-direction:column;align-items:center;">
+        <div class="flowchart-wrap" id="flowchart-wrap"></div>
+      </div>
+
+      <!-- BENCH VIEW -->
+      <div id="view-bench" class="hidden">
+        <div style="padding:6px 16px;font-size:10px;color:var(--ink3);border-bottom:1px solid var(--border);background:var(--surface);">
+          💡 Drag test reagents from the <strong style="color:var(--ink);">Test Reagents</strong> panel onto the bench to run tests
+        </div>
+        <div class="bench-workspace" id="bench-workspace"
+          ondragover="onBenchDragOver(event)" ondrop="onBenchDrop(event)"
+          style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:200px;">
+          <div style="color:var(--ink3);font-size:12px;text-align:center;margin-top:40px;" id="bench-hint-org">Drag a test reagent here to run it on this compound.</div>
+        </div>
+      </div>
+
+      <!-- POLARIMETRY VIEW -->
+      <div id="view-polarimetry" class="hidden" style="flex:1;overflow:auto;padding:24px;">
+        <div class="polarimetry-panel">
+          <div class="polarimetry-title">
+            Polarimetry <span class="ib-badge">IB HL</span>
+          </div>
+          <div style="font-size:11px;color:var(--ink2);margin-top:4px;line-height:1.6;">
+            Plane-polarised light passes through the sample. An optically active compound (with a chiral centre, as a single enantiomer) rotates the plane of polarisation.
+          </div>
+
+          <div class="polarimeter-visual">
+            <div class="pol-source" title="Light source + polariser">💡</div>
+            <div class="pol-wave">
+              <svg class="pol-wave-svg" viewBox="0 0 200 40">
+                <path id="pol-wave-path" d="M0,20 Q25,5 50,20 Q75,35 100,20 Q125,5 150,20 Q175,35 200,20" stroke="#1a4a8a" stroke-width="2" fill="none" opacity="0.6"/>
+                <path id="pol-wave-path2" d="M0,20 Q25,5 50,20 Q75,35 100,20 Q125,5 150,20 Q175,35 200,20" stroke="#1a4a8a" stroke-width="2" fill="none" opacity="0.3" transform="rotate(90,100,20)"/>
+              </svg>
+            </div>
+            <div class="pol-sample" id="pol-sample">Sample<br>here</div>
+            <div class="pol-wave" style="flex:0.5">
+              <svg class="pol-wave-svg" viewBox="0 0 100 40" id="pol-output-svg">
+                <path d="M0,20 Q25,5 50,20 Q75,35 100,20" stroke="#7a3a8a" stroke-width="2.5" fill="none"/>
+              </svg>
+            </div>
+            <div class="pol-detector" title="Analyser + detector">👁</div>
+          </div>
+
+          <div class="pol-reading">
+            <div class="pol-angle" id="pol-angle">—</div>
+            <div style="font-size:10px;color:var(--ink3);">optical rotation (α)</div>
+            <div class="pol-interpretation" id="pol-interpretation">Run the polarimetry test on your compound to see the result.</div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <button class="btn primary" onclick="runPolarimetry('single')">Test: Single Enantiomer</button>
+            <button class="btn" onclick="runPolarimetry('racemic')">Test: Racemic Mixture</button>
+            <button class="btn" onclick="runPolarimetry('none')">Test: No Chiral Centre</button>
+          </div>
+
+          <div style="margin-top:16px;background:var(--bg);border-radius:3px;padding:12px;font-size:11px;color:var(--ink2);line-height:1.7;">
+            <strong style="color:var(--ink);">Mechanism implications:</strong><br>
+            • Optically active product → <span style="color:var(--accent2);">SN2</span> (inversion of configuration, Walden inversion)<br>
+            • Racemic mixture → <span style="color:var(--accent3);">SN1</span> (planar carbocation, attack from both faces)<br>
+            • No rotation → achiral compound, or racemic mixture
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEST REAGENTS PANEL -->
+    <div class="test-reagents-panel">
+      <div style="padding:12px 14px 8px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink3);border-bottom:1px solid var(--border);">Test Reagents</div>
+      <div style="padding:5px 12px;font-size:10px;color:var(--ink3);border-bottom:1px solid var(--border);">Drag onto bench</div>
+      <div style="flex:1;overflow-y:auto;" id="org-test-reagents-list"></div>
+    </div>
+
+    <!-- RIGHT PANEL: Observations + AI Tutor -->
+    <div class="right-panel">
+
+      <!-- OBSERVATIONS DRAWER -->
+      <div class="side-drawer" id="org-drawer-obs">
+        <div class="side-drawer-header" onclick="toggleOrgDrawer('obs')">
+          <span class="s-arrow open" id="org-arr-obs">▶</span>
+          <span class="drawer-label">Observations</span>
+          <span class="obs-count-badge" id="org-obs-count">0</span>
+        </div>
+        <div class="side-drawer-body" id="org-body-obs">
+          <div style="padding:8px;" id="org-obs-log">
+            <div style="color:var(--ink3);font-size:11px;text-align:center;margin-top:12px;">No tests yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI TUTOR DRAWER -->
+      <div class="side-drawer" id="org-drawer-tutor">
+        <div class="side-drawer-header" onclick="toggleOrgDrawer('tutor')">
+          <span class="s-arrow" id="org-arr-tutor">▶</span>
+          <span class="drawer-label">AI Tutor</span>
+        </div>
+        <div class="side-drawer-body closed" id="org-body-tutor">
+          <div class="tutor-msgs-org" id="tutor-msgs">
+            <div class="tutor-msg-org ai">
+              <div class="who">AI Tutor</div>
+              Hello! I can help you understand organic functional group tests, why certain reagents work, and what your results mean.
+            </div>
+          </div>
+          <div class="tutor-bottom-org">
+            <div style="background:rgba(240,160,74,0.1);border:1px solid rgba(240,160,74,0.3);border-radius:4px;padding:6px 8px;font-size:10px;color:var(--accent2);margin-bottom:6px;">
+              API Key<br>
+              <input type="password" id="api-key" placeholder="sk-ant-..." style="margin-top:4px;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 7px;outline:none;">
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;" id="tutor-quick"></div>
+            <div class="tutor-row-org">
+              <textarea class="tutor-inp-org" id="tutor-inp" rows="2" placeholder="Ask a question..."></textarea>
+              <button class="tutor-send-org" id="tutor-send-btn" onclick="sendTutor()">Ask</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- =================== TEACHER SCREEN =================== -->
+<div id="screen-teacher">
+  <div class="teacher-header">
+    <button class="btn" onclick="showHome()">← Back</button>
+    <div class="teacher-title"><em>Organic</em>Lab — <span style="color:var(--accent);">Teacher Designer</span></div>
+  </div>
+
+  <div class="teacher-grid">
+    <!-- Question Config -->
+    <div class="teacher-section">
+      <h3>Question Setup</h3>
+
+      <div class="form-group">
+        <label class="form-label">Question Type</label>
+        <select class="form-select" id="q-type" onchange="updateTeacherUI()">
+          <option value="A">Type A — Structured deduction (P3-style)</option>
+          <option value="B">Type B — Custom unknown (identify by testing)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Compound Name (shown to student in Type A)</label>
+        <input class="form-input" id="q-name" placeholder="e.g. Compound X, or leave blank for unknown">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Molecular Formula (optional)</label>
+        <input class="form-input" id="q-formula" placeholder="e.g. C₄H₈O₂">
+      </div>
+
+      <div class="form-group" id="given-group">
+        <label class="form-label">Given Information (shown to student)</label>
+        <textarea class="form-textarea" id="q-given" placeholder="e.g. The compound reacts with sodium but not with Na₂CO₃. It decolourises bromine water."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Student Mode</label>
+        <select class="form-select" id="q-mode">
+          <option value="guided">Guided (pre-built flowchart)</option>
+          <option value="open">Open (student chooses tests)</option>
+          <option value="both">Both available</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="q-ib" style="accent-color:var(--accent4);margin-right:4px;">
+          Enable IB HL features (polarimetry)
+        </label>
+      </div>
+    </div>
+
+    <!-- Functional Groups + Mark Scheme -->
+    <div class="teacher-section">
+      <h3>Functional Groups Present</h3>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:12px;">Select which functional groups are in the compound. These form the answer key.</div>
+      <div class="fg-picker" id="fg-picker"></div>
+
+      <h3 style="margin-top:24px;">Mark Scheme Notes</h3>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;">Shown to students after submission.</div>
+      <textarea class="form-textarea" id="q-markscheme" placeholder="e.g. Award 1 mark for each correctly identified functional group. Students must cite at least one supporting test result." style="min-height:100px;"></textarea>
+
+      <div style="margin-top:20px;">
+        <button class="btn primary" style="width:100%;padding:12px;" onclick="generateKey()">Generate Session Key</button>
+      </div>
+
+      <div id="key-output" class="hidden">
+        <div class="session-key-display">
+          <div style="font-size:10px;letter-spacing:2px;color:rgba(247,244,239,0.5);">SESSION KEY</div>
+          <div class="session-key-value" id="generated-key"></div>
+          <div class="session-key-hint">Share this key with your students</div>
+        </div>
+        <button class="btn" style="width:100%;margin-top:8px;" onclick="copyKey()">Copy Key</button>
+        <button class="btn accent-green" style="width:100%;margin-top:6px;" onclick="previewQuestion()">Preview as Student →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== PIN MODAL =================== -->
+<div class="pin-overlay hidden" id="pin-overlay">
+  <div class="pin-modal">
+    <div class="pin-title">Teacher Access</div>
+    <div class="pin-subtitle">Enter your 4-digit PIN to access the teacher designer.<br>Default PIN: <strong>1234</strong></div>
+    <input class="pin-input" type="password" id="pin-input" maxlength="4" placeholder="····" oninput="checkPin()">
+    <div class="pin-error" id="pin-error"></div>
+    <button class="btn" onclick="closePinModal()" style="width:100%;">Cancel</button>
+  </div>
+</div>
+
+<!-- =================== RESULT MODAL =================== -->
+<div class="result-overlay hidden" id="result-overlay">
+  <div class="result-modal">
+    <h2 id="result-title"></h2>
+    <div id="result-body" style="font-size:12px;color:var(--ink2);line-height:1.7;margin-bottom:16px;"></div>
+    <div id="markscheme-section" class="hidden">
+      <div style="font-family:'Spectral',serif;font-size:14px;margin-bottom:10px;color:var(--ink);">Mark Scheme</div>
+      <div id="markscheme-items"></div>
+    </div>
+    <button class="btn primary" style="width:100%;margin-top:16px;" onclick="closeResult()">Continue</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const FUNCTIONAL_GROUPS = [
+  { id: 'alkene',   name: 'Alkene (C=C)',           symbol: '🔵' },
+  { id: 'aldehyde', name: 'Aldehyde (–CHO)',         symbol: '🟡' },
+  { id: 'ketone',   name: 'Ketone (C=O)',            symbol: '🟠' },
+  { id: 'carboxyl', name: 'Carboxylic acid (–COOH)', symbol: '🔴' },
+  { id: 'alcohol1', name: 'Alcohol — primary',       symbol: '🟢' },
+  { id: 'alcohol2', name: 'Alcohol — secondary',     symbol: '🟢' },
+  { id: 'alcohol3', name: 'Alcohol — tertiary',      symbol: '🟢' },
+  { id: 'phenol',   name: 'Phenol (–OH on ring)',    symbol: '🟣' },
+  { id: 'amine',    name: 'Amine (–NH₂)',            symbol: '⚪' },
+  { id: 'halide',   name: 'Halogenoalkane (–X)',     symbol: '🩶' },
+  { id: 'ester',    name: 'Ester (–COO–)',           symbol: '🔶' },
+  { id: 'amide',    name: 'Amide (–CONH–)',          symbol: '🔷' },
+  { id: 'alkane',   name: 'Alkane (by elimination)', symbol: '⬜' },
+];
+
+const TESTS = [
+  { id: 'bromine_water', name: 'Bromine water', conditions: 'room temp, no UV',
+    results: {
+      alkene:   { obs: 'Orange-brown bromine water decolourises to colourless', positive: true,  eq: 'C=C + Br₂ → C(Br)C(Br) (addition)' },
+      aldehyde: { obs: 'Bromine water decolourises slowly (oxidation of aldehyde)', positive: true, eq: 'RCHO + Br₂ + H₂O → RCOOH + 2HBr' },
+      phenol:   { obs: 'Immediate white precipitate (2,4,6-tribromophenol) + decolourisation', positive: true, eq: 'C₆H₅OH + 3Br₂ → C₆H₂Br₃OH + 3HBr' },
+      default:  { obs: 'No decolourisation. Bromine water remains orange-brown.', positive: false }
+    }
+  },
+  { id: 'tollens', name: "Tollens' reagent", conditions: 'warm gently, clean tube',
+    results: {
+      aldehyde: { obs: 'Silver mirror forms on inside of tube. Ag⁺ reduced to Ag metal.', positive: true, eq: 'RCHO + 2[Ag(NH₃)₂]⁺ + 2OH⁻ → RCOO⁻ + 2Ag(s) + 4NH₃ + H₂O' },
+      default:  { obs: "No silver mirror. Tollens' reagent remains colourless.", positive: false }
+    }
+  },
+  { id: 'fehlings', name: "Fehling's solution", conditions: 'heat',
+    results: {
+      aldehyde: { obs: 'Blue Fehling\'s solution produces brick-red precipitate (Cu₂O). Positive for aldehyde.', positive: true, eq: 'RCHO + 2Cu²⁺ + 5OH⁻ → RCOO⁻ + Cu₂O(s) + 3H₂O' },
+      default:  { obs: "Fehling's solution remains blue. No precipitate.", positive: false }
+    }
+  },
+  { id: 'k2cr2o7', name: 'Acidified K₂Cr₂O₇', conditions: 'heat with dilute H₂SO₄',
+    results: {
+      aldehyde: { obs: 'Orange K₂Cr₂O₇ turns green. Aldehyde oxidised to carboxylic acid.', positive: true,  eq: '3RCHO + Cr₂O₇²⁻ + 8H⁺ → 3RCOOH + 2Cr³⁺ + 4H₂O' },
+      alcohol1: { obs: 'Orange → green. Primary alcohol oxidised first to aldehyde, then carboxylic acid.', positive: true, eq: 'Primary: RCH₂OH → RCHO → RCOOH' },
+      alcohol2: { obs: 'Orange → green. Secondary alcohol oxidised to ketone.', positive: true, eq: 'Secondary: R₂CHOH → R₂C=O' },
+      alcohol3: { obs: 'No colour change. Tertiary alcohols are not oxidised by K₂Cr₂O₇.', positive: false },
+      default:  { obs: 'No colour change. K₂Cr₂O₇ remains orange.', positive: false }
+    }
+  },
+  { id: 'lucas', name: 'Lucas test (ZnCl₂/HCl)', conditions: 'room temp, anhydrous ZnCl₂ in conc. HCl',
+    results: {
+      alcohol1: { obs: 'No visible change at room temperature. Primary alcohols do not react with Lucas.', positive: false, eq: 'Primary: no reaction at room temp' },
+      alcohol2: { obs: 'Cloudy/turbid after 5 minutes. SN1 reaction forming alkyl chloride (secondary).', positive: true,  eq: 'R₂CHOH + HCl →[ZnCl₂] R₂CHCl + H₂O (SN1, slow)' },
+      alcohol3: { obs: 'Immediate cloudiness/turbidity. Tertiary alcohol reacts instantly via SN1.', positive: true,  eq: 'R₃COH + HCl →[ZnCl₂] R₃CCl + H₂O (SN1, fast)' },
+      default:  { obs: 'No reaction observed.', positive: false }
+    }
+  },
+  { id: 'na_metal', name: 'Sodium metal', conditions: 'small piece, room temp',
+    results: {
+      alcohol1: { obs: 'Steady effervescence. H₂ gas produced. Na dissolves. Alcohol is acidic enough to react.', positive: true, eq: '2ROH + 2Na → 2RONa + H₂' },
+      alcohol2: { obs: 'Effervescence. H₂ produced.', positive: true, eq: '2ROH + 2Na → 2RONa + H₂' },
+      alcohol3: { obs: 'Slow effervescence. H₂ produced.', positive: true, eq: '2ROH + 2Na → 2RONa + H₂' },
+      carboxyl:  { obs: 'Vigorous effervescence. H₂ produced. Carboxylic acids react more readily with Na than alcohols.', positive: true, eq: '2RCOOH + 2Na → 2RCOONa + H₂' },
+      phenol:    { obs: 'Effervescence. H₂ produced. Phenol reacts with Na.', positive: true, eq: '2C₆H₅OH + 2Na → 2C₆H₅ONa + H₂' },
+      default:   { obs: 'No reaction with sodium.', positive: false }
+    }
+  },
+  { id: 'na2co3', name: 'Na₂CO₃ solution', conditions: 'room temp, aqueous',
+    results: {
+      carboxyl: { obs: 'Effervescence. CO₂ produced. Carboxylic acid is acidic enough to react with carbonate.', positive: true, eq: '2RCOOH + Na₂CO₃ → 2RCOONa + H₂O + CO₂' },
+      phenol:   { obs: 'No effervescence. Phenol is too weak an acid to react with Na₂CO₃ (only reacts with NaOH).', positive: false },
+      default:  { obs: 'No effervescence. Compound does not react with Na₂CO₃.', positive: false }
+    }
+  },
+  { id: 'fecl3', name: 'FeCl₃ solution', conditions: 'neutral pH, room temp',
+    results: {
+      phenol:  { obs: 'Intense purple/violet colour. Characteristic of phenol with FeCl₃.', positive: true, eq: '3C₆H₅OH + FeCl₃ → (C₆H₅O)₃Fe + 3HCl (complex)' },
+      default: { obs: 'No colour change (or slight yellow from FeCl₃ itself).', positive: false }
+    }
+  },
+  { id: 'agno3_hydrolysis', name: 'AgNO₃ (after hydrolysis)', conditions: 'boil with NaOH/water, then acidify, add AgNO₃',
+    results: {
+      halide: { obs: 'Precipitate forms. White = Cl, Cream = Br, Yellow = I. Confirms halogen present.', positive: true, eq: 'R–X + OH⁻ →[heat] R–OH + X⁻; then Ag⁺ + X⁻ → AgX(s)' },
+      default: { obs: 'No precipitate. No halogen present.', positive: false }
+    }
+  },
+  { id: 'naoh_hydrolysis', name: 'NaOH (aq), heat', conditions: 'reflux with aqueous NaOH',
+    results: {
+      ester:  { obs: 'Ester hydrolysis. Alcohol and carboxylate salt produced. May notice smell change.', positive: true, eq: 'RCOOR\' + NaOH → RCOONa + R\'OH' },
+      amide:  { obs: 'Amide hydrolysis. NH₃ gas produced (turns damp red litmus blue). Carboxylate formed.', positive: true, eq: 'RCONH₂ + NaOH → RCOONa + NH₃' },
+      halide: { obs: 'Hydrolysis of halogenoalkane (use this before AgNO₃ test).', positive: true, eq: 'R–X + OH⁻ →[heat] R–OH + X⁻' },
+      default: { obs: 'No significant reaction with dilute NaOH.', positive: false }
+    }
+  },
+  { id: 'litmus', name: 'pH / Litmus paper', conditions: 'room temp, aqueous solution',
+    results: {
+      carboxyl: { obs: 'Red litmus, pH 2–4. Weakly acidic solution.', positive: true },
+      phenol:   { obs: 'Slightly red litmus, pH ~5–6. Very weakly acidic.', positive: true },
+      amine:    { obs: 'Blue litmus. Basic solution (lone pair on N accepts H⁺).', positive: true },
+      default:  { obs: 'Neutral or no significant pH change.', positive: false }
+    }
+  },
+  { id: 'kmno4', name: 'KMnO₄ (acidified)', conditions: 'acidified, room temp',
+    results: {
+      alkene:   { obs: 'Purple KMnO₄ decolourises to colourless/pale pink. C=C oxidised.', positive: true, eq: 'C=C + KMnO₄ → diol or cleavage products' },
+      aldehyde: { obs: 'Purple decolourises. Aldehyde oxidised to carboxylic acid.', positive: true },
+      default:  { obs: 'Purple colour persists. No oxidation.', positive: false }
+    }
+  },
+];
+
+// FLOWCHART definition — master decision tree
+const FLOWCHART = [
+  { id: 'start', type: 'start', title: 'Unknown Organic Compound', detail: 'Begin systematic identification' },
+  { id: 't1', type: 'test', title: 'Bromine water', detail: 'Add orange-brown bromine water to compound at room temp (no UV light)',
+    pos: 't1_pos', neg: 't1_neg',
+    posLabel: 'Decolourises', negLabel: 'No change' },
+  { id: 't1_pos', type: 'test', title: "Tollens' reagent", detail: 'Warm gently with Tollens\' reagent in clean tube',
+    pos: 'c_aldehyde', neg: 'c_alkene_phenol',
+    posLabel: 'Silver mirror', negLabel: 'No silver mirror' },
+  { id: 'c_aldehyde', type: 'conclusion', title: 'Aldehyde (–CHO)', detail: 'Decolourises Br₂ water AND gives silver mirror. Confirmed aldehyde.' },
+  { id: 'c_alkene_phenol', type: 'test', title: 'FeCl₃ solution', detail: 'Add FeCl₃ to compound',
+    pos: 'c_phenol', neg: 'c_alkene',
+    posLabel: 'Purple colour', negLabel: 'No purple' },
+  { id: 'c_phenol', type: 'conclusion', title: 'Phenol', detail: 'Decolourises Br₂ water (white ppt) AND gives purple with FeCl₃. Confirmed phenol.' },
+  { id: 'c_alkene', type: 'conclusion', title: 'Alkene (C=C)', detail: 'Decolourises Br₂ water but no silver mirror and no purple with FeCl₃. Confirmed alkene.' },
+  { id: 't1_neg', type: 'test', title: 'Acidified K₂Cr₂O₇', detail: 'Heat with K₂Cr₂O₇ / H₂SO₄',
+    pos: 't2_pos', neg: 't2_neg',
+    posLabel: 'Orange → green', negLabel: 'No colour change' },
+  { id: 't2_pos', type: 'test', title: "Tollens' reagent", detail: 'Warm with Tollens\' to distinguish aldehyde from alcohol',
+    pos: 'c_ald2', neg: 't2_pos_b',
+    posLabel: 'Silver mirror', negLabel: 'No silver mirror' },
+  { id: 'c_ald2', type: 'conclusion', title: 'Aldehyde (–CHO)', detail: 'Reduces K₂Cr₂O₇ AND gives silver mirror. Aldehyde confirmed.' },
+  { id: 't2_pos_b', type: 'test', title: 'Lucas test (ZnCl₂/HCl)', detail: 'Anhydrous ZnCl₂ in conc. HCl at room temperature',
+    pos: 't_lucas_pos', neg: 'c_primary_alcohol',
+    posLabel: 'Cloudy (fast/slow)', negLabel: 'No change (rt)' },
+  { id: 't_lucas_pos', type: 'test', title: 'Rate of Lucas reaction', detail: 'Observe speed of cloudiness formation',
+    pos: 'c_tertiary', neg: 'c_secondary',
+    posLabel: 'Immediate', negLabel: 'Slow (5 min)' },
+  { id: 'c_tertiary', type: 'conclusion', title: 'Tertiary Alcohol', detail: 'Reacts immediately with Lucas → SN1 via stable 3° carbocation.' },
+  { id: 'c_secondary', type: 'conclusion', title: 'Secondary Alcohol', detail: 'Slow reaction with Lucas → SN1 via less stable 2° carbocation.' },
+  { id: 'c_primary_alcohol', type: 'conclusion', title: 'Primary Alcohol', detail: 'Reduces K₂Cr₂O₇ but no Lucas reaction at room temp. Primary alcohol confirmed.' },
+  { id: 't2_neg', type: 'test', title: 'Na₂CO₃ solution', detail: 'Add aqueous sodium carbonate',
+    pos: 'c_carboxyl', neg: 't3_neg',
+    posLabel: 'CO₂ effervescence', negLabel: 'No effervescence' },
+  { id: 'c_carboxyl', type: 'conclusion', title: 'Carboxylic Acid (–COOH)', detail: 'No bromine decolourisation, no K₂Cr₂O₇ change, but reacts with Na₂CO₃ → CO₂. Confirmed carboxylic acid.' },
+  { id: 't3_neg', type: 'test', title: 'Litmus / pH', detail: 'Test aqueous solution with litmus paper',
+    pos: 'c_amine', neg: 't4',
+    posLabel: 'Blue litmus (basic)', negLabel: 'Neutral/acidic' },
+  { id: 'c_amine', type: 'conclusion', title: 'Amine (–NH₂)', detail: 'Basic solution confirms amine (lone pair accepts H⁺). Also produces white fumes with HCl.' },
+  { id: 't4', type: 'test', title: 'AgNO₃ after hydrolysis', detail: 'Boil with NaOH, acidify, then add AgNO₃',
+    pos: 'c_halide', neg: 't5',
+    posLabel: 'Precipitate (Cl/Br/I)', negLabel: 'No precipitate' },
+  { id: 'c_halide', type: 'conclusion', title: 'Halogenoalkane (–X)', detail: 'AgNO₃ precipitate after hydrolysis: white=Cl, cream=Br, yellow=I.' },
+  { id: 't5', type: 'test', title: 'NaOH (aq), heat — smell test', detail: 'Reflux with NaOH then smell (ester gives fruity alcohol smell)',
+    pos: 'c_ester_amide', neg: 'c_alkane',
+    posLabel: 'Fruity smell / NH₃ gas', negLabel: 'No significant reaction' },
+  { id: 'c_ester_amide', type: 'test', title: 'NH₃ gas test', detail: 'Hold damp red litmus over heated tube',
+    pos: 'c_amide', neg: 'c_ester',
+    posLabel: 'Litmus turns blue', negLabel: 'No litmus change' },
+  { id: 'c_amide', type: 'conclusion', title: 'Amide (–CONH–)', detail: 'Hydrolysis with NaOH produces NH₃ (blue litmus). Amide confirmed.' },
+  { id: 'c_ester', type: 'conclusion', title: 'Ester (–COO–)', detail: 'Hydrolysis gives fruity smell of alcohol but no NH₃. Ester confirmed.' },
+  { id: 'c_alkane', type: 'elimination', title: 'Alkane (by elimination)', detail: 'All tests negative. No reactive functional group detected. Consistent with alkane — identified by elimination.' },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  mode: 'explore',   // explore | session | teacher-preview
+  ibEnabled: false,
+  compound: { name: 'Compound X', formula: '', given: '', fgPresent: [], markScheme: '', qType: 'B', studentMode: 'both' },
+  fgStatus: {},      // id → 'confirmed' | 'ruled-out' | null
+  fgEvidence: {},    // id → test name
+  observations: [],
+  benchTests: [],
+  fcProgress: {},    // node id → result chosen
+  tutorHistory: [],
+  sessionConfig: null,
+};
+
+// ============================================================
+// HOME / NAVIGATION
+// ============================================================
+function showHome() {
+  document.getElementById('screen-home').style.display = 'flex';
+  document.getElementById('screen-app').style.display = 'none';
+  document.getElementById('screen-teacher').style.display = 'none';
+}
+
+function startExplore() {
+  state.mode = 'explore';
+  state.compound = { name: 'Compound X', formula: '', given: '', fgPresent: [], markScheme: '', qType: 'B', studentMode: 'both' };
+  state.fgStatus = {}; state.fgEvidence = {};
+  state.observations = []; state.benchTests = []; state.fcProgress = {};
+  document.getElementById('app-mode-badge').textContent = 'Free Exploration';
+  showApp();
+}
+
+function showApp() {
+  document.getElementById('screen-home').style.display = 'none';
+  document.getElementById('screen-app').style.display = 'flex';
+  document.getElementById('screen-teacher').style.display = 'none';
+  renderAll();
+  renderOrgTestReagents();
+}
+
+function openTeacher() {
+  document.getElementById('pin-overlay').classList.remove('hidden');
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  setTimeout(() => document.getElementById('pin-input').focus(), 100);
+}
+
+function checkPin() {
+  const pin = document.getElementById('pin-input').value;
+  if (pin.length === 4) {
+    const stored = localStorage.getItem('orglab-pin') || '1234';
+    if (pin === stored) {
+      document.getElementById('pin-overlay').classList.add('hidden');
+      document.getElementById('screen-home').style.display = 'none';
+      document.getElementById('screen-app').style.display = 'none';
+      document.getElementById('screen-teacher').style.display = 'block';
+      initTeacherUI();
+    } else {
+      document.getElementById('pin-error').textContent = 'Incorrect PIN.';
+      document.getElementById('pin-input').value = '';
+    }
+  }
+}
+
+function closePinModal() {
+  document.getElementById('pin-overlay').classList.add('hidden');
+}
+
+// ============================================================
+// SESSION KEY
+// ============================================================
+function generateKey() {
+  const cfg = gatherTeacherConfig();
+  if (!cfg.fgPresent.length) { alert('Please select at least one functional group.'); return; }
+  const json = JSON.stringify(cfg);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  // Generate short key: ORG- + 4 random hex
+  const hash = Math.abs(b64.split('').reduce((a,c) => (a<<5)-a+c.charCodeAt(0)|0, 0)).toString(16).toUpperCase().slice(0,4).padStart(4,'0');
+  const key = 'ORG-' + hash;
+  // Store in localStorage
+  localStorage.setItem('orglab-session-' + key, b64);
+  document.getElementById('generated-key').textContent = key;
+  document.getElementById('key-output').classList.remove('hidden');
+}
+
+function gatherTeacherConfig() {
+  const fgPresent = Array.from(document.querySelectorAll('#fg-picker input:checked')).map(i => i.value);
+  return {
+    qType: document.getElementById('q-type').value,
+    name: document.getElementById('q-name').value || 'Compound X',
+    formula: document.getElementById('q-formula').value,
+    given: document.getElementById('q-given').value,
+    studentMode: document.getElementById('q-mode').value,
+    ibEnabled: document.getElementById('q-ib').checked,
+    fgPresent,
+    markScheme: document.getElementById('q-markscheme').value,
+  };
+}
+
+function copyKey() {
+  const key = document.getElementById('generated-key').textContent;
+  navigator.clipboard.writeText(key).then(() => alert('Key copied: ' + key));
+}
+
+function previewQuestion() {
+  const key = document.getElementById('generated-key').textContent;
+  loadFromKey(key);
+}
+
+function loadSessionKey() {
+  const key = document.getElementById('key-input').value.trim().toUpperCase();
+  if (!key.startsWith('ORG-') || key.length !== 8) {
+    document.getElementById('key-error').textContent = 'Invalid key format. Keys look like ORG-4A2F';
+    return;
+  }
+  loadFromKey(key);
+}
+
+function loadFromKey(key) {
+  const b64 = localStorage.getItem('orglab-session-' + key);
+  if (!b64) {
+    document.getElementById('key-error').textContent = 'Key not found. Was it generated on this device?';
+    return;
+  }
+  try {
+    const cfg = JSON.parse(decodeURIComponent(escape(atob(b64))));
+    state.mode = 'session';
+    state.compound = cfg;
+    state.fgStatus = {}; state.fgEvidence = {};
+    state.observations = []; state.benchTests = []; state.fcProgress = {};
+    state.ibEnabled = cfg.ibEnabled || false;
+    document.getElementById('app-mode-badge').textContent = 'Session: ' + key;
+    document.getElementById('ib-track').classList.toggle('on', state.ibEnabled);
+    document.querySelectorAll('.ib-feature').forEach(el => el.classList.toggle('hidden', !state.ibEnabled));
+    showApp();
+  } catch(e) {
+    document.getElementById('key-error').textContent = 'Error loading session. Key may be corrupted.';
+  }
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  renderCompound();
+  renderFGChecklist();
+  renderFlowchart();
+  renderBenchReagents();
+  renderReference();
+  updateIBFeatures();
+}
+
+function renderCompound() {
+  const c = state.compound;
+  document.getElementById('cpd-name').textContent = c.name || 'Compound X';
+  document.getElementById('cpd-formula').textContent = c.formula || '';
+  const givenEl = document.getElementById('cpd-given');
+  if (c.given) { givenEl.textContent = c.given; givenEl.style.display = 'block'; }
+  else givenEl.style.display = 'none';
+}
+
+function renderFGChecklist() {
+  const el = document.getElementById('fg-checklist');
+  el.innerHTML = '';
+  FUNCTIONAL_GROUPS.forEach(fg => {
+    const status = state.fgStatus[fg.id] || null;
+    const evidence = state.fgEvidence[fg.id] || '';
+    const div = document.createElement('div');
+    div.className = 'fg-item' + (status === 'confirmed' ? ' confirmed' : status === 'ruled-out' ? ' ruled-out' : '');
+    div.innerHTML = `
+      <div class="fg-checkbox">${status === 'confirmed' ? '✓' : status === 'ruled-out' ? '–' : ''}</div>
+      <div>
+        <div class="fg-name">${fg.symbol} ${fg.name}</div>
+        ${evidence ? `<div class="fg-evidence">Evidence: ${evidence}</div>` : ''}
+      </div>`;
+    div.onclick = () => cycleFGStatus(fg.id);
+    el.appendChild(div);
+  });
+}
+
+function cycleFGStatus(id) {
+  const cur = state.fgStatus[id] || null;
+  if (!cur) state.fgStatus[id] = 'confirmed';
+  else if (cur === 'confirmed') state.fgStatus[id] = 'ruled-out';
+  else delete state.fgStatus[id];
+  renderFGChecklist();
+}
+
+// ============================================================
+// FLOWCHART RENDERER
+// ============================================================
+function renderFlowchart() {
+  const wrap = document.getElementById('flowchart-wrap');
+  wrap.innerHTML = '';
+  renderFCNode('start', wrap, 0);
+}
+
+function renderFCNode(nodeId, container, depth) {
+  if (depth > 30) return; // safety
+  const node = FLOWCHART.find(n => n.id === nodeId);
+  if (!node) return;
+
+  // Connector arrow (except for start)
+  if (depth > 0) {
+    const conn = document.createElement('div');
+    conn.className = 'fc-connector';
+    conn.innerHTML = '<div class="fc-arrow"></div>';
+    container.appendChild(conn);
+  }
+
+  // Node
+  const el = document.createElement('div');
+  el.className = 'fc-node ' + node.type;
+  const progress = state.fcProgress[nodeId];
+
+  if (node.type === 'start') {
+    el.innerHTML = `<div class="fc-node-title">${node.title}</div><div class="fc-node-detail">${node.detail}</div>`;
+  } else if (node.type === 'conclusion' || node.type === 'elimination') {
+    el.innerHTML = `
+      <div class="fc-node-label">${node.type === 'elimination' ? 'By Elimination' : 'Conclusion'}</div>
+      <div class="fc-node-title">${node.title}</div>
+      <div class="fc-node-detail">${node.detail}</div>`;
+    // Mark fg as confirmed
+    const fg = FUNCTIONAL_GROUPS.find(f => node.title.toLowerCase().includes(f.name.toLowerCase().split(' ')[0]) || node.title.toLowerCase().includes(f.id));
+    if (fg && !state.fgStatus[fg.id]) {
+      // Don't auto-confirm, let student do it
+    }
+  } else if (node.type === 'test') {
+    el.innerHTML = `
+      <div class="fc-node-label">Test</div>
+      <div class="fc-node-title">${node.title}</div>
+      <div class="fc-node-detail">${node.detail}</div>
+      ${!progress ? `<button class="fc-test-btn" onclick="runFCTest('${nodeId}', 'pos')">✓ Positive result</button>
+        <button class="fc-test-btn" style="background:var(--accent);margin-left:6px;" onclick="runFCTest('${nodeId}', 'neg')">✗ Negative result</button>` :
+        `<div class="fc-result-badge ${progress}">${progress === 'pos' ? '✓ ' + (node.posLabel||'Positive') : '✗ ' + (node.negLabel||'Negative')}</div>`}`;
+  }
+  container.appendChild(el);
+
+  // Recurse based on progress
+  if (node.type === 'test' && progress) {
+    const nextId = progress === 'pos' ? node.pos : node.neg;
+    if (nextId) {
+      // Add branch label
+      const branchLabel = document.createElement('div');
+      branchLabel.innerHTML = `<div style="display:flex;justify-content:center;margin-top:4px;"><span class="fc-branch-label ${progress}">${progress === 'pos' ? '→ ' + (node.posLabel||'Positive') : '→ ' + (node.negLabel||'Negative')}</span></div>`;
+      container.appendChild(branchLabel);
+      renderFCNode(nextId, container, depth + 1);
+    }
+  }
+}
+
+function runFCTest(nodeId, result) {
+  state.fcProgress[nodeId] = result;
+  const node = FLOWCHART.find(n => n.id === nodeId);
+  // Log observation
+  const obs = { test: node.title, result, label: result === 'pos' ? (node.posLabel||'Positive') : (node.negLabel||'Negative'), time: new Date().toLocaleTimeString() };
+  state.observations.push(obs);
+  renderObservations();
+  renderFlowchart();
+  // Scroll to bottom of flowchart
+  setTimeout(() => {
+    const fc = document.getElementById('view-flowchart');
+    fc.scrollTop = fc.scrollHeight;
+  }, 100);
+}
+
+// ============================================================
+// OPEN BENCH
+// ============================================================
+function renderBenchReagents() {
+  const area = document.getElementById('bench-quick-tests');
+  area.innerHTML = TESTS.map(t =>
+    `<button class="reagent-chip" onclick="addBenchTest('${t.id}')">${t.name}</button>`
+  ).join('');
+}
+
+function addBenchTest(testId) {
+  const test = TESTS.find(t => t.id === testId);
+  if (!test) return;
+
+  // Determine result based on compound's fg
+  const fg = state.compound.fgPresent;
+  let result = test.results.default;
+  for (const fgId of fg) {
+    if (test.results[fgId]) { result = test.results[fgId]; break; }
+  }
+
+  // In explore mode, ask user
+  if (state.mode === 'explore' || !fg.length) {
+    result = { obs: 'In explore mode, manually record your observation below.', positive: null };
+  }
+
+  const card = { id: Date.now(), test, result };
+  state.benchTests.push(card);
+  renderBenchWorkspace();
+
+  // Log
+  const obs = { test: test.name, result: result.obs, positive: result.positive, time: new Date().toLocaleTimeString(), eq: result.eq };
+  state.observations.push(obs);
+  renderObservations();
+}
+
+function renderBenchWorkspace() {
+  const ws = document.getElementById('bench-workspace');
+  if (!state.benchTests.length) {
+    ws.innerHTML = '<div style="color:var(--ink3);font-size:12px;text-align:center;margin-top:40px;">Select a test reagent above to add it to your bench.</div>';
+    return;
+  }
+  ws.innerHTML = '';
+  state.benchTests.slice().reverse().forEach(card => {
+    const t = card.test;
+    const r = card.result;
+    const div = document.createElement('div');
+    div.className = 'test-card';
+
+    const liqColor = r.positive === true ? '#c8f0d0' : r.positive === false ? '#f0e0e0' : '#e8e8f0';
+    const pptColor = r.positive === true ? '#40a050' : 'transparent';
+
+    div.innerHTML = `
+      <div class="test-card-header">
+        <div class="test-card-name">${t.name}</div>
+        <div class="test-card-conditions">Conditions: ${t.conditions}</div>
+      </div>
+      <div class="test-result-area">
+        <div class="result-visual">
+          <div class="result-liquid" style="height:60%;background:${liqColor};"></div>
+          <div class="result-ppt" style="background:${pptColor};opacity:0.7;"></div>
+        </div>
+        <div class="test-obs">
+          <span class="${r.positive === true ? 'pos' : r.positive === false ? 'neg' : ''}">${r.obs}</span>
+          ${r.eq ? `<div class="eq">${r.eq}</div>` : ''}
+        </div>
+        <button class="test-evidence-btn" onclick="useAsEvidence('${t.id}', '${t.name}', ${r.positive})">Use as evidence</button>
+      </div>`;
+    ws.appendChild(div);
+  });
+}
+
+function useAsEvidence(testId, testName, positive) {
+  if (!positive) return;
+  // Switch to checklist and prompt
+  const test = TESTS.find(t => t.id === testId);
+  // Try to match fg from test results
+  if (test && state.compound.fgPresent.length) {
+    for (const fgId of state.compound.fgPresent) {
+      if (test.results[fgId] && test.results[fgId].positive) {
+        state.fgStatus[fgId] = 'confirmed';
+        state.fgEvidence[fgId] = testName;
+      }
+    }
+  }
+  renderFGChecklist();
+  alert('Evidence recorded! Check the functional group checklist on the left.');
+}
+
+// ============================================================
+// POLARIMETRY
+// ============================================================
+function runPolarimetry(type) {
+  const angle = document.getElementById('pol-angle');
+  const interp = document.getElementById('pol-interpretation');
+  const sample = document.getElementById('pol-sample');
+
+  if (type === 'single') {
+    const deg = (Math.random() > 0.5 ? '+' : '–') + (Math.floor(Math.random() * 80) + 10) + '°';
+    angle.textContent = deg;
+    angle.style.color = 'var(--accent2)';
+    sample.style.background = 'rgba(42,110,63,0.15)';
+    interp.innerHTML = `<strong>Optically active.</strong> The compound rotates plane-polarised light by ${deg}. This indicates a single enantiomer with a chiral centre is present.<br><br><strong>Mechanism implication:</strong> If this was the product of a substitution reaction, the <span style="color:var(--accent2)">SN2</span> mechanism is consistent (backside attack → single enantiomer, Walden inversion).`;
+  } else if (type === 'racemic') {
+    angle.textContent = '0°';
+    angle.style.color = 'var(--accent3)';
+    sample.style.background = 'rgba(26,74,138,0.12)';
+    interp.innerHTML = `<strong>Optically inactive (racemic mixture).</strong> Equal amounts of (+) and (–) enantiomers cancel out.<br><br><strong>Mechanism implication:</strong> Consistent with <span style="color:var(--accent3)">SN1</span> mechanism — the planar carbocation intermediate is attacked equally from both faces, producing a racemic mixture.`;
+  } else {
+    angle.textContent = '0°';
+    angle.style.color = 'var(--ink3)';
+    sample.style.background = 'rgba(122,58,138,0.1)';
+    interp.innerHTML = '<strong>No optical rotation.</strong> Compound has no chiral centre, or is a meso compound. Optical isomerism is not applicable.';
+  }
+
+  // Log
+  state.observations.push({ test: 'Polarimetry', result: angle.textContent, positive: type !== 'none', time: new Date().toLocaleTimeString() });
+  renderObservations();
+}
+
+// ============================================================
+// OBSERVATIONS & REFERENCE
+// ============================================================
+function renderObservations() {
+  const el = document.getElementById('right-observations');
+  if (!state.observations.length) {
+    el.innerHTML = '<div style="color:var(--ink3);font-size:11px;margin-top:16px;text-align:center;">No tests performed yet.</div>';
+    return;
+  }
+  el.innerHTML = state.observations.slice().reverse().map(o => `
+    <div class="obs-item">
+      <div class="obs-test">${o.test}</div>
+      <div class="obs-result ${o.positive === true ? 'positive' : o.positive === false ? 'negative' : ''}">${o.result || o.label || ''}</div>
+      ${o.eq ? `<div style="font-size:9px;color:var(--ink3);margin-top:3px;">${o.eq}</div>` : ''}
+      <div class="obs-time">${o.time}</div>
+    </div>`).join('');
+}
+
+function renderReference() {
+  const el = document.getElementById('right-reference');
+  el.innerHTML = TESTS.map(t => `
+    <div class="ref-item">
+      <div class="ref-fg">${t.name}</div>
+      <div class="ref-test" style="font-size:10px;color:var(--ink3);">Conditions: ${t.conditions}</div>
+      ${Object.entries(t.results).filter(([k]) => k !== 'default').map(([fg, r]) => `
+        <div class="ref-positive">✓ ${fg}: ${r.obs}</div>`).join('')}
+      <div class="ref-negative">✗ Negative: ${t.results.default.obs}</div>
+    </div>`).join('');
+}
+
+// ============================================================
+// SUBMIT / RESULT
+// ============================================================
+function submitAnswer() {
+  const confirmed = Object.entries(state.fgStatus).filter(([,v]) => v === 'confirmed').map(([k]) => k);
+  const correct = state.compound.fgPresent || [];
+
+  const overlay = document.getElementById('result-overlay');
+  const title = document.getElementById('result-title');
+  const body = document.getElementById('result-body');
+  const msSection = document.getElementById('markscheme-section');
+  const msItems = document.getElementById('markscheme-items');
+
+  if (!confirmed.length) {
+    title.textContent = 'No functional groups identified';
+    body.innerHTML = 'You haven\'t confirmed any functional groups yet. Use the flowchart or bench to run tests, then tick groups in the checklist.';
+    msSection.classList.add('hidden');
+    overlay.classList.remove('hidden');
+    return;
+  }
+
+  if (state.mode === 'explore') {
+    title.textContent = 'Identification submitted';
+    body.innerHTML = `You identified: <strong>${confirmed.map(id => FUNCTIONAL_GROUPS.find(f=>f.id===id)?.name).join(', ')}</strong><br><br>In explore mode there's no answer key — review your observations to check your reasoning.`;
+    msSection.classList.add('hidden');
+    overlay.classList.remove('hidden');
+    return;
+  }
+
+  // Score against answer key
+  const correctSet = new Set(correct);
+  const confirmedSet = new Set(confirmed);
+  let score = 0, total = correct.length;
+  const items = [];
+
+  correct.forEach(id => {
+    const fg = FUNCTIONAL_GROUPS.find(f => f.id === id);
+    const got = confirmedSet.has(id);
+    if (got) score++;
+    items.push({ label: fg?.name || id, correct: got });
+  });
+  // Penalise false positives
+  confirmed.forEach(id => {
+    if (!correctSet.has(id)) {
+      const fg = FUNCTIONAL_GROUPS.find(f => f.id === id);
+      items.push({ label: fg?.name + ' (incorrect — not present)', correct: false });
+    }
+  });
+
+  const pct = total > 0 ? Math.round(score/total*100) : 0;
+  title.textContent = pct === 100 ? '🎉 Correct!' : `${score}/${total} correct`;
+  title.style.color = pct === 100 ? 'var(--positive)' : 'var(--negative)';
+  body.innerHTML = pct === 100 ? 'Excellent identification! You correctly identified all functional groups.' :
+    `You correctly identified ${score} out of ${total} functional group${total>1?'s':''}.`;
+
+  msItems.innerHTML = items.map(i =>
+    `<div class="mark-scheme-item"><span class="${i.correct ? 'mark-tick' : 'mark-cross'}">${i.correct ? '✓' : '✗'}</span><span>${i.label}</span></div>`
+  ).join('');
+
+  if (state.compound.markScheme) {
+    msItems.innerHTML += `<div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:3px;font-size:11px;color:var(--ink2);line-height:1.6;"><strong style="color:var(--ink);">Teacher notes:</strong><br>${state.compound.markScheme}</div>`;
+  }
+  msSection.classList.remove('hidden');
+  overlay.classList.remove('hidden');
+}
+
+function closeResult() {
+  document.getElementById('result-overlay').classList.add('hidden');
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchCentreTab(tab) {
+  document.querySelectorAll('.centre-tab').forEach((t,i) => t.classList.toggle('active', ['flowchart','bench','polarimetry'][i] === tab));
+  document.getElementById('view-flowchart').classList.toggle('hidden', tab !== 'flowchart');
+  document.getElementById('view-bench').classList.toggle('hidden', tab !== 'bench');
+  document.getElementById('view-polarimetry').classList.toggle('hidden', tab !== 'polarimetry');
+}
+
+function switchRightTab(tab) {
+  document.querySelectorAll('.right-tab').forEach((t,i) => t.classList.toggle('active', ['observations','reference','tutor'][i] === tab));
+  document.getElementById('right-observations').classList.toggle('hidden', tab !== 'observations');
+  document.getElementById('right-reference').classList.toggle('hidden', tab !== 'reference');
+  document.getElementById('right-tutor').classList.toggle('hidden', tab !== 'tutor');
+}
+
+// ============================================================
+// IB TOGGLE
+// ============================================================
+document.getElementById('ib-toggle').onclick = () => {
+  state.ibEnabled = !state.ibEnabled;
+  document.getElementById('ib-track').classList.toggle('on', state.ibEnabled);
+  updateIBFeatures();
+};
+
+function updateIBFeatures() {
+  document.querySelectorAll('.ib-feature').forEach(el => el.classList.toggle('hidden', !state.ibEnabled));
+}
+
+// ============================================================
+// TEACHER UI
+// ============================================================
+function initTeacherUI() {
+  const picker = document.getElementById('fg-picker');
+  picker.innerHTML = FUNCTIONAL_GROUPS.map(fg =>
+    `<label class="fg-pick-item">
+      <input type="checkbox" value="${fg.id}">
+      ${fg.symbol} ${fg.name}
+    </label>`).join('');
+  document.getElementById('key-output').classList.add('hidden');
+}
+
+function updateTeacherUI() {
+  // Could show/hide fields based on question type
+}
+
+// ============================================================
+// AI TUTOR
+// ============================================================
+async function sendTutor() {
+  const inp = document.getElementById('tutor-inp');
+  const q = inp.value.trim();
+  if (!q) return;
+  const apiKey = document.getElementById('api-key').value.trim();
+  const msgs = document.getElementById('tutor-msgs');
+  const btn = document.getElementById('tutor-send-btn');
+
+  const userDiv = document.createElement('div');
+  userDiv.className = 'tutor-msg user';
+  userDiv.innerHTML = `<div class="who">You</div>${q}`;
+  msgs.appendChild(userDiv);
+  inp.value = '';
+  msgs.scrollTop = msgs.scrollHeight;
+
+  state.tutorHistory.push({ role: 'user', content: q });
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  const obsCtx = state.observations.slice(-4).map(o => `${o.test}: ${o.result || o.label}`).join('\n');
+  const sysPrompt = `You are a helpful A-level and IB chemistry tutor specialising in organic functional group identification. Help students understand why tests work, what the observations mean, and how to reason through a flowchart. Be concise (3-5 sentences), accurate, and encouraging. Current student observations:\n${obsCtx || 'None yet.'}`;
+
+  if (!apiKey) {
+    const fallback = getLocalOrgAnswer(q);
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'tutor-msg ai';
+    aiDiv.innerHTML = `<div class="who">AI Tutor</div>${fallback}`;
+    msgs.appendChild(aiDiv);
+    msgs.scrollTop = msgs.scrollHeight;
+    btn.disabled = false; btn.textContent = 'Ask';
+    return;
+  }
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, system: sysPrompt, messages: state.tutorHistory })
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || 'Could not generate response.';
+    state.tutorHistory.push({ role: 'assistant', content: reply });
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'tutor-msg ai';
+    aiDiv.innerHTML = `<div class="who">AI Tutor</div>${reply}`;
+    msgs.appendChild(aiDiv);
+    msgs.scrollTop = msgs.scrollHeight;
+  } catch(e) {
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'tutor-msg ai';
+    aiDiv.innerHTML = `<div class="who">AI Tutor</div>Connection error. Check your API key.`;
+    msgs.appendChild(aiDiv);
+  }
+  btn.disabled = false; btn.textContent = 'Ask';
+}
+
+function getLocalOrgAnswer(q) {
+  const ql = q.toLowerCase();
+  if (ql.includes('tollens')) return "Tollens' reagent works because aldehydes are oxidising agents — they can donate electrons to Ag⁺, reducing it to Ag metal which deposits as a silver mirror. Ketones can't do this because they lack the C–H bond adjacent to C=O. Enter your API key for full AI explanations!";
+  if (ql.includes('lucas')) return "The Lucas test uses ZnCl₂ as a Lewis acid catalyst for an SN1 reaction. Tertiary carbocations form instantly (most stable), so tertiary alcohols react immediately. Secondary alcohols take ~5 min. Primary alcohols don't react at room temp — SN2 is too slow without heat. Enter API key for more!";
+  if (ql.includes('bromine') || ql.includes('decolour')) return "Bromine water decolourises when it reacts with a compound. Alkenes undergo electrophilic addition (Br₂ adds across C=C). Aldehydes are oxidised by Br₂. Phenols undergo electrophilic substitution on the ring, also giving a white precipitate. Enter API key!";
+  if (ql.includes('polarim') || ql.includes('optical') || ql.includes('chiral')) return "A chiral molecule has a non-superimposable mirror image (enantiomer). Single enantiomers rotate plane-polarised light. A racemic mixture (50:50 enantiomers) gives zero net rotation — this is the fingerprint of SN1, which produces both enantiomers via a flat carbocation. Enter API key for depth!";
+  if (ql.includes('sn1') || ql.includes('sn2')) return "SN1 goes through a carbocation intermediate — the leaving group leaves first, then nucleophile attacks a planar sp² carbon from either face, giving racemic products. SN2 is concerted — nucleophile attacks the back of the C–X bond simultaneously as X⁻ leaves, inverting configuration (Walden inversion), giving a single enantiomer. Enter API key!";
+  return "Great question! Enter your Anthropic API key above for detailed AI-powered explanations tailored to your current observations. The tutor is powered by Claude.";
+}
+
+document.getElementById('tutor-inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTutor(); }
+});
+
+// ============================================================
+// ORGANIC LAB — TEST REAGENTS PANEL + DRAWERS
+// ============================================================
+let draggedOrgTestId = null;
+
+function toggleOrgDrawer(name) {
+  const body = document.getElementById('org-body-' + name);
+  const arrow = document.getElementById('org-arr-' + name);
+  const isOpen = !body.classList.contains('closed');
+  body.classList.toggle('closed', isOpen);
+  arrow.classList.toggle('open', !isOpen);
+}
+
+function renderOrgTestReagents() {
+  const container = document.getElementById('org-test-reagents-list');
+  if (!container) return;
+
+  const groups = [
+    { label: 'Oxidising Agents', id: 'oxidising', open: false, items: [
+      { id: 'bromine_water', icon: '🟠', name: 'Bromine water',         sub: 'Room temp, no UV' },
+      { id: 'tollens',       icon: '🪞', name: "Tollens' reagent",      sub: 'Warm gently' },
+      { id: 'fehlings',      icon: '🔵', name: "Fehling's solution",     sub: 'Heat' },
+      { id: 'k2cr2o7',       icon: '🟡', name: 'Acidified K₂Cr₂O₇',    sub: 'Heat with H₂SO₄' },
+      { id: 'kmno4',         icon: '🟣', name: 'Acidified KMnO₄',       sub: 'Room temp' },
+    ]},
+    { label: 'Alcohol Tests', id: 'alcohol', open: false, items: [
+      { id: 'lucas',         icon: '☁️', name: 'Lucas test',            sub: 'ZnCl₂/conc. HCl, RT' },
+      { id: 'na_metal',      icon: '⚡', name: 'Sodium metal',           sub: 'Small piece, RT' },
+    ]},
+    { label: 'Acid / Base Tests', id: 'acidbase', open: false, items: [
+      { id: 'na2co3',        icon: '💨', name: 'Na₂CO₃ solution',       sub: 'CO₂ effervescence?' },
+      { id: 'fecl3',         icon: '🟤', name: 'FeCl₃ solution',        sub: 'Purple = phenol' },
+      { id: 'litmus',        icon: '🔵', name: 'pH / Litmus',           sub: 'Room temp, aqueous' },
+    ]},
+    { label: 'Hydrolysis', id: 'hydrolysis', open: false, items: [
+      { id: 'agno3_hydrolysis', icon: '⚪', name: 'AgNO₃ after hydrolysis', sub: 'Boil NaOH, then acidify' },
+      { id: 'naoh_hydrolysis',  icon: '🔥', name: 'NaOH (aq), heat',        sub: 'Reflux' },
+    ]},
+    { label: 'IB / Advanced', id: 'ib', open: false, items: [
+      { id: 'polarimetry',   icon: '💡', name: 'Polarimetry',           sub: 'IB HL — chiral centre' },
+    ]},
+  ];
+
+  container.innerHTML = groups.map(g => {
+    const bodyClass = g.open ? '' : ' closed';
+    const arrowClass = g.open ? ' open-arrow' : '';
+    const rows = g.items.map(item => `
+      <div class="reagent-tool-item" draggable="true" id="orgtool-${item.id}"
+        ondragstart="onOrgToolDragStart(event,'${item.id}')"
+        ondragend="onOrgToolDragEnd(event,'${item.id}')">
+        <span class="tool-icon">${item.icon}</span>
+        <div><div class="tool-name">${item.name}</div><div class="tool-sub">${item.sub}</div></div>
+      </div>`).join('');
+    return `
+      <div class="reagent-group" style="margin:0;border-bottom:1px solid var(--border);">
+        <div class="drawer-header${g.open ? ' open' : ''}" onclick="toggleOrgToolDrawer('${g.id}')">
+          <span class="drawer-arrow${arrowClass}" id="org-tool-arr-${g.id}">▶</span>
+          <span class="drawer-label">${g.label}</span>
+          <span class="drawer-count">${g.items.length}</span>
+        </div>
+        <div class="drawer-body${bodyClass}" id="org-tool-body-${g.id}">${rows}</div>
+      </div>`;
+  }).join('');
+}
+
+function toggleOrgToolDrawer(id) {
+  const body = document.getElementById('org-tool-body-' + id);
+  const arrow = document.getElementById('org-tool-arr-' + id);
+  const hdr = body.previousElementSibling;
+  const isOpen = !body.classList.contains('closed');
+  body.classList.toggle('closed', isOpen);
+  arrow.classList.toggle('open-arrow', !isOpen);
+  hdr.classList.toggle('open', !isOpen);
+}
+
+function onOrgToolDragStart(e, testId) {
+  draggedOrgTestId = testId;
+  document.getElementById('orgtool-' + testId)?.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'copy';
+}
+function onOrgToolDragEnd(e, testId) {
+  draggedOrgTestId = null;
+  document.getElementById('orgtool-' + testId)?.classList.remove('dragging');
+}
+
+function onBenchDragOver(e) {
+  if (draggedOrgTestId) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }
+}
+function onBenchDrop(e) {
+  e.preventDefault();
+  if (draggedOrgTestId) {
+    addBenchTest(draggedOrgTestId);
+    draggedOrgTestId = null;
+    document.getElementById('bench-hint-org')?.remove();
+  }
+}
+
+function logOrgObservation(testName, result, positive, eq) {
+  const log = document.getElementById('org-obs-log');
+  const time = new Date().toLocaleTimeString();
+  // Clear placeholder
+  const placeholder = log.querySelector('div[style]');
+  if (placeholder && !log.querySelector('.obs-entry-org')) log.innerHTML = '';
+
+  const el = document.createElement('div');
+  el.className = 'obs-entry-org';
+  el.innerHTML = `
+    <div class="oe-test">${testName}</div>
+    <div class="oe-result ${positive === true ? 'positive' : positive === false ? 'negative' : ''}">${result}</div>
+    ${eq ? `<div style="font-size:9px;color:var(--ink3);margin-top:3px;">${eq}</div>` : ''}
+    <div class="oe-time">${time}</div>`;
+  log.prepend(el);
+
+  // Update count and open drawer
+  const allEntries = log.querySelectorAll('.obs-entry-org').length;
+  document.getElementById('org-obs-count').textContent = allEntries;
+  const obsBody = document.getElementById('org-body-obs');
+  const obsArr = document.getElementById('org-arr-obs');
+  obsBody.classList.remove('closed');
+  obsArr.classList.add('open');
+}
+
+// Patch renderObservations to also log to new drawer
+const _origRenderObservations = typeof renderObservations === 'function' ? renderObservations : null;
+function renderObservations() {
+  // observations array is updated by calling code — just sync the org drawer
+  const log = document.getElementById('org-obs-log');
+  if (!log) return;
+  if (!state.observations.length) {
+    log.innerHTML = '<div style="color:var(--ink3);font-size:11px;text-align:center;margin-top:12px;">No tests yet.</div>';
+    document.getElementById('org-obs-count').textContent = '0';
+    return;
+  }
+  log.innerHTML = state.observations.slice().reverse().map(o => `
+    <div class="obs-entry-org">
+      <div class="oe-test">${o.test}</div>
+      <div class="oe-result ${o.positive === true ? 'positive' : o.positive === false ? 'negative' : ''}">${o.result || o.label || ''}</div>
+      ${o.eq ? `<div style="font-size:9px;color:var(--ink3);margin-top:3px;">${o.eq}</div>` : ''}
+      <div class="oe-time">${o.time}</div>
+    </div>`).join('');
+  document.getElementById('org-obs-count').textContent = state.observations.length;
+  const obsBody = document.getElementById('org-body-obs');
+  const obsArr = document.getElementById('org-arr-obs');
+  obsBody.classList.remove('closed');
+  obsArr.classList.add('open');
+}
+
+// Quick tutor buttons
+const QUICK_QS = ["Why does Tollens' detect aldehydes?", 'Explain Lucas test mechanism', 'Why does bromine water decolourise?', 'What is Walden inversion?', 'SN1 vs SN2 — how does polarimetry tell them apart?'];
+document.getElementById('tutor-quick').innerHTML = QUICK_QS.map(q =>
+  `<button style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 7px;border:1px solid var(--border);background:var(--bg2);color:var(--ink3);border-radius:4px;cursor:pointer;margin-bottom:2px;" onclick="document.getElementById('tutor-inp').value=${JSON.stringify(q)};toggleOrgDrawer('tutor')">${q}</button>`).join('');
+
+// ============================================================
+// INIT
+// ============================================================
+showHome();
+</script>
+</body>
+</html>
