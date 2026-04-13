@@ -294,8 +294,10 @@ export class AnimationManager {
       position: absolute; inset: 0;
       width: 100%; height: 100%;
       pointer-events: none; z-index: 16;
-      overflow: hidden;
     `;
+    // SVG overflow attribute (not just CSS) ensures child polygons are clipped
+    // to the viewport even when browser compositor layers bypass CSS overflow.
+    svg.setAttribute('overflow', 'hidden');
 
     const rect = vesselEl.getBoundingClientRect();
     const W = rect.width  || 120;
@@ -303,20 +305,37 @@ export class AnimationManager {
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('preserveAspectRatio', 'none');
 
+    // SVG-internal clipPath guarantees compositing-layer-safe clipping.
+    const clipId = `gr-clip-${Math.random().toString(36).slice(2)}`;
+    const defs   = document.createElementNS(svgNS, 'defs');
+    const clipPath = document.createElementNS(svgNS, 'clipPath');
+    clipPath.setAttribute('id', clipId);
+    const clipRect = document.createElementNS(svgNS, 'rect');
+    clipRect.setAttribute('x', '0');
+    clipRect.setAttribute('y', '0');
+    clipRect.setAttribute('width', String(W));
+    clipRect.setAttribute('height', String(H));
+    clipPath.appendChild(clipRect);
+    defs.appendChild(clipPath);
+    svg.appendChild(defs);
+
+    // Group all polygons inside a clipped <g>
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('clip-path', `url(#${clipId})`);
+
     for (let i = 0; i < MAX_RAIN_POLYGONS; i++) {
       const poly = document.createElementNS(svgNS, 'polygon');
-      const cx   = Math.random() * W;
-      const cy   = -8 - Math.random() * 28;
+      const cx   = 4 + Math.random() * (W - 8);   // start within bounds
+      const cy   = 2 + Math.random() * 12;         // just inside top edge
       const r    = 4 + Math.random() * 6;
       poly.setAttribute('points', _hexPoints(cx, cy, r));
       poly.setAttribute('fill', `hsl(${44 + Math.random() * 14}, 100%, ${52 + Math.random() * 22}%)`);
-      poly.style.cssText = `
-        will-change: transform;
-        animation: goldenRainFall ${DURATION}ms ease-in ${Math.random() * 700}ms forwards;
-      `;
-      svg.appendChild(poly);
+      // No will-change: transform — avoids compositor-layer escape from clip
+      poly.style.animation = `goldenRainFall ${DURATION}ms ease-in ${Math.random() * 700}ms forwards`;
+      g.appendChild(poly);
     }
 
+    svg.appendChild(g);
     vesselEl.appendChild(svg);
 
     return new Promise(resolve => {

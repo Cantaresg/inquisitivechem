@@ -69,12 +69,12 @@ export class ChemStoreUI {
   _buildCategory(category, subcatMap) {
     const catEl = document.createElement('div');
     catEl.className = 'store-category';
-    catEl.setAttribute('aria-expanded', 'true');
+    catEl.setAttribute('aria-expanded', 'false');   // start collapsed
 
     const btn = document.createElement('button');
     btn.className = 'store-category-btn';
     btn.type = 'button';
-    btn.setAttribute('aria-expanded', 'true');
+    btn.setAttribute('aria-expanded', 'false');
 
     const caret = document.createElement('span');
     caret.className = 'store-caret';
@@ -92,23 +92,23 @@ export class ChemStoreUI {
       subcatList.appendChild(this._buildSubcategory(subcat, items));
     }
 
+    // Click: toggle this category
     btn.addEventListener('click', () => {
       const expanded = catEl.getAttribute('aria-expanded') === 'true';
       catEl.setAttribute('aria-expanded', String(!expanded));
       btn.setAttribute('aria-expanded', String(!expanded));
     });
 
-    // Hover auto-collapse: when entering a category button, expand this one
-    // and collapse all sibling categories so the store stays tidy.
-    btn.addEventListener('mouseenter', () => {
-      for (const other of this._catEls) {
-        if (other !== catEl && other.getAttribute('aria-expanded') === 'true') {
-          other.setAttribute('aria-expanded', 'false');
-          other.querySelector('.store-category-btn')?.setAttribute('aria-expanded', 'false');
-        }
-      }
-      catEl.setAttribute('aria-expanded', 'true');
-      btn.setAttribute('aria-expanded', 'true');
+    // Mouseleave the whole category block → auto-close after short delay
+    let _leaveTimer = null;
+    catEl.addEventListener('mouseleave', () => {
+      _leaveTimer = setTimeout(() => {
+        catEl.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-expanded', 'false');
+      }, 420);
+    });
+    catEl.addEventListener('mouseenter', () => {
+      clearTimeout(_leaveTimer);
     });
 
     catEl.append(btn, subcatList);
@@ -123,12 +123,12 @@ export class ChemStoreUI {
   _buildSubcategory(subcat, items) {
     const subEl = document.createElement('div');
     subEl.className = 'store-subcategory';
-    subEl.setAttribute('aria-expanded', 'true');
+    subEl.setAttribute('aria-expanded', 'false');   // start collapsed
 
     const btn = document.createElement('button');
     btn.className = 'store-subcategory-btn';
     btn.type = 'button';
-    btn.setAttribute('aria-expanded', 'true');
+    btn.setAttribute('aria-expanded', 'false');
 
     const caret = document.createElement('span');
     caret.className = 'store-subcategory-caret';
@@ -146,6 +146,7 @@ export class ChemStoreUI {
       itemList.appendChild(this._buildReagentItem(reagent));
     }
 
+    // Click: toggle this subcategory
     btn.addEventListener('click', () => {
       const expanded = subEl.getAttribute('aria-expanded') === 'true';
       subEl.setAttribute('aria-expanded', String(!expanded));
@@ -186,24 +187,6 @@ export class ChemStoreUI {
       type:  'reagent',
       id:    reagent.id,
       label: displayName,
-    });
-
-    // Auto-close the parent subcategory once a drag actually starts (300 ms
-    // threshold separates drag from a simple click).
-    let _dragTimer = null;
-    item.addEventListener('pointerdown', () => {
-      _dragTimer = setTimeout(() => {
-        const subEl = item.closest('.store-subcategory');
-        if (subEl) {
-          subEl.setAttribute('aria-expanded', 'false');
-          subEl.querySelector('.store-subcategory-btn')?.setAttribute('aria-expanded', 'false');
-        }
-        _dragTimer = null;
-      }, 300);
-    });
-    item.addEventListener('pointerup', () => {
-      clearTimeout(_dragTimer);
-      _dragTimer = null;
     });
 
     return item;

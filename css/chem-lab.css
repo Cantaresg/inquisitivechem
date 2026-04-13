@@ -359,12 +359,16 @@ html, body {
 }
 
 /* ── Conical flask (Erlenmeyer) shape ───────────────────────────────────── */
-/* Rounded Erlenmeyer shape using path() with cubic-bezier shoulders.       */
+/* Polygon gives true conical straight-wall shoulders, not a bottle curve.  */
 .vessel-card[data-type="conical_flask"] {
   border-radius: 0;
   border: none;
-  /* 120×180 viewport: narrow neck (33–87px) curving out to full width at ~105px */
-  clip-path: path('M 33 0 L 87 0 L 87 48 C 107 65 120 85 120 105 L 120 180 L 0 180 L 0 105 C 0 85 13 65 33 48 Z');
+  clip-path: polygon(
+    29% 0%,   71% 0%,    /* narrow neck                    */
+    71% 28%,  99% 86%,   /* right shoulder → body edge     */
+    99% 100%, 1%  100%,  /* base                           */
+    1%  86%,  29% 28%    /* left body edge → shoulder      */
+  );
   filter: drop-shadow(0 0 0.6px rgba(255,255,255,0.22));
   cursor: grab;
 }
@@ -810,8 +814,11 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;           /* explicit — prevents emoji size variance */
+  /* Lock all emoji to the same visual cell size */
+  font-size: 17px;
   line-height: 1;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  overflow: hidden;           /* clip any glyph that renders slightly oversized */
   flex-shrink: 0;
   pointer-events: none;
 }
