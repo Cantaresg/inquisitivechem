@@ -154,18 +154,23 @@ export class VesselUI {
     if (!layer) return;
     layer.textContent = '';
     const present = sol.solids.filter(s => s.amount > 0);
+    // Flat dishes (solid_dish, evaporating_dish) render wider, flatter chips
+    // that look like metal strips or mineral flakes lying on a surface.
+    const isDish = this.vessel.type === 'solid_dish' || this.vessel.type === 'evaporating_dish';
     if (present.length > 0) {
-      layer.style.height = `${Math.min(present.length * 20 + 14, 65)}px`;
+      layer.style.height = isDish
+        ? `${Math.min(present.length * 16 + 10, 52)}px`
+        : `${Math.min(present.length * 20 + 14, 65)}px`;
       present.forEach((solid, i) => {
         const chip = document.createElement('div');
         chip.className = 'vessel-solid-chip';
         chip.style.background = solid.color ?? 'rgba(190,190,190,0.85)';
         chip.title = solid.id;
-        // Pseudo-random size + rotation so chips look like real solid lumps
+        // Pseudo-random size + rotation so chips look like real solid lumps/strips
         const seed = i * 17 + (solid.id.charCodeAt(0) ?? 0);
-        const w   = 22 + (seed % 18);              // 22–40 px
-        const h   = 12 + ((seed * 3) % 11);         // 12–23 px
-        const rot = ((seed * 37) % 22) - 11;         // −11° to +11°
+        const w   = isDish ? (32 + (seed % 26)) : (22 + (seed % 18));   // wider for dish
+        const h   = isDish ? (7  + ((seed * 3) % 6)) : (12 + ((seed * 3) % 11)); // flatter for dish
+        const rot = isDish ? (((seed * 19) % 28) - 14) : (((seed * 37) % 22) - 11);
         chip.style.width     = `${w}px`;
         chip.style.height    = `${h}px`;
         chip.style.transform = `rotate(${rot}deg)`;

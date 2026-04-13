@@ -10,18 +10,18 @@
 :root {
   --store-w:      240px;
   --obs-w:        300px;
-  --bench-bg:     #1a1a2e;
-  --store-bg:     #16213e;
-  --obs-bg:       #0d2137;
-  --panel-border: rgba(255,255,255,0.08);
-  --vessel-border:rgba(255,255,255,0.22);
-  --heat-glow:    rgba(255,80,0,0.35);
-  --btn-hover:    rgba(255,255,255,0.10);
-  --toast-bg:     rgba(15,20,40,0.94);
-  --text:         #dde8f2;
-  --text-dim:     #6a8098;
-  --accent:       #4fc3f7;
-  --danger:       #ef5350;
+  --bench-bg:     #111827;
+  --store-bg:     #0f172a;
+  --obs-bg:       #0c1a2e;
+  --panel-border: rgba(255,255,255,0.09);
+  --vessel-border:rgba(255,255,255,0.26);
+  --heat-glow:    rgba(249,115,22,0.40);
+  --btn-hover:    rgba(255,255,255,0.09);
+  --toast-bg:     rgba(10,15,30,0.96);
+  --text:         #e2e8f0;
+  --text-dim:     #64748b;
+  --accent:       #38bdf8;
+  --danger:       #f87171;
 }
 
 html, body {
@@ -38,12 +38,46 @@ html, body {
   display: grid;
   height: 100vh;
   grid-template-columns: var(--store-w) 1fr var(--obs-w);
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: 44px auto 1fr auto;
   grid-template-areas:
-    "store  testbar  obs"
-    "store  bench    obs"
-    "store  tools    obs";
+    "title   title    title"
+    "store   testbar  obs"
+    "store   bench    obs"
+    "store   tools    obs";
   overflow: hidden;
+}
+
+/* ── Title bar ─────────────────────────────────────────────────────────── */
+#lab-title {
+  grid-area: title;
+  background: linear-gradient(90deg, #0e1628 0%, #172035 55%, #0e1628 100%);
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  flex-shrink: 0;
+  user-select: none;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+}
+#lab-title-icon { font-size: 22px; line-height: 1; }
+#lab-title-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+#lab-title-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(56,189,248,0.12);
+  border: 1px solid rgba(56,189,248,0.28);
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-left: 2px;
 }
 
 /* ── Test bar (top centre strip) ─────────────────────────────────────────── */
@@ -312,28 +346,27 @@ html, body {
   width: 160px;
   height: 80px;
   border-radius: 6px 6px 60% 60%;
+  background: radial-gradient(ellipse at 28% 42%, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%);
 }
 
-/* Solid reagent watch-glass: smaller, shallower dish. Accepts drops. */
+/* Solid reagent watch-glass: wider, shallower dish with glass sheen. */
 .vessel-card[data-type="solid_dish"] {
-  width: 130px;
-  height: 70px;
-  border-radius: 6px 6px 55% 55%;
-  background: rgba(255,255,255,0.03);
+  width: 144px;
+  height: 72px;
+  border-radius: 4px 4px 50% 50%;
+  background: radial-gradient(ellipse at 30% 45%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.03) 100%);
+  border: 1px solid var(--vessel-border);
 }
 
 /* ── Conical flask (Erlenmeyer) shape ───────────────────────────────────── */
-/* clip-path clips the border, so we simulate it with filter: drop-shadow.  */
+/* Rounded Erlenmeyer shape using path() with cubic-bezier shoulders.       */
 .vessel-card[data-type="conical_flask"] {
   border-radius: 0;
   border: none;
-  clip-path: polygon(
-    28% 0%,   72% 0%,
-    72% 30%,  100% 87%,
-    100% 100%, 0% 100%,
-    0%  87%,  28% 30%
-  );
+  /* 120×180 viewport: narrow neck (33–87px) curving out to full width at ~105px */
+  clip-path: path('M 33 0 L 87 0 L 87 48 C 107 65 120 85 120 105 L 120 180 L 0 180 L 0 105 C 0 85 13 65 33 48 Z');
   filter: drop-shadow(0 0 0.6px rgba(255,255,255,0.22));
+  cursor: grab;
 }
 /* Glass highlight: a thin reflective streak on the left wall of the flask */
 .vessel-card[data-type="conical_flask"]::after {
@@ -382,6 +415,9 @@ html, body {
 }
 
 /* ── Vessel: precipitate layer ───────────────────────────────────────────── */
+/* Sediment fill: background colour set inline by _updatePptLayer.          */
+/* No ::before pseudo-element — blur-filter bleeds would appear above the   */
+/* liquid surface. Use inset box-shadow for the soft top-edge instead.       */
 .vessel-ppt {
   position: absolute;
   left: 0; right: 0; bottom: 0;
@@ -390,7 +426,8 @@ html, body {
   pointer-events: none;
   overflow: hidden;
   z-index: 2;
-  /* background is set inline by _updatePptLayer */
+  /* Depth shadow at the top of the sediment — stays inside the element */
+  box-shadow: inset 0 8px 10px -4px rgba(0,0,0,0.28);
 }
 
 /* Granular texture overlay for the sediment fill */
@@ -409,19 +446,6 @@ html, body {
       rgba(255,255,255,0.04) 2px, rgba(255,255,255,0.04) 3px
     );
   pointer-events: none;
-}
-
-/* Fuzzy top-edge of the sediment (looks like loose particles) */
-.vessel-ppt::before {
-  content: '';
-  position: absolute;
-  top: -3px; left: 0; right: 0;
-  height: 6px;
-  background: inherit;
-  filter: blur(3px);
-  opacity: 0.6;
-  pointer-events: none;
-  z-index: 1;
 }
 
 /* ── Vessel: solid-chunk layer ───────────────────────────────────────────── */
@@ -772,21 +796,22 @@ html, body {
 .test-tool:active { cursor: grabbing; }
 
 .test-tool-icon {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   pointer-events: none;
   flex-shrink: 0;
 }
 .test-tool-icon-placeholder {
-  width: 32px;
-  height: 32px;
-  border-radius: 5px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   background: rgba(255,255,255,0.09);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
+  font-size: 20px;           /* explicit — prevents emoji size variance */
+  line-height: 1;
   flex-shrink: 0;
   pointer-events: none;
 }

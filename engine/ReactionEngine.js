@@ -411,10 +411,14 @@ export class ReactionEngine {
     for (const rule of COMPLEXATION_RULES) {
       const req = rule.requires;
 
-      // ppt must be present already OR just formed in this sweep (BUG-05)
+      // Two-stage behaviour: complexation only fires if the ppt was ALREADY
+      // present in the vessel BEFORE this reagent was added.  If it just
+      // formed in this same sweep (pptJustFormed), we let the ppt appear
+      // first so the student sees the intermediate precipitate stage, and
+      // then dissolves it only when the ligand is added a second time
+      // (at which point the ppt IS pre-existing and pptAlreadyPresent=true).
       const pptAlreadyPresent = sol.ppts.some(p => p.id === req.ppt);
-      const pptJustFormed     = precipEvents.some(e => e.pptAdded?.id === req.ppt);
-      if (!pptAlreadyPresent && !pptJustFormed) continue;
+      if (!pptAlreadyPresent) continue;
 
       // Required ions (the "excess" ligand)
       if (req.ions?.length) {

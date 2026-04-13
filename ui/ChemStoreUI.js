@@ -21,6 +21,8 @@ export class ChemStoreUI {
   constructor(treeEl, dragDropManager) {
     this._treeEl = treeEl;
     this._dm = dragDropManager;
+    /** All top-level category elements — used for hover-collapse. */
+    this._catEls = [];
     this._build();
   }
 
@@ -96,7 +98,21 @@ export class ChemStoreUI {
       btn.setAttribute('aria-expanded', String(!expanded));
     });
 
+    // Hover auto-collapse: when entering a category button, expand this one
+    // and collapse all sibling categories so the store stays tidy.
+    btn.addEventListener('mouseenter', () => {
+      for (const other of this._catEls) {
+        if (other !== catEl && other.getAttribute('aria-expanded') === 'true') {
+          other.setAttribute('aria-expanded', 'false');
+          other.querySelector('.store-category-btn')?.setAttribute('aria-expanded', 'false');
+        }
+      }
+      catEl.setAttribute('aria-expanded', 'true');
+      btn.setAttribute('aria-expanded', 'true');
+    });
+
     catEl.append(btn, subcatList);
+    this._catEls.push(catEl);
     return catEl;
   }
 
@@ -170,6 +186,24 @@ export class ChemStoreUI {
       type:  'reagent',
       id:    reagent.id,
       label: displayName,
+    });
+
+    // Auto-close the parent subcategory once a drag actually starts (300 ms
+    // threshold separates drag from a simple click).
+    let _dragTimer = null;
+    item.addEventListener('pointerdown', () => {
+      _dragTimer = setTimeout(() => {
+        const subEl = item.closest('.store-subcategory');
+        if (subEl) {
+          subEl.setAttribute('aria-expanded', 'false');
+          subEl.querySelector('.store-subcategory-btn')?.setAttribute('aria-expanded', 'false');
+        }
+        _dragTimer = null;
+      }, 300);
+    });
+    item.addEventListener('pointerup', () => {
+      clearTimeout(_dragTimer);
+      _dragTimer = null;
     });
 
     return item;
