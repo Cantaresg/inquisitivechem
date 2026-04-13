@@ -14,6 +14,9 @@
  *   Escape from anywhere → cancels pick mode.
  */
 
+/** Minimum pointer movement (px) before a drag ghost is shown. */
+const DRAG_THRESHOLD = 5;
+
 export class DragDropManager {
   constructor() {
     /**
@@ -99,18 +102,19 @@ export class DragDropManager {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
 
-    const ghost = this._buildGhost(data.label);
-    ghost.style.left = `${e.clientX}px`;
-    ghost.style.top  = `${e.clientY}px`;
-    document.body.appendChild(ghost);
-
+    // Ghost is created lazily once the pointer moves past DRAG_THRESHOLD.
+    // This prevents a ghost flicker when the user simply clicks a draggable
+    // (e.g. clicking a vessel with a lab tool selected).
     this._activeDrag = {
       type:           data.type,
       id:             data.id,
       label:          data.label,
-      ghostEl:        ghost,
+      ghostEl:        null,           // populated on first move past threshold
       originEl:       el,
       sourceVesselId: data.sourceVesselId,
+      _startX:        e.clientX,
+      _startY:        e.clientY,
+      _hoveredZone:   null,
     };
 
     // Capture pointer so pointermove fires even if pointer leaves the element
@@ -123,6 +127,19 @@ export class DragDropManager {
   /** @private */
   _handlePointerMove(e) {
     if (!this._activeDrag) return;
+
+    // Lazily materialise the ghost once movement exceeds the threshold.
+    if (!this._activeDrag.ghostEl) {
+      const dx = e.clientX - this._activeDrag._startX;
+      const dy = e.clientY - this._activeDrag._startY;
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      const ghost = this._buildGhost(this._activeDrag.label);
+      ghost.style.left = `${e.clientX}px`;
+      ghost.style.top  = `${e.clientY}px`;
+      document.body.appendChild(ghost);
+      this._activeDrag.ghostEl = ghost;
+    }
+
     this._activeDrag.ghostEl.style.left = `${e.clientX}px`;
     this._activeDrag.ghostEl.style.top  = `${e.clientY}px`;
 
@@ -145,7 +162,7 @@ export class DragDropManager {
     if (!this._activeDrag) return;
 
     // BUG-10: unconditionally remove ghost before any other processing
-    this._activeDrag.ghostEl.remove();
+    if (this._activeDrag.ghostEl) this._activeDrag.ghostEl.remove();
 
     // Clean up drag-over highlight from the last hovered zone
     if (this._activeDrag._hoveredZone) {
@@ -156,7 +173,11 @@ export class DragDropManager {
     document.removeEventListener('pointerup',   this._onUp);
 
     const drag = this._activeDrag;
+    const wasDragged = drag.ghostEl !== null; // ghost never created → just a click
     this._activeDrag = null;
+
+    // If pointer never moved past threshold, treat as a plain click — no drop event.
+    if (!wasDragged) return;
 
     // Hit-test — walk up from each element at the pointer position (BUG-09)
     const elements = document.elementsFromPoint(e.clientX, e.clientY);

@@ -182,7 +182,11 @@ html, body {
 /* ── Bench area ──────────────────────────────────────────────────────────── */
 #bench-area {
   grid-area: bench;
-  background: var(--bench-bg);
+  background:
+    /* subtle dot-grid gives a lab-bench feel */
+    radial-gradient(circle, rgba(255,255,255,0.045) 1px, transparent 1px),
+    var(--bench-bg);
+  background-size: 28px 28px;
   overflow: auto;
   padding: 20px;
   display: flex;
@@ -295,6 +299,7 @@ html, body {
   overflow: hidden;
   transition: box-shadow 0.3s;
   flex-shrink: 0;
+  cursor: grab;            /* card body is also a drag handle for pouring */
 }
 
 .vessel-card[data-type="test_tube"] {
@@ -330,6 +335,22 @@ html, body {
   );
   filter: drop-shadow(0 0 0.6px rgba(255,255,255,0.22));
 }
+/* Glass highlight: a thin reflective streak on the left wall of the flask */
+.vessel-card[data-type="conical_flask"]::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 15%; bottom: 0;
+  width: 4px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(255,255,255,0.18) 20%,
+    rgba(255,255,255,0.10) 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 10;
+}
 
 /* Heating glow — applied to the card directly */
 .vessel-card.is-hot {
@@ -355,7 +376,9 @@ html, body {
   background: rgba(190,215,255,0.08);
   transition: background 0.9s ease, height 0.5s ease;
   pointer-events: none;
-  border-top: 1px solid rgba(255,255,255,0.10);
+  /* Surface shimmer: a thin lighter band at the top of the liquid */
+  border-top: 2px solid rgba(255,255,255,0.14);
+  box-shadow: inset 0 6px 10px -6px rgba(255,255,255,0.06);
 }
 
 /* ── Vessel: precipitate layer ───────────────────────────────────────────── */
@@ -365,21 +388,40 @@ html, body {
   height: 0;
   transition: height 0.7s ease;
   pointer-events: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
   overflow: hidden;
-  padding: 2px 4px;
-  gap: 2px;
   z-index: 2;
+  /* background is set inline by _updatePptLayer */
 }
 
-.vessel-ppt-chip {
-  width: 16px;
-  height: 7px;
-  border-radius: 2px;
-  flex-shrink: 0;
-  opacity: 0.90;
+/* Granular texture overlay for the sediment fill */
+.vessel-ppt-grain {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0px, transparent 2px,
+      rgba(0,0,0,0.10) 2px, rgba(0,0,0,0.10) 3px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      transparent 0px, transparent 2px,
+      rgba(255,255,255,0.04) 2px, rgba(255,255,255,0.04) 3px
+    );
+  pointer-events: none;
+}
+
+/* Fuzzy top-edge of the sediment (looks like loose particles) */
+.vessel-ppt::before {
+  content: '';
+  position: absolute;
+  top: -3px; left: 0; right: 0;
+  height: 6px;
+  background: inherit;
+  filter: blur(3px);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* ── Vessel: solid-chunk layer ───────────────────────────────────────────── */
@@ -392,19 +434,23 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
+  justify-content: center;
   overflow: hidden;
-  padding: 3px 5px;
-  gap: 3px;
+  padding: 4px 6px;
+  gap: 4px;
   z-index: 1;
 }
 
 .vessel-solid-chip {
-  width: 16px;
-  height: 9px;
-  border-radius: 2px;
+  /* Width/height/transform are set inline per-chip for organic variation */
+  border-radius: 3px 5px 2px 6px;  /* irregular corners → lumpy look */
   flex-shrink: 0;
-  opacity: 0.90;
-  border: 1px solid rgba(255,255,255,0.18);
+  opacity: 0.93;
+  border: 1px solid rgba(255,255,255,0.22);
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.18),  /* top highlight = 3-D look */
+    inset 0 -1px 0 rgba(0,0,0,0.25);
 }
 
 /* ── Vessel: bubble layer ────────────────────────────────────────────────── */
@@ -704,19 +750,23 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 6px 8px;
+  padding: 7px 10px;
   cursor: grab;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  transition: background 0.14s, border-color 0.14s;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  transition: background 0.14s, border-color 0.14s, transform 0.1s;
   user-select: none;
   flex-shrink: 0;
-  min-width: 58px;
-  max-width: 80px;
+  min-width: 62px;
+  max-width: 82px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
 }
 .test-tool:hover {
-  background: rgba(255,255,255,0.07);
-  border-color: var(--panel-border);
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(79,195,247,0.40);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
 }
 .test-tool:focus-visible { outline: 2px solid var(--accent); }
 .test-tool:active { cursor: grabbing; }

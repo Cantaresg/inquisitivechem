@@ -88,6 +88,14 @@ export class VesselUI {
     // Register container as drop zone (no clip-path → full bounding rect).
     this._dm.registerDropZone(container);
 
+    // Register the card body as a vessel draggable too, so users can grab the
+    // flask itself to pour — not just the small caption handle.
+    this._dm.registerDraggable(card, {
+      type:  'vessel',
+      id:    this.vessel.id,
+      label: this.vessel.name,
+    }, { vesselId: this.vessel.id });
+
     // Keyboard drop support (pick-mode fallback)
     container.addEventListener('keydown', (e) => {
       if (e.key === ' ' || e.key === 'Enter') {
@@ -147,14 +155,22 @@ export class VesselUI {
     layer.textContent = '';
     const present = sol.solids.filter(s => s.amount > 0);
     if (present.length > 0) {
-      layer.style.height = `${Math.min(present.length * 14 + 8, 55)}px`;
-      for (const solid of present) {
+      layer.style.height = `${Math.min(present.length * 20 + 14, 65)}px`;
+      present.forEach((solid, i) => {
         const chip = document.createElement('div');
         chip.className = 'vessel-solid-chip';
         chip.style.background = solid.color ?? 'rgba(190,190,190,0.85)';
         chip.title = solid.id;
+        // Pseudo-random size + rotation so chips look like real solid lumps
+        const seed = i * 17 + (solid.id.charCodeAt(0) ?? 0);
+        const w   = 22 + (seed % 18);              // 22–40 px
+        const h   = 12 + ((seed * 3) % 11);         // 12–23 px
+        const rot = ((seed * 37) % 22) - 11;         // −11° to +11°
+        chip.style.width     = `${w}px`;
+        chip.style.height    = `${h}px`;
+        chip.style.transform = `rotate(${rot}deg)`;
         layer.appendChild(chip);
-      }
+      });
     } else {
       layer.style.height = '0';
     }
@@ -165,17 +181,27 @@ export class VesselUI {
     const layer = this.cardEl.querySelector('.vessel-ppt');
     if (!layer) return;
     layer.textContent = '';
+    layer.style.background = '';
 
     if (sol.ppts.length > 0) {
-      // Scale height with ppt count; each ppt contributes ~14 px
-      layer.style.height = `${Math.min(sol.ppts.length * 14 + 8, 50)}px`;
-      for (const ppt of sol.ppts) {
-        const chip = document.createElement('div');
-        chip.className = 'vessel-ppt-chip';
-        chip.style.background = ppt.color ?? 'rgba(200,200,200,0.85)';
-        chip.title = ppt.label ?? ppt.formula ?? ppt.id;
-        layer.appendChild(chip);
+      // Height scales with ppt count; taller than chips for visibility
+      const heightPx = Math.min(sol.ppts.length * 22 + 14, 70);
+      layer.style.height = `${heightPx}px`;
+
+      // Fill the layer with the ppt colour(s) — looks like settled sediment
+      const colors = sol.ppts.map(p => p.color ?? 'rgba(200,200,200,0.85)');
+      if (colors.length === 1) {
+        layer.style.background = colors[0];
+      } else {
+        const step  = 100 / colors.length;
+        const stops = colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`);
+        layer.style.background = `linear-gradient(to right, ${stops.join(', ')})`;
       }
+
+      // Grain overlay div giving a powdery/granular texture (CSS class handles it)
+      const grain = document.createElement('div');
+      grain.className = 'vessel-ppt-grain';
+      layer.appendChild(grain);
     } else {
       layer.style.height = '0';
     }
