@@ -1293,8 +1293,8 @@ export class AnimationManager {
     if (AnimationManager.LIMEWATER_DEBUG) { this._buildLimewaterScene(vesselEl); return Promise.resolve(); }
     const BUBBLE_DUR   = 2000;   // clear bubbling
     const PPT_FADE     = 1000;   // ppt appears
-    const PPT_HOLD     = 5000;   // ppt held visibly milky
-    const DISSOLVE     = 10000;  // ppt re-dissolves (~10 s measured)
+    const PPT_HOLD     = 4000;   // ppt held visibly milky
+    const DISSOLVE     = 8000;   // ppt re-dissolves
     const CLEAR_HOLD   = 2000;   // clear again hold
     const EXIT         = 500;
     const TOTAL        = BUBBLE_DUR + PPT_FADE + PPT_HOLD + DISSOLVE + CLEAR_HOLD + EXIT;
