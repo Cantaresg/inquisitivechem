@@ -63,9 +63,11 @@ export const CONFIRMATORY_TESTS = [
     positiveAnimId: 'anim_limewater_milky',
     negativeAnimId: 'anim_limewater_clear',
     positiveObservation:
-      'The limewater turned milky / cloudy white when gas was bubbled through it.',
+      'A white precipitate formed in the colourless Ca(OH)₂ solution, confirming CO₂ is present.',
     negativeObservation:
-      'The limewater remained colourless and clear.',
+      'The limewater remained colourless and clear. No CO₂ detected.',
+    excessObservation:
+      'A white precipitate initially formed in the Ca(OH)₂ solution, then dissolved again to give a colourless solution on continued bubbling of excess CO₂.',
   },
 
   {

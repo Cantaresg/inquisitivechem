@@ -112,6 +112,7 @@ export class AnimationManager {
     this._registry.set('anim_glowing_splint_extinguish',  (v, p) => this._animGlowingSplintExtinguish(v, p));
     this._registry.set('anim_limewater_milky',            (v, p) => this._animLimewaterMilky(v, p));
     this._registry.set('anim_limewater_clear',            (v, p) => this._animLimewaterClear(v, p));
+    this._registry.set('anim_limewater_excess',           (v, p) => this._animLimewaterExcess(v, p));
     this._registry.set('anim_litmus_blue',                (v, p) => this._animLitmusBlue(v, p));
     this._registry.set('anim_litmus_red',                 (v, p) => this._animLitmusRed(v, p));
     this._registry.set('anim_litmus_unchanged',           (v, p) => this._animLitmusUnchanged(v, p));
@@ -924,14 +925,393 @@ export class AnimationManager {
     });
   }
 
-  /** Limewater goes milky — CO₂ positive. @private */
-  _animLimewaterMilky(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'limewaterMilky', 'rgba(200,220,255,0.12)', 1900);
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  LIMEWATER TEST — delivery tube + test tube scene
+  //
+  //  The whole scene sits in a fixed-size <svg> appended to document.body so it
+  //  is never clipped by the vessel card's overflow:hidden.  Its position is
+  //  computed from the vessel card's bounding rect.
+  //
+  //  Tune TUBE_OFFSET_Y (px, positive = downward) to eyeball vertical position.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Y-offset from the top of the vessel card to where the test-tube scene
+   * appears.  Positive moves it down.  Tune this to taste in the browser.
+   * @type {number}
+   */
+  static get LIMEWATER_TUBE_OFFSET_Y() { return 20; }
+
+  /**
+   * Set to true to keep the limewater tube on-screen indefinitely and show
+   * X / Y position-stepper controls.  Flip back to false once the position
+   * is dialled in and report the offsets shown in the panel.
+   * @type {boolean}
+   */
+  static LIMEWATER_DEBUG = false;
+
+  /**
+   * Build the limewater delivery-tube SVG scene and append it to document.body.
+   * Returns handles needed by the three caller animations.
+   *
+   * Scene layout (everything in SVG user units):
+   *   SW × SH  = 160 × 200 px scene box, placed to the right of the vessel card.
+   *   Delivery tube: thin rubber tube entering from the left edge, angled ~50°.
+   *   Test tube:     angled ~50° from vertical, open end at top-left.
+   *   Rubber bung:   trapezoidal plug at the open end of the test tube.
+   *   Limewater:     filled lower 55 % of the test tube.
+   *   Bubbles:       SVG circles animated with CSS, clipped inside the tube.
+   *   Ppt cloud:     a group of small white ovals that fade in (and optionally out).
+   *
+   * @private
+   * @returns {{
+   *   sceneSvg: SVGElement,
+   *   liquidEl: SVGElement,
+   *   bubbleEls: SVGElement[],
+   *   pptEls: SVGElement[],
+   *   cleanup: function(): void,
+   * }}
+   */
+  _buildLimewaterScene(vesselEl) {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const attr  = (el, k, v) => el.setAttribute(k, v);
+
+    // ── Scene position ─────────────────────────────────────────────────────
+    const cardEl     = vesselEl.closest('.vessel-container')?.querySelector('.vessel-card') ?? vesselEl;
+    const cardR      = cardEl.getBoundingClientRect();
+    const SW         = 180;
+    const SH         = 220;
+    let   offsetX    = 0, offsetY = 0;
+    const sceneBaseX = cardR.right - 23;   // user-dialled: right + 10 - 30 - 3
+    const sceneBaseY = cardR.top   + AnimationManager.LIMEWATER_TUBE_OFFSET_Y - 40;   // user-dialled: -55 + 15
+
+    // ── Root SVG fixed on body (not clipped by vessel overflow) ───────────
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('width',    String(SW));
+    svg.setAttribute('height',   String(SH));
+    svg.setAttribute('viewBox',  `0 0 ${SW} ${SH}`);
+    svg.setAttribute('overflow', 'visible');
+    svg.style.cssText = `
+      position: fixed;
+      left: ${sceneBaseX}px; top: ${sceneBaseY}px;
+      pointer-events: none; z-index: 300;
+      opacity: 0;
+      animation: lwSlideIn 0.45s ease forwards;
+    `;
+    document.body.appendChild(svg);
+
+    const updateScenePos = () => {
+      svg.style.left = (sceneBaseX + offsetX) + 'px';
+      svg.style.top  = (sceneBaseY + offsetY) + 'px';
+    };
+
+    // ── Geometry (natural frame: tube vertical, open/bung end at y = 0,
+    //   rounded closed end at y = TH). Group transform rotates the whole
+    //   tube clockwise so the closed end extends to the lower-right.      ──
+    //
+    //   rotate(-TILT) is appended FIRST (SVG transforms are right-to-left),
+    //   so a CCW rotation by TILT degrees in maths = CW visually with y-down.
+    //
+    //   After transform="translate(PX,PY) rotate(-TILT)":
+    //     (0, 0)  → scene (PX, PY)                 ← bung anchor
+    //     (0, TH) → scene (PX + TH·sin50°, PY + TH·cos50°) ≈ (110, 122)
+    const TILT    = 50;         // visual tilt degrees from vertical
+    const PIVOT_X = 30;         // open-rim anchor x in scene SVG
+    const PIVOT_Y = 55;         // open-rim anchor y in scene SVG
+    const OR      = 16;         // outer glass half-width
+    const IR      = 12;         // inner glass half-width  (wall = 4 px)
+    const TH      = 105;        // tube length open → closed end
+    const HOSE_R  = 4;          // delivery-hose stroke half-width
+    const LIQ_TOP = TH * 0.40;  // liquid surface y in natural frame
+
+    // ── Path builders ──────────────────────────────────────────────────────
+    // Proper test-tube silhouette: two straight walls + semicircular arc cap.
+    // Cap centre at (0, TH − halfW); arc from (−halfW, TH − halfW) CW
+    // through (0, TH) to (+halfW, TH − halfW).
+    const roundedTubePath = (halfW) => [
+      `M ${-halfW} 0`,
+      `L ${-halfW} ${(TH - halfW).toFixed(1)}`,
+      `A ${halfW} ${halfW} 0 0 0 ${halfW} ${(TH - halfW).toFixed(1)}`,
+      `L ${halfW} 0`,
+    ].join(' ');
+
+    // Liquid occupies the lower 60 % of the tube interior.
+    const liquidPath = [
+      `M ${-IR} ${LIQ_TOP.toFixed(1)}`,
+      `L ${-IR} ${(TH - IR).toFixed(1)}`,
+      `A ${IR} ${IR} 0 0 0 ${IR} ${(TH - IR).toFixed(1)}`,
+      `L ${IR} ${LIQ_TOP.toFixed(1)}`,
+      'Z',
+    ].join(' ');
+
+    // ── defs: clip path for ppt / bubbles inside liquid ───────────────────
+    // With clipPathUnits="userSpaceOnUse" (default) the coordinates are in the
+    // local coordinate system of the element referencing the clip — which, for
+    // elements inside tubeG, is the natural (pre-rotation) frame. ✓
+    const clipId = `lw-${Math.random().toString(36).slice(2)}`;
+    const defs   = document.createElementNS(svgNS, 'defs');
+    const clip   = document.createElementNS(svgNS, 'clipPath');
+    attr(clip, 'id', clipId);
+    const clipEl = document.createElementNS(svgNS, 'path');
+    attr(clipEl, 'd', liquidPath);
+    clip.appendChild(clipEl);
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    // ── Rotated group: all tube geometry in natural frame ─────────────────
+    const tubeG = document.createElementNS(svgNS, 'g');
+    attr(tubeG, 'transform', `translate(${PIVOT_X},${PIVOT_Y}) rotate(${-TILT})`);
+    svg.appendChild(tubeG);
+
+    // 1. Outer glass silhouette (walls + semicircular rounded bottom)
+    const outerEl = document.createElementNS(svgNS, 'path');
+    attr(outerEl, 'd',               roundedTubePath(OR));
+    attr(outerEl, 'fill',            'rgba(155,200,255,0.13)');
+    attr(outerEl, 'stroke',          'rgba(140,185,240,0.80)');
+    attr(outerEl, 'stroke-width',    '1.5');
+    attr(outerEl, 'stroke-linejoin', 'round');
+    tubeG.appendChild(outerEl);
+
+    // Inner glass edge at open rim — shows wall thickness
+    for (const s of [-1, 1]) {
+      const e = document.createElementNS(svgNS, 'line');
+      attr(e, 'x1', String(s * IR)); attr(e, 'y1', '0');
+      attr(e, 'x2', String(s * IR)); attr(e, 'y2', '10');
+      attr(e, 'stroke', 'rgba(140,185,240,0.50)'); attr(e, 'stroke-width', '1');
+      tubeG.appendChild(e);
+    }
+
+    // 2. Liquid fill (clear limewater — very light blue)
+    const liquidEl = document.createElementNS(svgNS, 'path');
+    attr(liquidEl, 'd',    liquidPath);
+    attr(liquidEl, 'fill', 'rgba(195,225,255,0.58)');
+    tubeG.appendChild(liquidEl);
+
+    // 3. CaCO₃ ppt cloud (white circles, initially hidden)
+    const pptGroup = document.createElementNS(svgNS, 'g');
+    attr(pptGroup, 'clip-path', `url(#${clipId})`);
+    pptGroup.style.opacity = '0';
+    for (let i = 0; i < 35; i++) {
+      const t  = 0.04 + Math.random() * 0.94;
+      const cx = (Math.random() * 2 - 1) * (IR * 0.82);
+      const cy = LIQ_TOP + (TH - IR - LIQ_TOP) * t;
+      const p  = document.createElementNS(svgNS, 'circle');
+      attr(p, 'cx',   cx.toFixed(1));
+      attr(p, 'cy',   cy.toFixed(1));
+      attr(p, 'r',    (1.4 + Math.random() * 2.6).toFixed(1));
+      attr(p, 'fill', `rgba(255,255,255,${(0.68 + Math.random() * 0.30).toFixed(2)})`);
+      pptGroup.appendChild(p);
+    }
+    tubeG.appendChild(pptGroup);
+
+    // 4. CO₂ bubbles (rise from bottom toward open end along tube axis)
+    const bubbleGroup = document.createElementNS(svgNS, 'g');
+    attr(bubbleGroup, 'clip-path', `url(#${clipId})`);
+    for (let i = 0; i < 7; i++) {
+      const b = document.createElementNS(svgNS, 'circle');
+      attr(b, 'cx',   ((Math.random() * 2 - 1) * IR * 0.55).toFixed(1));
+      attr(b, 'cy',   (TH - IR - 4 - Math.random() * 12).toFixed(1));
+      attr(b, 'r',    (1.4 + Math.random() * 1.8).toFixed(1));
+      attr(b, 'fill', 'rgba(255,255,255,0.55)');
+      b.style.animation = `lwBubbleRise ${900 + Math.random() * 650}ms ease-out ${i * 210}ms infinite`;
+      b.style.setProperty('--lw-bx', '0px');
+      b.style.setProperty('--lw-by', `${-(TH * 0.55).toFixed(1)}px`);
+      bubbleGroup.appendChild(b);
+    }
+    tubeG.appendChild(bubbleGroup);
+
+    // 5. Glass highlight (reflection line near right wall)
+    //    Limewater test tube is open at the top — no stopper.
+    const hl = document.createElementNS(svgNS, 'line');
+    attr(hl, 'x1', String((IR * 0.58).toFixed(1))); attr(hl, 'y1', '6');
+    attr(hl, 'x2', String((IR * 0.58).toFixed(1))); attr(hl, 'y2', String((TH * 0.62).toFixed(1)));
+    attr(hl, 'stroke', 'rgba(255,255,255,0.28)');
+    attr(hl, 'stroke-width', '1.2'); attr(hl, 'stroke-linecap', 'round');
+    tubeG.appendChild(hl);
+
+    // ── Flask-neck rubber stopper + delivery hose ─────────────────────────
+    // Stopper centred at x = -22 (flask neck, left of SVG origin via overflow:visible).
+    // Wide flat flange at TOP (sits on flask rim, y ≈ 2–5), then tapers DOWNWARD
+    // into the neck (narrowing from 28 px → 16 px at y = 22).
+    // The glass delivery tube pokes up through the stopper; the rubber hose
+    // connects just above the stopper top and curves right to the test-tube rim.
+    const fStopper = document.createElementNS(svgNS, 'path');
+    // Hex shape: flat hat (y=2 wide) → slight shoulder (y=5) → tapered body → bottom
+    attr(fStopper, 'd', 'M -39 0 L -5 0 L -5 4 L -11 24 L -33 24 L -39 4 Z');
+    attr(fStopper, 'fill',           '#3a3a3a');
+    attr(fStopper, 'stroke',         '#1a1a1a');
+    attr(fStopper, 'stroke-width',   '1');
+    attr(fStopper, 'stroke-linejoin','round');
+    // Grip groove across stopper body
+    const fGrip = document.createElementNS(svgNS, 'line');
+    attr(fGrip, 'x1', '-35'); attr(fGrip, 'y1', '8');
+    attr(fGrip, 'x2', '-9');  attr(fGrip, 'y2', '8');
+    attr(fGrip, 'stroke', 'rgba(255,255,255,0.15)'); attr(fGrip, 'stroke-width', '1.2');
+
+    // Hose from stopper bottom-centre (-22, 22) curving gently down-right to
+    // the test-tube open rim at (PIVOT_X, PIVOT_Y).
+    const hose = document.createElementNS(svgNS, 'path');
+    attr(hose, 'd',             `M -22 22 C 0 30, 15 45, ${PIVOT_X} ${PIVOT_Y}`);
+    attr(hose, 'fill',          'none');
+    attr(hose, 'stroke',        '#2a2a2a');
+    attr(hose, 'stroke-width',  String(HOSE_R * 2));
+    attr(hose, 'stroke-linecap','round');
+
+    // z-order (back → front): stopperG → hose → tubeG
+    // Wrap stopper + grip in a group so the debug panel can translate them as one.
+    const stopperG = document.createElementNS(svgNS, 'g');
+    stopperG.appendChild(fStopper);
+    stopperG.appendChild(fGrip);
+    let stopperDX = -15, stopperDY = 10;   // baked-in from debug session
+    const updateStopperPos = () => stopperG.setAttribute('transform', `translate(${stopperDX},${stopperDY})`);
+    updateStopperPos();
+    svg.insertBefore(hose, tubeG);   // hose behind tube
+    svg.appendChild(stopperG);       // stopper in front of tube
+
+    // ── Cleanup / debug ────────────────────────────────────────────────────
+    const cleanup = AnimationManager.LIMEWATER_DEBUG ? () => {} : () => svg.remove();
+
+    if (AnimationManager.LIMEWATER_DEBUG) {
+      const btnCss = `background:#1e2535;border:1px solid #263045;color:#4df0b0;
+        border-radius:4px;padding:3px 10px;cursor:pointer;
+        font-family:'DM Mono',monospace;font-size:12px;`;
+      const panel = document.createElement('div');
+      panel.style.cssText = `
+        position:fixed;bottom:80px;right:20px;z-index:9999;pointer-events:all;
+        background:rgba(13,16,24,0.96);padding:14px 18px;
+        border:1px solid rgba(77,240,176,0.50);border-radius:10px;
+        font-family:'DM Mono',monospace;font-size:13px;color:#eef2ff;
+        display:flex;flex-direction:column;gap:10px;min-width:220px;
+      `;
+      const makeRow = (label, getVal, step, onStep) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;';
+        const lbl = document.createElement('span');
+        lbl.textContent = label; lbl.style.cssText = 'width:60px;color:#a8b4d0;font-size:11px;';
+        const valEl = document.createElement('span');
+        valEl.textContent = '0';
+        valEl.style.cssText = 'width:44px;text-align:center;border:1px solid #263045;border-radius:3px;padding:1px 4px;';
+        const minus = document.createElement('button'); minus.textContent = '−5'; minus.style.cssText = btnCss;
+        const plus  = document.createElement('button'); plus.textContent  = '+5'; plus.style.cssText  = btnCss;
+        minus.addEventListener('click', () => { step(-5); valEl.textContent = String(getVal()); onStep(); });
+        plus.addEventListener('click',  () => { step(+5); valEl.textContent = String(getVal()); onStep(); });
+        row.append(lbl, minus, valEl, plus);
+        return row;
+      };
+      const sep = document.createElement('div');
+      sep.style.cssText = 'border-top:1px solid #263045;margin:2px 0;';
+      const note = document.createElement('div');
+      note.style.cssText = 'color:#5a6882;font-size:11px;';
+      note.textContent = 'Report offsets shown above';
+      panel.append(
+        makeRow('Scene X:',   () => offsetX,   (d) => { offsetX   += d; }, updateScenePos),
+        makeRow('Scene Y:',   () => offsetY,   (d) => { offsetY   += d; }, updateScenePos),
+        sep,
+        makeRow('Stopper X:', () => stopperDX, (d) => { stopperDX += d; }, updateStopperPos),
+        makeRow('Stopper Y:', () => stopperDY, (d) => { stopperDY += d; }, updateStopperPos),
+        note,
+      );
+      document.body.appendChild(panel);
+      return { sceneSvg: svg, liquidEl, pptGroup, cleanup: () => { panel.remove(); svg.remove(); } };
+    }
+
+    return { sceneSvg: svg, liquidEl, pptGroup, cleanup };
   }
 
-  /** Limewater stays clear — negative. @private */
+  /**
+   * Animate the ppt group: fade in over `fadeDur` ms after `delay` ms.
+   * Optionally fade back out (re-dissolve) after `dissolveDur` ms.
+   * @private
+   */
+  _lwAnimatePpt(pptGroup, delay, fadeDur, dissolveDelay, dissolveDur) {
+    // Fade in
+    setTimeout(() => {
+      pptGroup.style.transition = `opacity ${fadeDur}ms ease`;
+      pptGroup.style.opacity    = '1';
+    }, delay);
+    // Fade out (excess CO₂ case)
+    if (dissolveDelay !== null) {
+      setTimeout(() => {
+        pptGroup.style.transition = `opacity ${dissolveDur}ms ease`;
+        pptGroup.style.opacity    = '0';
+      }, delay + dissolveDelay);
+    }
+  }
+
+  /**
+   * Limewater — negative (no CO₂): test tube slides in, bubbles, stays clear,
+   * slides out. Total ~3 s.
+   * @private
+   */
   _animLimewaterClear(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'limewaterClear', 'rgba(195,215,255,0.09)', 900);
+    if (AnimationManager.LIMEWATER_DEBUG) { this._buildLimewaterScene(vesselEl); return Promise.resolve(); }
+    const TOTAL = 3000;
+    const { sceneSvg, cleanup } = this._buildLimewaterScene(vesselEl);
+
+    setTimeout(() => {
+      sceneSvg.style.animation = 'lwSlideOut 0.45s ease forwards';
+    }, TOTAL - 500);
+
+    return new Promise(resolve => {
+      setTimeout(() => { cleanup(); resolve(); }, TOTAL);
+    });
+  }
+
+  /**
+   * Limewater — positive (moderate CO₂): bubbles 2 s clear, then white ppt
+   * forms over 1 s, held 1.5 s, tube exits. Total ~5.5 s.
+   * @private
+   */
+  _animLimewaterMilky(vesselEl, _params) {
+    if (AnimationManager.LIMEWATER_DEBUG) { this._buildLimewaterScene(vesselEl); return Promise.resolve(); }
+    const BUBBLE_DUR = 2000;   // ms of clear bubbling before ppt
+    const PPT_FADE   = 1000;   // ms for ppt to fully appear
+    const HOLD       = 2500;   // ms to show the white ppt
+    const EXIT       = 500;    // ms slide-out anim
+    const TOTAL      = BUBBLE_DUR + PPT_FADE + HOLD + EXIT;
+
+    const { sceneSvg, pptGroup, cleanup } = this._buildLimewaterScene(vesselEl);
+
+    this._lwAnimatePpt(pptGroup, BUBBLE_DUR, PPT_FADE, null, 0);
+
+    setTimeout(() => {
+      sceneSvg.style.animation = 'lwSlideOut 0.45s ease forwards';
+    }, TOTAL - EXIT);
+
+    return new Promise(resolve => {
+      setTimeout(() => { cleanup(); resolve(); }, TOTAL);
+    });
+  }
+
+  /**
+   * Limewater — excess CO₂: bubbles 2 s clear → white ppt forms 1 s →
+   * held 1 s → ppt re-dissolves 1.5 s → held clear 1 s → slides out.
+   * Total ~8 s.
+   * @private
+   */
+  _animLimewaterExcess(vesselEl, _params) {
+    if (AnimationManager.LIMEWATER_DEBUG) { this._buildLimewaterScene(vesselEl); return Promise.resolve(); }
+    const BUBBLE_DUR   = 2000;   // clear bubbling
+    const PPT_FADE     = 1000;   // ppt appears
+    const PPT_HOLD     = 2000;   // ppt held visibly milky
+    const DISSOLVE     = 2500;   // ppt re-dissolves
+    const CLEAR_HOLD   = 1500;   // clear again hold
+    const EXIT         = 500;
+    const TOTAL        = BUBBLE_DUR + PPT_FADE + PPT_HOLD + DISSOLVE + CLEAR_HOLD + EXIT;
+
+    const { sceneSvg, pptGroup, cleanup } = this._buildLimewaterScene(vesselEl);
+
+    // Ppt in then out
+    this._lwAnimatePpt(pptGroup, BUBBLE_DUR, PPT_FADE,
+      PPT_FADE + PPT_HOLD, DISSOLVE);
+
+    setTimeout(() => {
+      sceneSvg.style.animation = 'lwSlideOut 0.45s ease forwards';
+    }, TOTAL - EXIT);
+
+    return new Promise(resolve => {
+      setTimeout(() => { cleanup(); resolve(); }, TOTAL);
+    });
   }
 
   /** Red litmus turns blue — NH₃ positive. @private */
