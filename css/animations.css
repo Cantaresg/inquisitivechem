@@ -83,6 +83,38 @@
   100% { opacity: 1;   filter: brightness(1.5) drop-shadow(0 0 5px orange); }
 }
 
+/* ── SVG burning splint: anim_squeaky_pop ────────────────── */
+/* Whole SVG slides in from the right */
+@keyframes splintEnter {
+  from { opacity: 0; transform: translate(14%, 0) rotate(3deg); }
+  to   { opacity: 1; transform: translate(0,   0) rotate(0deg); }
+}
+
+/* Organic multi-frequency flicker — applied per flame layer with different durations */
+@keyframes flameFlicker {
+  0%   { transform: scaleX(1)    scaleY(1)    skewX(0deg);  }
+  18%  { transform: scaleX(0.82) scaleY(1.15) skewX(-7deg); }
+  36%  { transform: scaleX(1.10) scaleY(0.88) skewX(5deg);  }
+  55%  { transform: scaleX(0.90) scaleY(1.10) skewX(-4deg); }
+  74%  { transform: scaleX(1.07) scaleY(0.91) skewX(6deg);  }
+  100% { transform: scaleX(1)    scaleY(1)    skewX(0deg);  }
+}
+
+/* Squeaky-pop burst: rapid scale-up with brightness flash, then collapse */
+@keyframes flamePop {
+  0%   { transform: scale(1);   opacity: 1;   filter: none; }
+  18%  { transform: scale(2.8); opacity: 1;   filter: brightness(5) drop-shadow(0 0 14px #fff9d0); }
+  55%  { transform: scale(1.6); opacity: 0.7; filter: brightness(2.2); }
+  100% { transform: scale(0.3); opacity: 0;   filter: brightness(0.4); }
+}
+
+/* Expanding ring that radiates from flame centre */
+@keyframes popRing {
+  0%   { transform: scale(0.2); opacity: 0.95; }
+  55%  { transform: scale(1.9); opacity: 0.35; }
+  100% { transform: scale(2.8); opacity: 0;    }
+}
+
 /* ═══════════════════════════════════════════════════════════
    LIMEWATER (anim_limewater_milky, anim_limewater_clear)
    ═══════════════════════════════════════════════════════════ */

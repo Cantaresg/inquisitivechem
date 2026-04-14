@@ -24,8 +24,8 @@ const ION_COLOUR_MAP = [
   { ion: 'Mn2+',     css: 'rgba(200,220,255,0.10)' },    // manganese(II) — essentially colourless
 ];
 
-/** Pressure lost per second (linear decay). 0.85 → threshold (0.05) in ~27 s. */
-const GAS_DECAY_RATE = 0.03;
+/** Pressure lost per second (linear decay). 0.80 → threshold (0.05) in ~12 s. */
+const GAS_DECAY_RATE = 0.067;
 
 /** Threshold below which a gas is considered absent. See BUG-07. */
 export const GAS_PRESSURE_THRESHOLD = 0.05;

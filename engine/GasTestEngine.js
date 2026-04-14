@@ -89,6 +89,20 @@ export class GasTestEngine {
       return { animId, observation, isPositive, matchedKey, flameColour, phColour };
     }
 
+    // ── Burning splint negative: extinguish when a non-H₂/non-O₂ gas is present ──
+    // H₂  → positive (squeaky pop, handled above).
+    // O₂  → burning splint burns more vigorously — keep anim_splint_burns.
+    // Any other gas → flame is extinguished immediately.
+    if (!isPositive && test.id === 'test_burning_splint') {
+      const hasExtinguishGas = sol.gases.some(
+        g => g.id !== 'H2' && g.id !== 'O2' && g.pressure > GAS_PRESSURE_THRESHOLD,
+      );
+      if (hasExtinguishGas) {
+        animId      = 'anim_splint_extinguish';
+        observation = 'The burning splint was extinguished when brought near the mouth of the vessel.';
+      }
+    }
+
     // ── Resolve final animId and observation ─────────────────────────────────
     if (isPositive) {
       animId = test.positiveAnimId;

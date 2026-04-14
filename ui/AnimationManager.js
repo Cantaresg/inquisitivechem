@@ -106,6 +106,7 @@ export class AnimationManager {
 
     // Gas tests
     this._registry.set('anim_squeaky_pop',               (v, p) => this._animSqueakyPop(v, p));
+    this._registry.set('anim_splint_burns',              (v, p) => this._animSplintBurns(v, p));
     this._registry.set('anim_splint_extinguish',          (v, p) => this._animSplintExtinguish(v, p));
     this._registry.set('anim_splint_relight',             (v, p) => this._animSplintRelight(v, p));
     this._registry.set('anim_glowing_splint_extinguish',  (v, p) => this._animGlowingSplintExtinguish(v, p));
@@ -402,24 +403,525 @@ export class AnimationManager {
 
   // ─── Test animation implementations ──────────────────────────────────────
 
-  /** H₂ burning splint — loud squeaky pop. @private */
+  /**
+   * Build a burning-splint SVG scene and append it to containerEl.
+   * The SVG coordinate space matches containerEl's bounding rect.
+   * tipX/tipY are the flask-mouth coordinates in that space.
+   * Returns { svg, flameEls, glowEl, ring }.
+   * @private
+   */
+  _buildSplintScene(containerEl, W, H, tipX, tipY) {
+    const svgNS = 'http://www.w3.org/2000/svg';
+
+    // ── Geometry ──────────────────────────────────────────────────────────
+    const FH    = Math.min(H * 0.20, 36);       // flame height
+    const FW    = FH * 0.42;                    // flame half-width
+    const ANGLE = 32 * Math.PI / 180;           // stick tilt
+    const SLEN  = Math.min(W * 0.80, 100);      // stick length (extends off right)
+    const SHALF = 2.5;                          // stick half-thickness
+    const cosA  = Math.cos(ANGLE);
+    const sinA  = Math.sin(ANGLE);
+    const pDx   = sinA * SHALF;                 // perp offset x
+    const pDy   = cosA * SHALF;                 // perp offset y
+    // Far end extends to upper-right (eY < tipY because SVG y grows down)
+    const eX    = tipX + SLEN * cosA;
+    const eY    = tipY - SLEN * sinA;
+
+    // ── SVG ───────────────────────────────────────────────────────────────
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox',             `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.setAttribute('overflow',            'visible');
+    svg.style.cssText = `
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 15;
+      animation: splintEnter 0.35s ease forwards;
+    `;
+
+    // ── Gaussian blur filter for glow halo ────────────────────────────────
+    const gid  = `sg-${Math.random().toString(36).slice(2)}`;
+    const defs = document.createElementNS(svgNS, 'defs');
+    const filt = document.createElementNS(svgNS, 'filter');
+    filt.setAttribute('id', gid);
+    filt.setAttribute('x', '-80%');  filt.setAttribute('y', '-80%');
+    filt.setAttribute('width', '260%'); filt.setAttribute('height', '260%');
+    const blur = document.createElementNS(svgNS, 'feGaussianBlur');
+    blur.setAttribute('stdDeviation', '5');
+    filt.appendChild(blur);
+    defs.appendChild(filt);
+    svg.appendChild(defs);
+
+    // ── Stick body ────────────────────────────────────────────────────────
+    const stick = document.createElementNS(svgNS, 'polygon');
+    stick.setAttribute('points', [
+      `${tipX - pDx},${tipY + pDy}`,
+      `${tipX + pDx},${tipY - pDy}`,
+      `${eX   + pDx},${eY   - pDy}`,
+      `${eX   - pDx},${eY   + pDy}`,
+    ].join(' '));
+    stick.setAttribute('fill', '#b07830');
+    svg.appendChild(stick);
+
+    // Wood grain highlight
+    const grain = document.createElementNS(svgNS, 'line');
+    grain.setAttribute('x1', String(tipX + 8  * cosA));
+    grain.setAttribute('y1', String(tipY - 8  * sinA - pDy * 0.45));
+    grain.setAttribute('x2', String(eX   - 6  * cosA));
+    grain.setAttribute('y2', String(eY   + 6  * sinA - pDy * 0.45));
+    grain.setAttribute('stroke',       'rgba(205,155,65,0.30)');
+    grain.setAttribute('stroke-width', '1');
+    svg.appendChild(grain);
+
+    // Charred tip — first 8 px of stick from the burning end
+    const cLen    = 8;
+    const charred = document.createElementNS(svgNS, 'polygon');
+    charred.setAttribute('points', [
+      `${tipX - pDx},${tipY + pDy}`,
+      `${tipX + pDx},${tipY - pDy}`,
+      `${tipX + pDx + cLen * cosA},${tipY - pDy - cLen * sinA}`,
+      `${tipX - pDx + cLen * cosA},${tipY + pDy - cLen * sinA}`,
+    ].join(' '));
+    charred.setAttribute('fill', '#1e0e00');
+    svg.appendChild(charred);
+
+    // ── Glow halo ─────────────────────────────────────────────────────────
+    const glowEl = document.createElementNS(svgNS, 'ellipse');
+    glowEl.setAttribute('cx',     String(tipX));
+    glowEl.setAttribute('cy',     String(tipY - FH * 0.40));
+    glowEl.setAttribute('rx',     String(FW * 2.0));
+    glowEl.setAttribute('ry',     String(FH * 0.72));
+    glowEl.setAttribute('fill',   'rgba(255,115,0,0.45)');
+    glowEl.setAttribute('filter', `url(#${gid})`);
+    // Must match the ring: scale from the ellipse's own centre, not the SVG viewport centre.
+    glowEl.style.transformBox    = 'fill-box';
+    glowEl.style.transformOrigin = '50% 50%';
+    svg.appendChild(glowEl);
+
+    // ── Flame layers: outer dark-red → orange → yellow → near-white core ──
+    // Teardrop helper: base at (cx, cy), tip at (cx, cy-h)
+    function td(cx, cy, w, h) {
+      return [
+        `M${cx},${cy}`,
+        `C${cx + w},${cy - h * 0.20} ${cx + w * 0.62},${cy - h * 0.76} ${cx},${cy - h}`,
+        `C${cx - w * 0.62},${cy - h * 0.76} ${cx - w},${cy - h * 0.20} ${cx},${cy}`,
+        'Z',
+      ].join(' ');
+    }
+
+    const flameLayers = [
+      [FW * 1.00, FH * 1.00,          0, 'rgba(165,30,0,0.82)' ],
+      [FW * 0.72, FH * 0.85, -FH * 0.05, 'rgba(255,75,0,0.88)' ],
+      [FW * 0.46, FH * 0.65, -FH * 0.10, 'rgba(255,170,10,0.93)'],
+      [FW * 0.25, FH * 0.42, -FH * 0.16, 'rgba(255,248,185,0.97)'],
+    ];
+
+    const flameEls = flameLayers.map(([w, h, yo, fill], i) => {
+      const p = document.createElementNS(svgNS, 'path');
+      p.setAttribute('d', td(tipX, tipY + yo, w, h));
+      p.setAttribute('fill', fill);
+      // transform-box: fill-box scopes transform-origin to the element's own bbox
+      // so 50% 100% = bottom-centre of THIS path (= flame base near tipY).
+      p.style.transformBox    = 'fill-box';
+      p.style.transformOrigin = '50% 100%';
+      p.style.animation = `flameFlicker ${0.38 + i * 0.06}s ease-in-out infinite`;
+      svg.appendChild(p);
+      return p;
+    });
+
+    // ── Pop ring (hidden until needed) ────────────────────────────────────
+    // Centred at the glow ellipse centre so ring and glow expand from the same point.
+    const ring = document.createElementNS(svgNS, 'circle');
+    ring.setAttribute('cx',           String(tipX));
+    ring.setAttribute('cy',           String(tipY - FH * 0.40));
+    ring.setAttribute('r',            String(FW * 2.8));
+    ring.setAttribute('fill',         'none');
+    ring.setAttribute('stroke',       'rgba(255,235,165,0.92)');
+    ring.setAttribute('stroke-width', '2.5');
+    ring.style.opacity         = '0';
+    ring.style.transformBox    = 'fill-box';
+    ring.style.transformOrigin = '50% 50%';
+    svg.appendChild(ring);
+
+    containerEl.appendChild(svg);
+    return { svg, flameEls, glowEl, ring };
+  }
+
+  /**
+   * H₂ burning splint — SVG splint at flask mouth + squeaky-pop burst.
+   *
+   * The SVG is mounted on the .vessel-container (not the card) so the flame
+   * can extend above the card rim without being clipped by overflow:hidden.
+   * @private
+   */
   _animSqueakyPop(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'squeakyPop', 'rgba(255,220,50,0.22)', 1700);
+    // POP_AT: flame pops at 1350 ms.
+    // Pop anim (0.75 s) finishes at ~2100 ms, then burnt stick is held for 3 s.
+    const POP_AT   = 1350;
+    const TOTAL    = POP_AT + 750 + 3000;  // 5100 ms
+    const vesselId = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+
+    // Mount on container so flame is visible above the card rim
+    const containerEl = vesselEl.closest('.vessel-container') ?? vesselEl.parentElement ?? vesselEl;
+    const cRect   = containerEl.getBoundingClientRect();
+    // Use the inner .vessel-card for position, not the outer container, so
+    // tipY lands at the flask mouth rather than at the container/caption top.
+    const cardRefEl = containerEl.querySelector('.vessel-card') ?? vesselEl;
+    const vRect   = cardRefEl.getBoundingClientRect();
+
+    const W = cRect.width  || 130;
+    const H = cRect.height || 210;
+
+    // Flask mouth in container-local SVG coordinates
+    const tipX = (vRect.left - cRect.left) + vRect.width  * 0.50;
+    const tipY = (vRect.top  - cRect.top)  + vRect.height * 0.03;
+
+    const { svg, flameEls, glowEl, ring } = this._buildSplintScene(containerEl, W, H, tipX, tipY);
+
+    // Phase 2 — squeaky pop burst
+    setTimeout(() => {
+      flameEls.forEach(el => {
+        el.style.animation = 'flamePop 0.75s ease forwards';
+      });
+      glowEl.style.animation = 'flamePop 0.75s ease forwards';
+      ring.style.opacity   = '1';
+      ring.style.animation = 'popRing 0.75s ease forwards';
+    }, POP_AT);
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        svg.remove();
+        this.setTestLock(vesselId, false);
+        resolve();
+      }, TOTAL);
+    });
   }
 
-  /** Burning splint — extinguished; no squeak. @private */
+  /**
+   * Burning splint burns steadily at the flask mouth — no pop (H₂ absent).
+   * Splint slides in, flame flickers for ~1.4 s, then fades out gently.
+   * @private
+   */
+  _animSplintBurns(vesselEl, _params) {
+    const TOTAL      = 2200;
+    const FADE_AT    = 1600;
+    const vesselId   = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+
+    const containerEl = vesselEl.closest('.vessel-container') ?? vesselEl.parentElement ?? vesselEl;
+    const cRect     = containerEl.getBoundingClientRect();
+    const cardRefEl = containerEl.querySelector('.vessel-card') ?? vesselEl;
+    const vRect     = cardRefEl.getBoundingClientRect();
+
+    const W    = cRect.width  || 130;
+    const H    = cRect.height || 210;
+    const tipX = (vRect.left - cRect.left) + vRect.width  * 0.50;
+    const tipY = (vRect.top  - cRect.top)  + vRect.height * 0.03;
+
+    const { svg } = this._buildSplintScene(containerEl, W, H, tipX, tipY);
+
+    // Fade the whole scene out gently — no pop
+    setTimeout(() => {
+      svg.style.transition = 'opacity 0.55s ease';
+      svg.style.opacity    = '0';
+    }, FADE_AT);
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        svg.remove();
+        this.setTestLock(vesselId, false);
+        resolve();
+      }, TOTAL);
+    });
+  }
+
+  /**
+   * Burning splint extinguished by a non-H₂/non-O₂ gas.
+   * Splint enters, flame is snuffed quickly, then the charred stick is held
+   * on screen for ~3 s before fading out.
+   * @private
+   */
   _animSplintExtinguish(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'splintOut', 'rgba(80,50,30,0.10)', 1500);
+    const SNUFF_AT  = 220;   // ms before snuffing starts
+    const SNUFF_DUR = 350;   // ms for snuff fade
+    const HOLD_DUR  = 1500;  // ms to display burnt stick after snuff
+    const FADE_DUR  = 400;   // ms for final SVG fade-out
+    const TOTAL     = SNUFF_AT + SNUFF_DUR + HOLD_DUR + FADE_DUR;
+
+    const vesselId = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+
+    const containerEl = vesselEl.closest('.vessel-container') ?? vesselEl.parentElement ?? vesselEl;
+    const cRect     = containerEl.getBoundingClientRect();
+    const cardRefEl = containerEl.querySelector('.vessel-card') ?? vesselEl;
+    const vRect     = cardRefEl.getBoundingClientRect();
+    const W    = cRect.width  || 130;
+    const H    = cRect.height || 210;
+    const tipX = (vRect.left - cRect.left) + vRect.width  * 0.50;
+    const tipY = (vRect.top  - cRect.top)  + vRect.height * 0.03;
+
+    const { svg, flameEls, glowEl } = this._buildSplintScene(containerEl, W, H, tipX, tipY);
+
+    // Snuff: stop flicker and fade flame + glow rapidly
+    setTimeout(() => {
+      const snuffTrans = `opacity ${SNUFF_DUR}ms ease`;
+      flameEls.forEach(el => {
+        el.style.animation  = 'none';
+        el.style.transition = snuffTrans;
+        el.style.opacity    = '0';
+      });
+      glowEl.style.animation  = 'none';
+      glowEl.style.transition = snuffTrans;
+      glowEl.style.opacity    = '0';
+    }, SNUFF_AT);
+
+    // Fade the whole SVG (stick disappears)
+    setTimeout(() => {
+      svg.style.transition = `opacity ${FADE_DUR}ms ease`;
+      svg.style.opacity    = '0';
+    }, SNUFF_AT + SNUFF_DUR + HOLD_DUR);
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        svg.remove();
+        this.setTestLock(vesselId, false);
+        resolve();
+      }, TOTAL);
+    });
   }
 
-  /** Glowing splint relights in O₂. @private */
+  /**
+   * Build an SVG scene for the glowing splint: same stick geometry as
+   * _buildSplintScene but the tip has only a small dim ember (no flame).
+   * Flame layers and full glow halo are included but start at opacity 0
+   * so _animSplintRelight can fade them in.
+   * @private
+   * @returns {{ svg, emberEl, glowEl, flameEls }}
+   */
+  _buildGlowingSplintScene(containerEl, W, H, tipX, tipY) {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const FH    = Math.min(H * 0.20, 36);
+    const FW    = FH * 0.42;
+    const ANGLE = 32 * Math.PI / 180;
+    const SLEN  = Math.min(W * 0.80, 100);
+    const SHALF = 2.5;
+    const cosA  = Math.cos(ANGLE);
+    const sinA  = Math.sin(ANGLE);
+    const pDx   = sinA * SHALF;
+    const pDy   = cosA * SHALF;
+    const eX    = tipX + SLEN * cosA;
+    const eY    = tipY - SLEN * sinA;
+
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox',             `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.setAttribute('overflow',            'visible');
+    svg.style.cssText = `
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 15;
+      animation: splintEnter 0.35s ease forwards;
+    `;
+
+    // Shared blur filter (used by both ember and glow halo)
+    const gid  = `gg-${Math.random().toString(36).slice(2)}`;
+    const defs = document.createElementNS(svgNS, 'defs');
+    const filt = document.createElementNS(svgNS, 'filter');
+    filt.setAttribute('id', gid);
+    filt.setAttribute('x', '-80%');  filt.setAttribute('y', '-80%');
+    filt.setAttribute('width', '260%'); filt.setAttribute('height', '260%');
+    const blur = document.createElementNS(svgNS, 'feGaussianBlur');
+    blur.setAttribute('stdDeviation', '5');
+    filt.appendChild(blur);
+    defs.appendChild(filt);
+    svg.appendChild(defs);
+
+    // Stick
+    const stick = document.createElementNS(svgNS, 'polygon');
+    stick.setAttribute('points', [
+      `${tipX - pDx},${tipY + pDy}`,
+      `${tipX + pDx},${tipY - pDy}`,
+      `${eX   + pDx},${eY   - pDy}`,
+      `${eX   - pDx},${eY   + pDy}`,
+    ].join(' '));
+    stick.setAttribute('fill', '#b07830');
+    svg.appendChild(stick);
+
+    // Grain
+    const grain = document.createElementNS(svgNS, 'line');
+    grain.setAttribute('x1', String(tipX + 8  * cosA));
+    grain.setAttribute('y1', String(tipY - 8  * sinA - pDy * 0.45));
+    grain.setAttribute('x2', String(eX   - 6  * cosA));
+    grain.setAttribute('y2', String(eY   + 6  * sinA - pDy * 0.45));
+    grain.setAttribute('stroke',       'rgba(205,155,65,0.30)');
+    grain.setAttribute('stroke-width', '1');
+    svg.appendChild(grain);
+
+    // Charred tip
+    const cLen    = 8;
+    const charred = document.createElementNS(svgNS, 'polygon');
+    charred.setAttribute('points', [
+      `${tipX - pDx},${tipY + pDy}`,
+      `${tipX + pDx},${tipY - pDy}`,
+      `${tipX + pDx + cLen * cosA},${tipY - pDy - cLen * sinA}`,
+      `${tipX - pDx + cLen * cosA},${tipY + pDy - cLen * sinA}`,
+    ].join(' '));
+    charred.setAttribute('fill', '#1e0e00');
+    svg.appendChild(charred);
+
+    // Ember — small smoldering glow at the tip (dimmer/redder than full flame)
+    const emberEl = document.createElementNS(svgNS, 'ellipse');
+    emberEl.setAttribute('cx',     String(tipX));
+    emberEl.setAttribute('cy',     String(tipY - FH * 0.12));
+    emberEl.setAttribute('rx',     String(FW * 0.80));
+    emberEl.setAttribute('ry',     String(FH * 0.22));
+    emberEl.setAttribute('fill',   'rgba(255,55,0,0.80)');
+    emberEl.setAttribute('filter', `url(#${gid})`);
+    emberEl.style.transformBox    = 'fill-box';
+    emberEl.style.transformOrigin = '50% 50%';
+    svg.appendChild(emberEl);
+
+    // Full glow halo — hidden; faded in by _animSplintRelight
+    const glowEl = document.createElementNS(svgNS, 'ellipse');
+    glowEl.setAttribute('cx',     String(tipX));
+    glowEl.setAttribute('cy',     String(tipY - FH * 0.40));
+    glowEl.setAttribute('rx',     String(FW * 2.0));
+    glowEl.setAttribute('ry',     String(FH * 0.72));
+    glowEl.setAttribute('fill',   'rgba(255,115,0,0.45)');
+    glowEl.setAttribute('filter', `url(#${gid})`);
+    glowEl.style.transformBox    = 'fill-box';
+    glowEl.style.transformOrigin = '50% 50%';
+    glowEl.style.opacity         = '0';
+    svg.appendChild(glowEl);
+
+    // Flame layers — hidden; faded in by _animSplintRelight
+    function td(cx, cy, w, h) {
+      return [
+        `M${cx},${cy}`,
+        `C${cx + w},${cy - h * 0.20} ${cx + w * 0.62},${cy - h * 0.76} ${cx},${cy - h}`,
+        `C${cx - w * 0.62},${cy - h * 0.76} ${cx - w},${cy - h * 0.20} ${cx},${cy}`,
+        'Z',
+      ].join(' ');
+    }
+    const flameLayers = [
+      [FW * 1.00, FH * 1.00,          0, 'rgba(165,30,0,0.82)' ],
+      [FW * 0.72, FH * 0.85, -FH * 0.05, 'rgba(255,75,0,0.88)' ],
+      [FW * 0.46, FH * 0.65, -FH * 0.10, 'rgba(255,170,10,0.93)'],
+      [FW * 0.25, FH * 0.42, -FH * 0.16, 'rgba(255,248,185,0.97)'],
+    ];
+    const flameEls = flameLayers.map(([w, h, yo, fill], i) => {
+      const p = document.createElementNS(svgNS, 'path');
+      p.setAttribute('d', td(tipX, tipY + yo, w, h));
+      p.setAttribute('fill', fill);
+      p.style.transformBox    = 'fill-box';
+      p.style.transformOrigin = '50% 100%';
+      p.style.animation       = `flameFlicker ${0.38 + i * 0.06}s ease-in-out infinite`;
+      p.style.opacity         = '0';
+      svg.appendChild(p);
+      return p;
+    });
+
+    containerEl.appendChild(svg);
+    return { svg, emberEl, glowEl, flameEls };
+  }
+
+  /**
+   * Glowing splint relights in O₂: ember glows briefly then bursts into flame.
+   * @private
+   */
   _animSplintRelight(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'splintRelight', 'rgba(255,110,0,0.18)', 1700);
+    const RELIGHT_AT = 450;   // ms — ember visible before relighting
+    const FADE_AT    = 2000;  // ms — start fading full flame out
+    const TOTAL      = 2500;
+
+    const vesselId = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+
+    const containerEl = vesselEl.closest('.vessel-container') ?? vesselEl.parentElement ?? vesselEl;
+    const cRect     = containerEl.getBoundingClientRect();
+    const cardRefEl = containerEl.querySelector('.vessel-card') ?? vesselEl;
+    const vRect     = cardRefEl.getBoundingClientRect();
+    const W    = cRect.width  || 130;
+    const H    = cRect.height || 210;
+    const tipX = (vRect.left - cRect.left) + vRect.width  * 0.50;
+    const tipY = (vRect.top  - cRect.top)  + vRect.height * 0.03;
+
+    const { svg, emberEl, glowEl, flameEls } = this._buildGlowingSplintScene(containerEl, W, H, tipX, tipY);
+
+    // Relight: ember fades, full flame + glow burst in
+    setTimeout(() => {
+      const trans = 'opacity 0.30s ease';
+      emberEl.style.transition = trans;
+      emberEl.style.opacity    = '0';
+      glowEl.style.transition  = trans;
+      glowEl.style.opacity     = '1';
+      flameEls.forEach(el => {
+        el.style.transition = trans;
+        el.style.opacity    = '1';
+      });
+    }, RELIGHT_AT);
+
+    // Fade out the whole scene
+    setTimeout(() => {
+      svg.style.transition = 'opacity 0.50s ease';
+      svg.style.opacity    = '0';
+    }, FADE_AT);
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        svg.remove();
+        this.setTestLock(vesselId, false);
+        resolve();
+      }, TOTAL);
+    });
   }
 
-  /** Glowing splint — extinguished. @private */
+  /**
+   * Glowing splint extinguished — no O₂: ember dims to nothing, charred
+   * stick held on screen for 1.5 s, then fades out.
+   * @private
+   */
   _animGlowingSplintExtinguish(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'splintOut', 'rgba(70,50,20,0.10)', 1500);
+    const SNUFF_AT  = 300;   // ms — show ember briefly
+    const SNUFF_DUR = 400;   // ms — ember fade
+    const HOLD_DUR  = 1500;  // ms — display charred stick
+    const FADE_DUR  = 350;   // ms — SVG fade-out
+    const TOTAL     = SNUFF_AT + SNUFF_DUR + HOLD_DUR + FADE_DUR;
+
+    const vesselId = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+
+    const containerEl = vesselEl.closest('.vessel-container') ?? vesselEl.parentElement ?? vesselEl;
+    const cRect     = containerEl.getBoundingClientRect();
+    const cardRefEl = containerEl.querySelector('.vessel-card') ?? vesselEl;
+    const vRect     = cardRefEl.getBoundingClientRect();
+    const W    = cRect.width  || 130;
+    const H    = cRect.height || 210;
+    const tipX = (vRect.left - cRect.left) + vRect.width  * 0.50;
+    const tipY = (vRect.top  - cRect.top)  + vRect.height * 0.03;
+
+    const { svg, emberEl } = this._buildGlowingSplintScene(containerEl, W, H, tipX, tipY);
+
+    // Snuff the ember
+    setTimeout(() => {
+      emberEl.style.transition = `opacity ${SNUFF_DUR}ms ease`;
+      emberEl.style.opacity    = '0';
+    }, SNUFF_AT);
+
+    // Fade out SVG after hold
+    setTimeout(() => {
+      svg.style.transition = `opacity ${FADE_DUR}ms ease`;
+      svg.style.opacity    = '0';
+    }, SNUFF_AT + SNUFF_DUR + HOLD_DUR);
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        svg.remove();
+        this.setTestLock(vesselId, false);
+        resolve();
+      }, TOTAL);
+    });
   }
 
   /** Limewater goes milky — CO₂ positive. @private */

@@ -35,7 +35,7 @@ export const CONFIRMATORY_TESTS = [
     icon: 'splint-burning.svg',
     detects: { gas: 'H2' },
     positiveAnimId: 'anim_squeaky_pop',
-    negativeAnimId: 'anim_splint_extinguish',
+    negativeAnimId: 'anim_splint_burns',
     positiveObservation:
       'A loud squeaky pop was heard when the burning splint was brought near the mouth of the vessel.',
     negativeObservation:

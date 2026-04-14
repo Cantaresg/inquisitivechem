@@ -177,6 +177,11 @@ export class BenchUI {
     // Step 6: play animations simultaneously
     this._animManager.playAll(events, slot.vesselUI.cardEl);
 
+    // Schedule repeating bubble animation for as long as gas is being produced
+    if (events.some(ev => ev.gasAdded)) {
+      slot._nextBubbleAt = Date.now() + 2500;
+    }
+
     // Step 7: append to observation log (BUG-19)
     for (const ev of events) {
       if (ev.observation) {
@@ -537,6 +542,10 @@ export class BenchUI {
     targetSlot.vesselUI.render();
     this._animManager.playAll(events, targetSlot.vesselUI.cardEl);
 
+    if (events.some(ev => ev.gasAdded)) {
+      targetSlot._nextBubbleAt = Date.now() + 2500;
+    }
+
     for (const ev of events) {
       if (ev.observation) {
         this._obsLog.append({
@@ -578,12 +587,25 @@ export class BenchUI {
    * @param {number} deltaSeconds  elapsed seconds since last frame (capped at 0.1 s)
    */
   tick(deltaSeconds) {
+    const now = Date.now();
     for (const slot of this._slots) {
       if (!slot) continue;
       const sol = slot.vessel.solution;
-      if (sol.gases.length === 0) continue;
-      sol.tickGasPressure(deltaSeconds);
-      slot.vesselUI.updateGasOnly();
+
+      if (sol.gases.length > 0) {
+        sol.tickGasPressure(deltaSeconds);
+        slot.vesselUI.updateGasOnly();
+      }
+
+      // Re-fire bubble animation periodically while gas remains
+      if (slot._nextBubbleAt !== undefined) {
+        if (sol.gases.length === 0) {
+          slot._nextBubbleAt = undefined;
+        } else if (now >= slot._nextBubbleAt) {
+          this._animManager.play('anim_bubbles', slot.vesselUI.cardEl, {});
+          slot._nextBubbleAt = now + 2500;
+        }
+      }
     }
   }
 }
