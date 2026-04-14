@@ -103,17 +103,6 @@ export class GasTestEngine {
       }
     }
 
-    // ── Limewater test: excess CO₂ (pressure > 0.55) → ppt then re-dissolves ──
-    // Standard positive already set animId = anim_limewater_milky above.
-    // Override to excess variant when pressure is high enough.
-    if (isPositive && test.id === 'test_limewater') {
-      const co2 = sol.gases.find(g => g.id === 'CO2');
-      if (co2 && co2.pressure > 0.55) {
-        animId      = 'anim_limewater_excess';
-        observation = test.excessObservation ?? observation;
-      }
-    }
-
     // ── Resolve final animId and observation ─────────────────────────────────
     if (isPositive) {
       animId = test.positiveAnimId;
@@ -131,6 +120,15 @@ export class GasTestEngine {
       if (test.id === 'test_flame' && matchedKey && test.flameColours?.[matchedKey]) {
         flameColour = test.flameColours[matchedKey].cssColor;
         observation = test.flameColours[matchedKey].observationText;
+      }
+    }
+
+    // ── Limewater: excess CO₂ — override AFTER the main resolve so it isn't clobbered ──
+    if (isPositive && test.id === 'test_limewater') {
+      const co2 = sol.gases.find(g => g.id === 'CO2');
+      if (co2 && co2.pressure > GAS_PRESSURE_THRESHOLD) {
+        animId      = 'anim_limewater_excess';
+        observation = test.excessObservation ?? observation;
       }
     }
 
