@@ -164,79 +164,133 @@ export class AnimationManager {
 
   /**
    * Bubble column for gas evolution.
-   * 6 circles rise through the liquid layer.
+   * Uses SVG + internal clipPath so rising bubbles don't escape the flask's
+   * clip-path polygon via compositor-layer promotion.
    * @private
    */
   _animBubbles(vesselEl, _params) {
-    const DURATION = 3200;   // ms for the longest bubble
-    const COUNT    = 10;     // more bubbles = more realistic fizzing
-    const SPACING  = 280;    // ms between bubble launch
-    const layer = vesselEl.querySelector('.vessel-bubble') ?? vesselEl;
-    const bubbles = [];
+    const DURATION = 3200;
+    const COUNT    = 10;
+    const SPACING  = 280;
+    const svgNS    = 'http://www.w3.org/2000/svg';
 
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.style.cssText = `
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 9;
+    `;
+    svg.setAttribute('overflow', 'hidden');
+
+    const bounds = vesselEl.getBoundingClientRect();
+    const W = bounds.width  || 120;
+    const H = bounds.height || 180;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+
+    const clipId = `bb-clip-${Math.random().toString(36).slice(2)}`;
+    const defs   = document.createElementNS(svgNS, 'defs');
+    const clipPath = document.createElementNS(svgNS, 'clipPath');
+    clipPath.setAttribute('id', clipId);
+    const clipRect = document.createElementNS(svgNS, 'rect');
+    clipRect.setAttribute('x', '0'); clipRect.setAttribute('y', '0');
+    clipRect.setAttribute('width', String(W)); clipRect.setAttribute('height', String(H));
+    clipPath.appendChild(clipRect);
+    defs.appendChild(clipPath);
+    svg.appendChild(defs);
+
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('clip-path', `url(#${clipId})`);
+
+    // Bubbles start near the bottom of the liquid and rise upward
+    const liquidBottom = H * 0.96;
     for (let i = 0; i < COUNT; i++) {
-      const b = document.createElement('div');
-      const size  = 3 + Math.random() * 4;
-      const delay = i * SPACING;
-      // Each successive bubble is slightly shorter so they look organic
-      const dur   = DURATION - i * 60;
-      b.style.cssText = `
-        position: absolute;
-        width: ${size}px; height: ${size}px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.52);
-        left: ${10 + Math.random() * 78}%;
-        bottom: ${4 + Math.random() * 22}%;
-        animation: bubbleRise ${dur}ms ease-out ${delay}ms forwards;
-        pointer-events: none;
-      `;
-      layer.appendChild(b);
-      bubbles.push(b);
+      const circle = document.createElementNS(svgNS, 'circle');
+      const r    = 1.5 + Math.random() * 2;
+      const dur  = DURATION - i * 60;
+      circle.setAttribute('cx', String(W * (0.12 + Math.random() * 0.76)));
+      circle.setAttribute('cy', String(liquidBottom - Math.random() * H * 0.18));
+      circle.setAttribute('r',  String(r));
+      circle.setAttribute('fill', 'rgba(255,255,255,0.50)');
+      circle.style.animation = `bubbleRise ${dur}ms ease-out ${i * SPACING}ms forwards`;
+      g.appendChild(circle);
     }
+
+    svg.appendChild(g);
+    vesselEl.appendChild(svg);
 
     const total = DURATION + COUNT * SPACING + 150;
     return new Promise(resolve => {
-      setTimeout(() => {
-        bubbles.forEach(b => b.remove());
-        resolve();
-      }, total);
+      setTimeout(() => { svg.remove(); resolve(); }, total);
     });
   }
 
   /**
    * Precipitate particles falling through the solution.
+   * Uses SVG + internal clipPath to prevent compositor-layer escape from the
+   * parent's clip-path polygon (same technique as _animGoldenRain).
    * @private
    */
   _animPrecipitate(vesselEl, params) {
     const DURATION = 1400;
     const color    = params.pptColor ?? 'rgba(200,200,200,0.85)';
-    const COUNT    = 12;
-    const particles = [];
+    const COUNT    = 14;
+    const svgNS    = 'http://www.w3.org/2000/svg';
 
-    // Particles start inside the liquid zone (bottom 30–60 % of card)
-    // and fall downward to settle as a precipitate layer.
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.style.cssText = `
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 11;
+    `;
+    svg.setAttribute('overflow', 'hidden');
+
+    const bounds = vesselEl.getBoundingClientRect();
+    const W = bounds.width  || 120;
+    const H = bounds.height || 180;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+
+    // SVG-internal clipPath guarantees particles stay within the vessel viewport
+    const clipId = `pp-clip-${Math.random().toString(36).slice(2)}`;
+    const defs   = document.createElementNS(svgNS, 'defs');
+    const clipPath = document.createElementNS(svgNS, 'clipPath');
+    clipPath.setAttribute('id', clipId);
+    const clipRect = document.createElementNS(svgNS, 'rect');
+    clipRect.setAttribute('x', '0'); clipRect.setAttribute('y', '0');
+    clipRect.setAttribute('width', String(W)); clipRect.setAttribute('height', String(H));
+    clipPath.appendChild(clipRect);
+    defs.appendChild(clipPath);
+    svg.appendChild(defs);
+
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('clip-path', `url(#${clipId})`);
+
+    // Liquid occupies bottom 55 % → top of liquid surface is at SVG y = 0.45 * H.
+    // Particles start just below the surface and fall deeper.
+    const liquidTop = H * 0.42;
     for (let i = 0; i < COUNT; i++) {
-      const p     = document.createElement('div');
-      const size  = 4 + Math.random() * 4;
-      const delay = i * 75;
-      p.style.cssText = `
-        position: absolute;
-        width: ${size}px; height: ${size}px;
-        border-radius: 1px;
-        background: ${color};
-        left: ${18 + Math.random() * 62}%;
-        bottom: ${32 + Math.random() * 28}%;
-        animation: precipFall ${DURATION}ms ease-in ${delay}ms forwards;
-        pointer-events: none;
-        z-index: 11;
-      `;
-      vesselEl.appendChild(p);
-      particles.push(p);
+      const r    = document.createElementNS(svgNS, 'rect');
+      const size = 3 + Math.random() * 4;
+      const sx   = W * (0.15 + Math.random() * 0.68);
+      const sy   = liquidTop + Math.random() * (H * 0.22);   // within liquid, not above
+      r.setAttribute('x',      String(sx));
+      r.setAttribute('y',      String(sy));
+      r.setAttribute('width',  String(size));
+      r.setAttribute('height', String(size));
+      r.setAttribute('rx',     '1');
+      r.setAttribute('fill',   color);
+      // No will-change — avoids compositor-layer escape from SVG clipPath
+      r.style.animation = `precipFall ${DURATION}ms ease-in ${i * 75}ms forwards`;
+      g.appendChild(r);
     }
+
+    svg.appendChild(g);
+    vesselEl.appendChild(svg);
 
     return new Promise(resolve => {
       setTimeout(() => {
-        particles.forEach(p => p.remove());
+        svg.remove();
         resolve();
       }, DURATION + COUNT * 75 + 200);
     });

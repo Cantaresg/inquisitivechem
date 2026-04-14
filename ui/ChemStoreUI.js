@@ -92,11 +92,12 @@ export class ChemStoreUI {
       subcatList.appendChild(this._buildSubcategory(subcat, items));
     }
 
-    // Click: toggle this category
+    // Click: toggle this category; collapsing also resets all inner subcategories
     btn.addEventListener('click', () => {
       const expanded = catEl.getAttribute('aria-expanded') === 'true';
       catEl.setAttribute('aria-expanded', String(!expanded));
       btn.setAttribute('aria-expanded', String(!expanded));
+      if (expanded) _collapseSubcats(catEl);
     });
 
     // Mouseleave the whole category block → auto-close after short delay
@@ -105,6 +106,7 @@ export class ChemStoreUI {
       _leaveTimer = setTimeout(() => {
         catEl.setAttribute('aria-expanded', 'false');
         btn.setAttribute('aria-expanded', 'false');
+        _collapseSubcats(catEl);
       }, 420);
     });
     catEl.addEventListener('mouseenter', () => {
@@ -153,6 +155,18 @@ export class ChemStoreUI {
       btn.setAttribute('aria-expanded', String(!expanded));
     });
 
+    // Mouseleave: auto-close the subcategory after a short delay
+    let _subLeaveTimer = null;
+    subEl.addEventListener('mouseleave', () => {
+      _subLeaveTimer = setTimeout(() => {
+        subEl.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-expanded', 'false');
+      }, 300);
+    });
+    subEl.addEventListener('mouseenter', () => {
+      clearTimeout(_subLeaveTimer);
+    });
+
     subEl.append(btn, itemList);
     return subEl;
   }
@@ -194,6 +208,15 @@ export class ChemStoreUI {
 }
 
 // ─── Private utilities ────────────────────────────────────────────────────────
+
+/** Collapse all .store-subcategory elements inside a category element. */
+function _collapseSubcats(catEl) {
+  for (const sub of catEl.querySelectorAll('.store-subcategory')) {
+    sub.setAttribute('aria-expanded', 'false');
+    const subBtn = sub.querySelector('.store-subcategory-btn');
+    if (subBtn) subBtn.setAttribute('aria-expanded', 'false');
+  }
+}
 
 /** Capitalise the first letter of a string. */
 function _capitalize(str) {

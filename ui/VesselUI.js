@@ -83,6 +83,17 @@ export class VesselUI {
     solidsLayer.className = 'vessel-solids';
 
     card.append(liquid, solidsLayer, pptLayer, bubbleLayer);
+
+    // Sketch outline overlay — SVG drawn above live chemistry layers
+    const sketchResult = this._buildSketchOverlay();
+    if (sketchResult) {
+      card.appendChild(sketchResult.svg);
+      if (sketchResult.clipPath) {
+        card.style.clipPath = `path('${sketchResult.clipPath}')`;
+        card.style.borderRadius = '0';
+      }
+    }
+
     container.append(caption, card);
 
     // Register container as drop zone (no clip-path → full bounding rect).
@@ -159,7 +170,7 @@ export class VesselUI {
     const isDish = this.vessel.type === 'solid_dish' || this.vessel.type === 'evaporating_dish';
     if (present.length > 0) {
       layer.style.height = isDish
-        ? `${Math.min(present.length * 16 + 10, 52)}px`
+        ? `${Math.min(present.length * 14 + 8, 36)}px`
         : `${Math.min(present.length * 20 + 14, 65)}px`;
       present.forEach((solid, i) => {
         const chip = document.createElement('div');
@@ -169,7 +180,7 @@ export class VesselUI {
         // Pseudo-random size + rotation so chips look like real solid lumps/strips
         const seed = i * 17 + (solid.id.charCodeAt(0) ?? 0);
         const w   = isDish ? (32 + (seed % 26)) : (22 + (seed % 18));   // wider for dish
-        const h   = isDish ? (7  + ((seed * 3) % 6)) : (12 + ((seed * 3) % 11)); // flatter for dish
+        const h   = isDish ? (5  + ((seed * 3) % 4)) : (12 + ((seed * 3) % 11)); // flatter for dish
         const rot = isDish ? (((seed * 19) % 28) - 14) : (((seed * 37) % 22) - 11);
         chip.style.width     = `${w}px`;
         chip.style.height    = `${h}px`;
@@ -217,8 +228,178 @@ export class VesselUI {
     this.cardEl.classList.toggle('is-hot', this.vessel.isHot);
   }
 
+  // ─── Sketch overlay helpers ───────────────────────────────────────────────
+
   /**
-   * No-op satisfying the BenchUI.tick() call site — gas indicator text has
+   * Returns an SVG sketch overlay element for vessel types that have one,
+   * or null for plain types (test_tube, etc.).
+   * @private
+   */
+  _buildSketchOverlay() {
+    switch (this.vessel.type) {
+      case 'conical_flask':    return { svg: this._buildFlaskSVG(), clipPath: null };
+      case 'evaporating_dish': return this._buildDishSketch(160, 60);
+      case 'solid_dish':       return this._buildDishSketch(144, 56);
+      default: return null;
+    }
+  }
+
+  /**
+   * SVG sketch outline for a 120×180 conical flask.
+   * Draws: curved outline, shoulder hatching, glass highlight.
+   * @private
+   */
+  _buildFlaskSVG() {
+    const NS   = 'http://www.w3.org/2000/svg';
+    const uid  = this.vessel.id;
+    const svg  = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class',       'vessel-sketch-overlay');
+    svg.setAttribute('viewBox',     '0 0 120 180');
+    svg.setAttribute('aria-hidden', 'true');
+
+    const OUTLINE  = 'M 46,6 C 46,1 74,1 74,6 L 74,50 C 82,64 112,128 112,172 C 112,176 108,178 104,178 L 16,178 C 12,178 8,176 8,172 C 8,128 38,64 46,50 Z';
+    const GREY     = 'rgb(127,127,127)';
+    const CLIP_ID  = `flask-clip-${uid}`;
+
+    // ── clipPath (restricts hatching to flask interior) ────────────────────
+    const defs = document.createElementNS(NS, 'defs');
+    const clip = document.createElementNS(NS, 'clipPath');
+    clip.setAttribute('id', CLIP_ID);
+    const clipShape = document.createElementNS(NS, 'path');
+    clipShape.setAttribute('d', OUTLINE);
+    clip.appendChild(clipShape);
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    // ── Shoulder hatching ─────────────────────────────────────────────────
+    // Four diagonal lines each side, going from upper to lower-outer,
+    // clipped so they never bleed outside the flask silhouette.
+    const hatch = document.createElementNS(NS, 'g');
+    hatch.setAttribute('clip-path',    `url(#${CLIP_ID})`);
+    hatch.setAttribute('stroke',       GREY);
+    hatch.setAttribute('stroke-width', '0.7');
+    hatch.setAttribute('opacity',      '0.55');
+    const lines = [
+      // left shoulder              right shoulder
+      [36, 56,  6, 82],            [84, 56, 114, 82],
+      [38, 70,  8, 104],           [82, 70, 112, 104],
+      [40, 88, 10, 130],           [80, 88, 110, 130],
+      [42, 110, 14, 156],          [78, 110, 106, 156],
+    ];
+    for (const [x1, y1, x2, y2] of lines) {
+      const l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+      l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+      hatch.appendChild(l);
+    }
+    svg.appendChild(hatch);
+
+    // ── Glass highlight streak on right side of neck ──────────────────────
+    const highlight = document.createElementNS(NS, 'path');
+    highlight.setAttribute('d',            'M 72,8 C 73,20 73,38 72,50');
+    highlight.setAttribute('fill',         'none');
+    highlight.setAttribute('stroke',       'rgb(160,190,170)');
+    highlight.setAttribute('stroke-width', '0.9');
+    highlight.setAttribute('opacity',      '0.40');
+    svg.appendChild(highlight);
+
+    // ── Main outline (drawn last so it sits on top) ───────────────────────
+    const outline = document.createElementNS(NS, 'path');
+    outline.setAttribute('d',                OUTLINE);
+    outline.setAttribute('fill',             'none');
+    outline.setAttribute('stroke',           GREY);
+    outline.setAttribute('stroke-width',     '1.5');
+    outline.setAttribute('stroke-linejoin',  'round');
+    svg.appendChild(outline);
+
+    return svg;
+  }
+
+  /**
+   * SVG sketch outline for dish-type vessels (evaporating_dish, solid_dish).
+   * Returns { svg, clipPath } — clipPath is applied to the card in _build() so
+   * solid chips are always clipped to the actual dish outline boundary.
+   * @param {number} w  card pixel width
+   * @param {number} h  card pixel height
+   * @private
+   */
+  _buildDishSketch(w, h) {
+    const NS   = 'http://www.w3.org/2000/svg';
+    const uid  = this.vessel.id;
+    const svg  = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class',       'vessel-sketch-overlay');
+    svg.setAttribute('viewBox',     `0 0 ${w} ${h}`);
+    svg.setAttribute('aria-hidden', 'true');
+
+    const GREY    = 'rgb(127,127,127)';
+    const CLIP_ID = `dish-clip-${uid}`;
+
+    // Dish profile: wide at top, curves to a rounded base.
+    const hy = Math.round(h * 0.37);   // right/left wall inflection y
+    const by = Math.round(h * 0.77);   // base curve end y
+    const bm = Math.round(h - 4);      // base midpoint y
+    const cx = Math.round(w * 0.77);   // right base curve x control
+    const OUTLINE =
+      `M 7,4 L ${w - 7},4 ` +
+      `C ${w - 2},4 ${w - 2},10 ${w - 2},${hy} ` +
+      `C ${w - 2},${by} ${cx},${bm} ${Math.round(w / 2)},${bm} ` +
+      `C ${w - cx},${bm} 2,${by} 2,${hy} ` +
+      `C 2,10 3,4 7,4 Z`;
+
+    // ── clipPath ──────────────────────────────────────────────────────────
+    const defs = document.createElementNS(NS, 'defs');
+    const clip = document.createElementNS(NS, 'clipPath');
+    clip.setAttribute('id', CLIP_ID);
+    const clipShape = document.createElementNS(NS, 'path');
+    clipShape.setAttribute('d', OUTLINE);
+    clip.appendChild(clipShape);
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    // ── Hatching on right wall ─────────────────────────────────────────────
+    const hatch = document.createElementNS(NS, 'g');
+    hatch.setAttribute('clip-path',    `url(#${CLIP_ID})`);
+    hatch.setAttribute('stroke',       GREY);
+    hatch.setAttribute('stroke-width', '0.7');
+    hatch.setAttribute('opacity',      '0.50');
+    const rx = w - 4;
+    for (const [x1, y1, x2, y2] of [
+      [rx - 22, 6,  rx, Math.round(h * 0.42)],
+      [rx - 34, 6,  rx, Math.round(h * 0.66)],
+      [rx - 44, 6,  rx, Math.round(h * 0.82)],
+    ]) {
+      const l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+      l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+      hatch.appendChild(l);
+    }
+    svg.appendChild(hatch);
+
+    // ── Rim highlight ─────────────────────────────────────────────────────
+    const rim = document.createElementNS(NS, 'line');
+    rim.setAttribute('x1',           '9');
+    rim.setAttribute('y1',           '10');
+    rim.setAttribute('x2',           String(w - 9));
+    rim.setAttribute('y2',           '10');
+    rim.setAttribute('stroke',       'rgb(160,190,170)');
+    rim.setAttribute('stroke-width', '0.7');
+    rim.setAttribute('opacity',      '0.38');
+    svg.appendChild(rim);
+
+    // ── Main outline ──────────────────────────────────────────────────────
+    const outline = document.createElementNS(NS, 'path');
+    outline.setAttribute('d',               OUTLINE);
+    outline.setAttribute('fill',            'none');
+    outline.setAttribute('stroke',          GREY);
+    outline.setAttribute('stroke-width',    '1.5');
+    outline.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(outline);
+
+    return { svg, clipPath: OUTLINE };
+  }
+
+  /**
+   * No-op satisfying the BenchUI.tick() call site — gas indicator text has   
    * been removed from the vessel display (labels are in the Observation log).
    */
   updateGasOnly() {}

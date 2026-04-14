@@ -24,6 +24,11 @@ import { ReactionEngine }  from '../engine/ReactionEngine.js';
 import { Vessel }          from '../engine/Vessel.js';
 import { VesselUI }        from './VesselUI.js';
 
+/** Minimal unique ID for synthetic log entries. */
+function _uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
 export class BenchUI {
   /**
    * @param {HTMLElement}   containerEl    — #bench-area element
@@ -361,6 +366,38 @@ export class BenchUI {
 
     slot.vessel.setHeat(isHot);
     slot.vesselUI.render();
+
+    // ── PbI₂ golden rain heat/cool cycle ─────────────────────────────────
+    const sol = slot.vessel.solution;
+    if (isHot) {
+      const pbi2 = sol.ppts.find(p => p.id === 'pbi2');
+      if (pbi2) {
+        sol.removePpt('pbi2');
+        sol.color = 'rgba(220,190,10,0.55)';
+        sol._goldenRainReady = true;
+        slot.vesselUI.render();
+        this._obsLog.append({
+          id: _uid(), type: 'dissolution',
+          observation: 'On heating, the golden-yellow precipitate dissolved to give a clear golden solution.',
+          equation: 'PbI₂(s) ⇌ Pb²⁺(aq) + 2I⁻(aq)',
+          timestamp: new Date(),
+        });
+      }
+    } else if (sol._goldenRainReady) {
+      sol.addPpt({ id: 'pbi2', color: '#f5d800', formula: 'PbI₂', label: 'golden yellow' });
+      sol.color = null;
+      sol._goldenRainReady = false;
+      slot.vesselUI.render();
+      this._animManager.play('anim_golden_rain', slot.vesselUI.cardEl);
+      this._obsLog.append({
+        id: _uid(), type: 'precipitation',
+        observation: 'On cooling, shimmering golden crystals of lead(II) iodide rained back out of solution — the classic "golden rain" experiment.',
+        equation: 'Pb²⁺(aq) + 2I⁻(aq) → PbI₂(s)',
+        timestamp: new Date(),
+      });
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     if (!isHot) return;  // cooling produces no thermal reactions
 

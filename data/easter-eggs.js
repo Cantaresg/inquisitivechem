@@ -26,12 +26,15 @@
 export const EASTER_EGGS = [
   {
     id: 'golden_rain',
-    // Triggered when Pb²⁺ + I⁻ → PbI₂ precipitate forms
+    // Triggered when Pb²⁺ + I⁻ → PbI₂ precipitate forms.
+    // Uses normal precipitate animation here; the dazzling golden rain
+    // crystal shower is played by BenchUI when the vessel is cooled after
+    // heating (heat dissolves PbI₂; cooling recrystallises it).
     triggerPpt: 'pbi2',
-    customAnimId: 'anim_golden_rain',
+    customAnimId: 'anim_precipitate',
     observationOverride:
-      'A dense, golden-yellow crystalline precipitate formed slowly, '
-      + 'appearing as bright golden flakes that settled through the solution.',
+      'A bright golden-yellow precipitate of lead(II) iodide formed. '
+      + 'Try heating the vessel, then cooling it, to see the golden rain.',
   },
 
   // ── Future easter eggs ─────────────────────────────────────────────────────

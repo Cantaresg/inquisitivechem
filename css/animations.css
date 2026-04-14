@@ -11,10 +11,10 @@
 
 /* ── Bubbles (anim_bubbles) ──────────────────────────────── */
 @keyframes bubbleRise {
-  0%   { transform: translateY(0)       scale(0.8); opacity: 0.65; }
-  20%  { transform: translateY(-20px)   scale(1.0); opacity: 0.80; }
-  70%  { transform: translateY(-80px)   scale(1.2); opacity: 0.50; }
-  100% { transform: translateY(-120px)  scale(1.4); opacity: 0;    }
+  0%   { transform: translateY(0);      opacity: 0.65; }
+  20%  { transform: translateY(-14px);  opacity: 0.80; }
+  70%  { transform: translateY(-50px);  opacity: 0.45; }
+  100% { transform: translateY(-80px);  opacity: 0;    }
 }
 
 /* ── Precipitate fall (anim_precipitate) ───────────────────── */
@@ -36,9 +36,9 @@
    TRAP-05: polygon count capped at 50 in AnimationManager.
    ═══════════════════════════════════════════════════════════ */
 @keyframes goldenRainFall {
-  0%   { transform: translateY(-12px) rotate(0deg);   opacity: 1;   }
-  85%  { opacity: 0.8; }
-  100% { transform: translateY(210px) rotate(720deg); opacity: 0;   }
+  0%   { transform: translateY(0)      rotate(0deg);   opacity: 1;   }
+  85%  { opacity: 0.85; }
+  100% { transform: translateY(170px)  rotate(540deg); opacity: 0;   }
 }
 
 /* ═══════════════════════════════════════════════════════════
