@@ -36,14 +36,13 @@
    TRAP-05: polygon count capped at 120 in AnimationManager.
    ═══════════════════════════════════════════════════════════ */
 
-/* Hexagonal flake: falls slowly with a gentle drift, tiny glitter scale. */
-@keyframes goldenRainFall {
-  0%   { transform: translate(0px,   0px)  rotate(0deg);   opacity: 0;   }
-  8%   { opacity: 1; }
-  30%  { transform: translate(2px,  50px)  rotate(90deg);  opacity: 0.9; }
-  55%  { transform: translate(-2px, 110px) rotate(200deg); opacity: 0.85; }
-  80%  { transform: translate(1px,  160px) rotate(340deg); opacity: 0.6; }
-  100% { transform: translate(0px,  200px) rotate(480deg); opacity: 0;   }
+/* Hexagonal flake: nucleates inside the solution and gently settles ~20 px.
+   Very slow, barely any lateral drift — mimics real PbI₂ platelet behaviour. */
+@keyframes goldenRainSettle {
+  0%   { transform: translate(0px,  0px)  rotate(0deg);   opacity: 0;    }
+  10%  { opacity: 0.95; }
+  75%  { transform: translate(0px, 16px)  rotate(12deg);  opacity: 0.85; }
+  100% { transform: translate(0px, 22px)  rotate(18deg);  opacity: 0;    }
 }
 
 /* Sparkle glint: a tiny bright circle that pulses once to simulate a

@@ -349,11 +349,86 @@ export class AnimationManager {
    * @private
    */
   _animGoldenRain(vesselEl, _params) {
-    // Phase durations (ms)
-    const FALL_DUR  = 3000;  // hex crystal fall duration
-    const SPARK_DUR = 800;   // sparkle flash duration
-    const STAGGER   = 900;   // max random start delay for crystals
-    const TOTAL     = FALL_DUR + STAGGER + 400;
+    // Phase durations (ms) — crystals nucleate slowly and barely move
+    const FALL_DUR  = 6000;  // gentle settling duration
+    const SPARK_DUR = 900;   // sparkle flash duration
+    const STAGGER   = 3000;  // long stagger — crystals nucleate gradually
+    const TOTAL     = FALL_DUR + STAGGER + 500;
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.style.cssText = `
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 16;
+    `;
+    svg.setAttribute('overflow', 'hidden');
+
+    const rect = vesselEl.getBoundingClientRect();
+    const W = rect.width  || 120;
+    const H = rect.height || 180;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+
+    // SVG-internal clipPath — compositing-layer-safe clipping (TRAP-05)
+    const clipId   = `gr-clip-${Math.random().toString(36).slice(2)}`;
+    const defs     = document.createElementNS(svgNS, 'defs');
+    const clipPath = document.createElementNS(svgNS, 'clipPath');
+    clipPath.setAttribute('id', clipId);
+    const clipRect = document.createElementNS(svgNS, 'rect');
+    clipRect.setAttribute('x', '0'); clipRect.setAttribute('y', '0');
+    clipRect.setAttribute('width', String(W)); clipRect.setAttribute('height', String(H));
+    clipPath.appendChild(clipRect);
+    defs.appendChild(clipPath);
+    svg.appendChild(defs);
+
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('clip-path', `url(#${clipId})`);
+
+    // ── Hexagonal crystal flakes ──────────────────────────────────────────
+    // Start positions constrained to the solution volume:
+    //   • y: 45–85% of card height  (solution surface to near base)
+    //   • x: 12–88% of card width    (within the flask body walls)
+    // Crystals nucleate in place and gently settle — very little translation.
+    for (let i = 0; i < MAX_RAIN_POLYGONS; i++) {
+      const poly  = document.createElementNS(svgNS, 'polygon');
+      const cx    = W * 0.12 + Math.random() * W * 0.76;   // within flask body
+      const cy    = H * 0.45 + Math.random() * H * 0.40;   // within solution
+      const r     = 1.0 + Math.random() * 2.5;             // 1–3.5 px glitter scale
+      const light = 55 + Math.random() * 30;               // 55–85%
+      const hue   = 44 + Math.random() * 16;               // 44–60° gold
+      poly.setAttribute('points', _hexPoints(cx, cy, r));
+      poly.setAttribute('fill', `hsl(${hue}, 100%, ${light}%)`);
+      poly.style.animation =
+        `goldenRainSettle ${FALL_DUR}ms ease-in-out ${Math.random() * STAGGER}ms forwards`;
+      g.appendChild(poly);
+    }
+
+    // ── Sparkle glints within solution volume only
+    const SPARKLE_COUNT = 45;
+    for (let i = 0; i < SPARKLE_COUNT; i++) {
+      const cx    = W * 0.12 + Math.random() * W * 0.76;
+      const cy    = H * 0.45 + Math.random() * H * 0.40;
+      const r     = 0.8 + Math.random() * 1.8;             // 0.8–2.6 px tiny glints
+      const delay = Math.random() * (FALL_DUR + STAGGER - SPARK_DUR);
+      const circ  = document.createElementNS(svgNS, 'circle');
+      circ.setAttribute('cx', String(cx));
+      circ.setAttribute('cy', String(cy));
+      circ.setAttribute('r',  String(r));
+      circ.setAttribute('fill', `hsl(${52 + Math.random() * 10}, 100%, 88%)`);
+      circ.style.animation =
+        `crystalSparkle ${SPARK_DUR}ms ease-in-out ${delay}ms forwards`;
+      circ.style.opacity = '0';
+      g.appendChild(circ);
+    }
+
+    svg.appendChild(g);
+    vesselEl.appendChild(svg);
+
+    return new Promise(resolve => {
+      setTimeout(() => { svg.remove(); resolve(); }, TOTAL);
+    });
+  }
 
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
