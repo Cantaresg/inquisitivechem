@@ -8,7 +8,7 @@
  */
 
 /** Maximum SVG polygons for golden rain (TRAP-05). */
-const MAX_RAIN_POLYGONS = 65;
+const MAX_RAIN_POLYGONS = 120;
 
 export class AnimationManager {
   constructor() {
@@ -386,15 +386,15 @@ export class AnimationManager {
     g.setAttribute('clip-path', `url(#${clipId})`);
 
     // ── Hexagonal crystal flakes ──────────────────────────────────────────
-    // Crystals are scattered throughout the full vessel depth (0–65 % of H)
-    // to simulate nucleation everywhere in the solution, not just at the top.
+    // Small glitter-scale platelets scattered throughout the solution depth.
+    // Radius 1–3.5 px so they read as fine crystalline particles, not shapes.
     for (let i = 0; i < MAX_RAIN_POLYGONS; i++) {
       const poly  = document.createElementNS(svgNS, 'polygon');
-      const cx    = 5 + Math.random() * (W - 10);
-      const cy    = Math.random() * H * 0.65;         // scattered start depth
-      const r     = 3 + Math.random() * 8;            // 3–11 px (mixed sizes)
-      const light = 50 + Math.random() * 28;          // 50–78% lightness
-      const hue   = 44 + Math.random() * 14;          // 44–58° (gold range)
+      const cx    = 3 + Math.random() * (W - 6);
+      const cy    = Math.random() * H * 0.70;         // nucleate at any depth
+      const r     = 1.0 + Math.random() * 2.5;        // 1–3.5 px (glitter scale)
+      const light = 55 + Math.random() * 30;          // 55–85% (bright gold)
+      const hue   = 44 + Math.random() * 16;          // 44–60° (gold range)
       poly.setAttribute('points', _hexPoints(cx, cy, r));
       poly.setAttribute('fill', `hsl(${hue}, 100%, ${light}%)`);
       poly.style.animation =
@@ -403,11 +403,11 @@ export class AnimationManager {
     }
 
     // ── Sparkle glints — tiny circles that flash to simulate light reflections
-    const SPARKLE_COUNT = 28;
+    const SPARKLE_COUNT = 45;
     for (let i = 0; i < SPARKLE_COUNT; i++) {
       const cx    = 4 + Math.random() * (W - 8);
       const cy    = 4 + Math.random() * (H - 8);
-      const r     = 1 + Math.random() * 2.5;          // 1–3.5 px
+      const r     = 0.8 + Math.random() * 1.8;        // 0.8–2.6 px (tiny glints)
       const delay = Math.random() * (FALL_DUR + STAGGER - SPARK_DUR); // fire any time
       const circ  = document.createElementNS(svgNS, 'circle');
       circ.setAttribute('cx', String(cx));
