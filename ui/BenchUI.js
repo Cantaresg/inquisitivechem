@@ -303,6 +303,16 @@ export class BenchUI {
         sol.color = ev.colorChange.to;
       }
     }
+
+    // A "colorless" override left by a previous complexation or redox event
+    // would permanently mask any strongly-coloured ion added afterwards (e.g.
+    // Cu²⁺ appearing blue after Zn(OH)₄²⁻ formed earlier).  Clear it here so
+    // the ion-derived colour in Solution.get color() takes over.
+    // Distinct meaningful overrides (deep-blue Cu-NH₃ complex, brown MnO₂)
+    // use non-transparent values and are intentionally not in this set.
+    if (sol._colorOverride === 'rgba(200,220,255,0.10)') {
+      sol._colorOverride = null;
+    }
   }
 
   /**
@@ -378,12 +388,12 @@ export class BenchUI {
       const pbi2 = sol.ppts.find(p => p.id === 'pbi2');
       if (pbi2) {
         sol.removePpt('pbi2');
-        sol.color = 'rgba(220,190,10,0.55)';
+        sol.color = null;   // Pb²⁺ and I⁻ are colourless in solution
         sol._goldenRainReady = true;
         slot.vesselUI.render();
         this._obsLog.append({
           id: _uid(), type: 'dissolution',
-          observation: 'On heating, the golden-yellow precipitate dissolved to give a clear golden solution.',
+          observation: 'On heating, the golden-yellow precipitate dissolved to give a clear, colourless solution.',
           equation: 'PbI₂(s) ⇌ Pb²⁺(aq) + 2I⁻(aq)',
           timestamp: new Date(),
         });
@@ -408,7 +418,7 @@ export class BenchUI {
 
     const dummyReagent = { id: '__heat__', ions: {}, solids: [] };
     const events = ReactionEngine.process(slot.vessel, dummyReagent);
-    const thermalEvents = events.filter(ev => ev.type === 'gas' || ev.solidRemoved);
+    const thermalEvents = events.filter(ev => ev.type === 'gas' || ev.type === 'displacement' || ev.solidRemoved);
     if (thermalEvents.length === 0) return;
 
     this._applyEvents(slot.vessel.solution, thermalEvents);

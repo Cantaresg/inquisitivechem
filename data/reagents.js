@@ -301,6 +301,36 @@ export const REAGENTS = [
     isHot: false,
   },
   {
+    id: 'nano3_aq',
+    label: 'Sodium nitrate (aq)',
+    category: 'liquid',
+    subcategory: 'aqueous_salt',
+    color: 'rgba(200,220,255,0.10)',
+    ions: { 'Na+': 0.1, 'NO3-': 0.1 },
+    dissolvedGas: null,
+    isHot: false,
+  },
+  {
+    id: 'nh4cl_aq',
+    label: 'Ammonium chloride (aq)',
+    category: 'liquid',
+    subcategory: 'aqueous_salt',
+    color: 'rgba(200,220,255,0.10)',
+    ions: { 'NH4+': 0.1, 'Cl-': 0.1 },
+    dissolvedGas: null,
+    isHot: false,
+  },
+  {
+    id: 'nh4_2so4_aq',
+    label: 'Ammonium sulfate (aq)',
+    category: 'liquid',
+    subcategory: 'aqueous_salt',
+    color: 'rgba(200,220,255,0.10)',
+    ions: { 'NH4+': 0.2, 'SO4²-': 0.1 },
+    dissolvedGas: null,
+    isHot: false,
+  },
+  {
     id: 'k2cr2o7_aq',
     label: 'Potassium dichromate (aq)',
     category: 'liquid',
@@ -526,6 +556,42 @@ export const REAGENTS = [
     dissolvedGas: null,
     isHot: false,
   },
+
+  // ── Halide salts (flame-test solids) ─────────────────────────────────────
+
+  {
+    id: 'nacl_s',
+    label: 'Sodium chloride',
+    category: 'solid',
+    subcategory: 'salt',
+    color: '#f8f8f8',
+    ions: {},
+    solids: [{ id: 'nacl_s', amount: 1.0 }],
+    dissolvedGas: null,
+    isHot: false,
+  },
+  {
+    id: 'kcl_s',
+    label: 'Potassium chloride',
+    category: 'solid',
+    subcategory: 'salt',
+    color: '#f8f8f8',
+    ions: {},
+    solids: [{ id: 'kcl_s', amount: 1.0 }],
+    dissolvedGas: null,
+    isHot: false,
+  },
+  {
+    id: 'k2co3_s',
+    label: 'Potassium carbonate',
+    category: 'solid',
+    subcategory: 'carbonate',
+    color: '#f5f5f5',
+    ions: {},
+    solids: [{ id: 'k2co3_s', amount: 1.0 }],
+    dissolvedGas: null,
+    isHot: false,
+  },
 ];
 
 // ─── Display symbols (formula strings) ─────────────────────────────────────
@@ -562,8 +628,11 @@ export const SYMBOL_MAP = {
   fecl3_aq:    'FeCl₃ (aq)',
   znso4_aq:    'ZnSO₄ (aq)',
   cacl2_aq:    'CaCl₂ (aq)',
-  ki_aq:       'KI (aq)',
-  k2cr2o7_aq:  'K₂Cr₂O₇ (aq)',
+  ki_aq:         'KI (aq)',
+  nano3_aq:      'NaNO₃ (aq)',
+  nh4cl_aq:      'NH₄Cl (aq)',
+  nh4_2so4_aq:   '(NH₄)₂SO₄ (aq)',
+  k2cr2o7_aq:    'K₂Cr₂O₇ (aq)',
   // Redox reagents
   kmno4_aq:    'KMnO₄ (aq)',
   kmno4_acid:  'KMnO₄ / H₂SO₄ (aq)',
@@ -586,4 +655,8 @@ export const SYMBOL_MAP = {
   cuo_s:       'CuO (s)',
   fe2o3_s:     'Fe₂O₃ (s)',
   zno_s:       'ZnO (s)',
+  // Halide salts
+  nacl_s:      'NaCl (s)',
+  kcl_s:       'KCl (s)',
+  k2co3_s:     'K₂CO₃ (s)',
 };

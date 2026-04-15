@@ -9,6 +9,16 @@
 
 import { CONFIRMATORY_TESTS } from '../data/tests.js';
 import { GAS_PRESSURE_THRESHOLD } from './Solution.js';
+import { SOLID_ION_PRODUCTS } from '../data/reactions.js';
+
+/**
+ * CO₂ pressure must exceed this to trigger the "excess CO₂ dissolves CaCO₃" result.
+ * Higher than GAS_PRESSURE_THRESHOLD so that gas which has significantly decayed
+ * (i.e. production long since ended) gives a simple positive (ppt stays) rather than
+ * the excess result (ppt forms then redissolves).
+ * At GAS_DECAY_RATE 0.067/s from an initial 0.70: ~5 s window before dropping below this.
+ */
+const CO2_EXCESS_THRESHOLD = 0.35;
 
 export class GasTestEngine {
 
@@ -63,8 +73,18 @@ export class GasTestEngine {
 
     // ── Ions (any match, OR) ───────────────────────────────────────────────
     else if (detects.ions !== undefined) {
+      // Build the set of detectable ions from dissolved ions + solid cations.
+      // Solid cations are included so the flame test fires when the substance
+      // is present as an undissolved solid (e.g. CaCO₃ chips, CuO powder).
+      const ionPool = new Set(Object.keys(sol.ions).filter(k => (sol.ions[k] ?? 0) > 0));
+      if (test.id === 'test_flame') {
+        for (const solid of sol.solids) {
+          const product = SOLID_ION_PRODUCTS[solid.id];
+          if (product) ionPool.add(product.ion);
+        }
+      }
       for (const ionSym of detects.ions) {
-        if ((sol.ions[ionSym] ?? 0) > 0) {
+        if (ionPool.has(ionSym)) {
           isPositive = true;
           matchedKey = ionSym;
           break;
@@ -124,14 +144,23 @@ export class GasTestEngine {
     }
 
     // ── Limewater: excess CO₂ — override AFTER the main resolve so it isn't clobbered ──
+    // Only fires when CO₂ pressure is still genuinely high (CO2_EXCESS_THRESHOLD),
+    // not merely detectable. If production ended a while ago and pressure has
+    // decayed, the CaCO₃ precipitate stays (simple positive result).
     if (isPositive && test.id === 'test_limewater') {
       const co2 = sol.gases.find(g => g.id === 'CO2');
-      if (co2 && co2.pressure > GAS_PRESSURE_THRESHOLD) {
+      if (co2 && co2.pressure > CO2_EXCESS_THRESHOLD) {
         animId      = 'anim_limewater_excess';
         observation = test.excessObservation ?? observation;
       }
     }
 
-    return { animId, observation, isPositive, matchedKey, flameColour, phColour };
+    // ── Limewater: expose remaining CO₂ pressure so AnimationManager can
+    // scale the pre-ppt bubbling phase proportionally.
+    const co2Pressure = (isPositive && test.id === 'test_limewater')
+      ? (sol.gases.find(g => g.id === 'CO2')?.pressure ?? 0)
+      : null;
+
+    return { animId, observation, isPositive, matchedKey, flameColour, phColour, co2Pressure };
   }
 }

@@ -76,7 +76,7 @@ export const CONFIRMATORY_TESTS = [
     icon: 'litmus-red.svg',
     detects: { gas: 'NH3' },
     positiveAnimId: 'anim_litmus_blue',
-    negativeAnimId: 'anim_litmus_unchanged',
+    negativeAnimId: 'anim_litmus_nochange_red',
     positiveObservation:
       'The damp red litmus paper turned blue when held in the gas above the vessel.',
     negativeObservation:
@@ -87,9 +87,9 @@ export const CONFIRMATORY_TESTS = [
     id: 'test_damp_blue_litmus',
     label: 'Damp blue litmus',
     icon: 'litmus-blue.svg',
-    detects: { gases: ['HCl', 'Cl2', 'SO2', 'H2S', 'NO2'] },
+    detects: { gases: ['HCl', 'Cl2', 'SO2', 'H2S', 'NO2', 'CO2'] },
     positiveAnimId: 'anim_litmus_red',
-    negativeAnimId: 'anim_litmus_unchanged',
+    negativeAnimId: 'anim_litmus_nochange_blue',
     positiveObservation:
       'The damp blue litmus paper turned red when held in the gas above the vessel.',
     negativeObservation:
@@ -101,6 +101,41 @@ export const CONFIRMATORY_TESTS = [
       SO2:  'The damp blue litmus paper turned red slowly.',
       H2S:  'The damp blue litmus paper turned red. A pungent odour accompanied the change.',
       NO2:  'The damp blue litmus paper turned red.',
+      CO2:  'The damp blue litmus paper turned red slowly.',
+    },
+    detailAnimIds: {
+      Cl2: 'anim_litmus_bleached',
+    },
+  },
+
+  {
+    id: 'test_dual_litmus',
+    label: 'Both litmus strips',
+    icon: 'litmus-both.svg',
+    detects: { gases: ['NH3', 'HCl', 'Cl2', 'SO2', 'H2S', 'NO2', 'CO2'] },
+    positiveAnimId: 'anim_dual_litmus_nh3',
+    negativeAnimId: 'anim_dual_litmus_negative',
+    positiveObservation:
+      'A litmus paper showed a change when held in the gas above the vessel.',
+    negativeObservation:
+      'Neither litmus paper changed colour. No acidic or alkaline gas detected.',
+    detailObservations: {
+      NH3: 'The damp red litmus paper turned blue. The damp blue litmus paper was unchanged.',
+      HCl: 'The damp blue litmus paper turned red. The damp red litmus paper was unchanged.',
+      Cl2: 'The damp blue litmus paper turned red, then was bleached white. The damp red litmus paper was unchanged.',
+      SO2: 'The damp blue litmus paper turned red slowly. The damp red litmus paper was unchanged.',
+      H2S: 'The damp blue litmus paper turned red. The damp red litmus paper was unchanged.',
+      NO2: 'The damp blue litmus paper turned red. The damp red litmus paper was unchanged.',
+      CO2: 'The damp blue litmus paper turned red slowly. The damp red litmus paper was unchanged.',
+    },
+    detailAnimIds: {
+      NH3: 'anim_dual_litmus_nh3',
+      HCl: 'anim_dual_litmus_acid',
+      Cl2: 'anim_dual_litmus_cl2',
+      SO2: 'anim_dual_litmus_acid',
+      H2S: 'anim_dual_litmus_acid',
+      NO2: 'anim_dual_litmus_acid',
+      CO2: 'anim_dual_litmus_acid',
     },
   },
 
@@ -131,127 +166,4 @@ export const CONFIRMATORY_TESTS = [
 
   // ── Solution / ion tests ──────────────────────────────────────────────────
 
-  {
-    id: 'test_bacl2',
-    label: 'BaCl₂ drops',
-    icon: 'bacl2-drops.svg',
-    detects: { ions: ['SO4²-'] },
-    positiveAnimId: 'anim_ion_ppt_white',
-    negativeAnimId: 'anim_drops_no_change',
-    positiveObservation:
-      'A dense white precipitate formed immediately on adding the drops. '
-      + 'The precipitate was insoluble on addition of dilute acid.',
-    negativeObservation:
-      'No precipitate formed on adding the drops.',
-  },
-
-  {
-    id: 'test_agno3',
-    label: 'AgNO₃ drops',
-    icon: 'agno3-drops.svg',
-    // Detects halide ions; the precipitate colour differs per halide.
-    detects: { ions: ['Cl-', 'Br-', 'I-'] },
-    positiveAnimId: 'anim_ion_ppt_white',   // engine overrides to cream/yellow as needed
-    negativeAnimId: 'anim_drops_no_change',
-    positiveObservation:
-      'A precipitate formed immediately on adding the drops.',
-    negativeObservation:
-      'No precipitate formed on adding the drops.',
-    // Per-ion observations (colour only — no name)
-    detailObservations: {
-      'Cl-': 'A white, curdy precipitate formed immediately.',
-      'Br-': 'A cream-coloured precipitate formed immediately.',
-      'I-':  'A pale yellow precipitate formed immediately.',
-    },
-    // Per-ion animation ID overrides (AnimationManager picks colour from here)
-    detailAnimIds: {
-      'Cl-': 'anim_ion_ppt_white',
-      'Br-': 'anim_ion_ppt_cream',
-      'I-':  'anim_ion_ppt_yellow',
-    },
-  },
-
-  // ── pH / indicator tests ──────────────────────────────────────────────────
-
-  {
-    id: 'test_universal_ind',
-    label: 'Universal indicator',
-    icon: 'universal-indicator.svg',
-    detects: { property: 'pH' },
-    positiveAnimId: 'anim_indicator_colour',
-    negativeAnimId: 'anim_indicator_colour',   // always shows a colour
-    positiveObservation:
-      'The universal indicator changed colour, indicating the approximate pH.',
-    negativeObservation:
-      'The universal indicator remained green, suggesting a near-neutral solution.',
-    // pH ranges — engine picks the first range whose [min, max] includes Solution.pH
-    // min inclusive, max exclusive (except the last entry)
-    pHObservations: [
-      {
-        range: [0, 3],
-        cssColor: '#cc0000',
-        observation: 'The indicator turned red, indicating a strongly acidic solution.',
-      },
-      {
-        range: [3, 5],
-        cssColor: '#ff6600',
-        observation: 'The indicator turned orange, indicating a weakly acidic solution.',
-      },
-      {
-        range: [5, 6.5],
-        cssColor: '#ffcc00',
-        observation: 'The indicator turned yellow, indicating a slightly acidic solution.',
-      },
-      {
-        range: [6.5, 7.5],
-        cssColor: '#00aa44',
-        observation: 'The indicator remained green, indicating a neutral solution.',
-      },
-      {
-        range: [7.5, 9],
-        cssColor: '#0066cc',
-        observation: 'The indicator turned blue, indicating a mildly alkaline solution.',
-      },
-      {
-        range: [9, 11],
-        cssColor: '#0022aa',
-        observation: 'The indicator turned dark blue, indicating an alkaline solution.',
-      },
-      {
-        range: [11, 14],
-        cssColor: '#660099',
-        observation: 'The indicator turned dark purple/violet, indicating a strongly alkaline solution.',
-      },
-    ],
-  },
-
-  {
-    id: 'test_litmus',
-    label: 'Litmus paper',
-    icon: 'litmus-paper.svg',
-    detects: { property: 'pH' },
-    positiveAnimId: 'anim_litmus_colour',
-    negativeAnimId: 'anim_litmus_neutral',
-    positiveObservation:
-      'The litmus paper changed colour.',
-    negativeObservation:
-      'The litmus paper remained purple, indicating a neutral solution.',
-    pHObservations: [
-      {
-        range: [0, 6.5],
-        cssColor: '#cc2222',
-        observation: 'The litmus paper turned red, indicating an acidic solution.',
-      },
-      {
-        range: [6.5, 7.5],
-        cssColor: '#884488',
-        observation: 'The litmus paper remained purple, indicating a neutral solution.',
-      },
-      {
-        range: [7.5, 14],
-        cssColor: '#2244cc',
-        observation: 'The litmus paper turned blue, indicating an alkaline solution.',
-      },
-    ],
-  },
 ];

@@ -8,7 +8,7 @@
  */
 
 /** Maximum SVG polygons for golden rain (TRAP-05). */
-const MAX_RAIN_POLYGONS = 50;
+const MAX_RAIN_POLYGONS = 65;
 
 export class AnimationManager {
   constructor() {
@@ -115,7 +115,13 @@ export class AnimationManager {
     this._registry.set('anim_limewater_excess',           (v, p) => this._animLimewaterExcess(v, p));
     this._registry.set('anim_litmus_blue',                (v, p) => this._animLitmusBlue(v, p));
     this._registry.set('anim_litmus_red',                 (v, p) => this._animLitmusRed(v, p));
-    this._registry.set('anim_litmus_unchanged',           (v, p) => this._animLitmusUnchanged(v, p));
+    this._registry.set('anim_litmus_bleached',            (v, p) => this._animLitmusBleached(v, p));
+    this._registry.set('anim_litmus_nochange_red',        (v, p) => this._animLitmusNochangeRed(v, p));
+    this._registry.set('anim_litmus_nochange_blue',       (v, p) => this._animLitmusNochangeBlue(v, p));
+    this._registry.set('anim_dual_litmus_nh3',            (v, p) => this._animDualLitmusNH3(v, p));
+    this._registry.set('anim_dual_litmus_acid',           (v, p) => this._animDualLitmusAcid(v, p));
+    this._registry.set('anim_dual_litmus_cl2',            (v, p) => this._animDualLitmusCl2(v, p));
+    this._registry.set('anim_dual_litmus_negative',       (v, p) => this._animDualLitmusNegative(v, p));
     this._registry.set('anim_flame_colour',               (v, p) => this._animFlameColour(v, p));
     this._registry.set('anim_flame_no_colour',            (v, p) => this._animFlameNoColour(v, p));
     this._registry.set('anim_ion_ppt_white',              (v, p) => this._animIonPptWhite(v, p));
@@ -343,7 +349,12 @@ export class AnimationManager {
    * @private
    */
   _animGoldenRain(vesselEl, _params) {
-    const DURATION = 2400;
+    // Phase durations (ms)
+    const FALL_DUR  = 3000;  // hex crystal fall duration
+    const SPARK_DUR = 800;   // sparkle flash duration
+    const STAGGER   = 900;   // max random start delay for crystals
+    const TOTAL     = FALL_DUR + STAGGER + 400;
+
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
     svg.style.cssText = `
@@ -351,8 +362,6 @@ export class AnimationManager {
       width: 100%; height: 100%;
       pointer-events: none; z-index: 16;
     `;
-    // SVG overflow attribute (not just CSS) ensures child polygons are clipped
-    // to the viewport even when browser compositor layers bypass CSS overflow.
     svg.setAttribute('overflow', 'hidden');
 
     const rect = vesselEl.getBoundingClientRect();
@@ -361,44 +370,61 @@ export class AnimationManager {
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('preserveAspectRatio', 'none');
 
-    // SVG-internal clipPath guarantees compositing-layer-safe clipping.
-    const clipId = `gr-clip-${Math.random().toString(36).slice(2)}`;
-    const defs   = document.createElementNS(svgNS, 'defs');
+    // SVG-internal clipPath — compositing-layer-safe clipping (TRAP-05)
+    const clipId   = `gr-clip-${Math.random().toString(36).slice(2)}`;
+    const defs     = document.createElementNS(svgNS, 'defs');
     const clipPath = document.createElementNS(svgNS, 'clipPath');
     clipPath.setAttribute('id', clipId);
     const clipRect = document.createElementNS(svgNS, 'rect');
-    clipRect.setAttribute('x', '0');
-    clipRect.setAttribute('y', '0');
-    clipRect.setAttribute('width', String(W));
-    clipRect.setAttribute('height', String(H));
+    clipRect.setAttribute('x', '0'); clipRect.setAttribute('y', '0');
+    clipRect.setAttribute('width', String(W)); clipRect.setAttribute('height', String(H));
     clipPath.appendChild(clipRect);
     defs.appendChild(clipPath);
     svg.appendChild(defs);
 
-    // Group all polygons inside a clipped <g>
     const g = document.createElementNS(svgNS, 'g');
     g.setAttribute('clip-path', `url(#${clipId})`);
 
+    // ── Hexagonal crystal flakes ──────────────────────────────────────────
+    // Crystals are scattered throughout the full vessel depth (0–65 % of H)
+    // to simulate nucleation everywhere in the solution, not just at the top.
     for (let i = 0; i < MAX_RAIN_POLYGONS; i++) {
-      const poly = document.createElementNS(svgNS, 'polygon');
-      const cx   = 4 + Math.random() * (W - 8);   // start within bounds
-      const cy   = 2 + Math.random() * 12;         // just inside top edge
-      const r    = 4 + Math.random() * 6;
+      const poly  = document.createElementNS(svgNS, 'polygon');
+      const cx    = 5 + Math.random() * (W - 10);
+      const cy    = Math.random() * H * 0.65;         // scattered start depth
+      const r     = 3 + Math.random() * 8;            // 3–11 px (mixed sizes)
+      const light = 50 + Math.random() * 28;          // 50–78% lightness
+      const hue   = 44 + Math.random() * 14;          // 44–58° (gold range)
       poly.setAttribute('points', _hexPoints(cx, cy, r));
-      poly.setAttribute('fill', `hsl(${44 + Math.random() * 14}, 100%, ${52 + Math.random() * 22}%)`);
-      // No will-change: transform — avoids compositor-layer escape from clip
-      poly.style.animation = `goldenRainFall ${DURATION}ms ease-in ${Math.random() * 700}ms forwards`;
+      poly.setAttribute('fill', `hsl(${hue}, 100%, ${light}%)`);
+      poly.style.animation =
+        `goldenRainFall ${FALL_DUR}ms ease-in ${Math.random() * STAGGER}ms forwards`;
       g.appendChild(poly);
+    }
+
+    // ── Sparkle glints — tiny circles that flash to simulate light reflections
+    const SPARKLE_COUNT = 28;
+    for (let i = 0; i < SPARKLE_COUNT; i++) {
+      const cx    = 4 + Math.random() * (W - 8);
+      const cy    = 4 + Math.random() * (H - 8);
+      const r     = 1 + Math.random() * 2.5;          // 1–3.5 px
+      const delay = Math.random() * (FALL_DUR + STAGGER - SPARK_DUR); // fire any time
+      const circ  = document.createElementNS(svgNS, 'circle');
+      circ.setAttribute('cx', String(cx));
+      circ.setAttribute('cy', String(cy));
+      circ.setAttribute('r',  String(r));
+      circ.setAttribute('fill', `hsl(${52 + Math.random() * 10}, 100%, 88%)`);
+      circ.style.animation =
+        `crystalSparkle ${SPARK_DUR}ms ease-in-out ${delay}ms forwards`;
+      circ.style.opacity = '0';
+      g.appendChild(circ);
     }
 
     svg.appendChild(g);
     vesselEl.appendChild(svg);
 
     return new Promise(resolve => {
-      setTimeout(() => {
-        svg.remove();
-        resolve();
-      }, DURATION + 800);
+      setTimeout(() => { svg.remove(); resolve(); }, TOTAL);
     });
   }
 
@@ -1260,13 +1286,23 @@ export class AnimationManager {
   /**
    * Limewater — positive (moderate CO₂): bubbles 2 s clear, then white ppt
    * forms over 1 s, held 1.5 s, tube exits. Total ~5.5 s.
+   * When CO₂ pressure is low (nearly exhausted), the bubbling phase is
+   * shortened proportionally so the ppt appears quickly — matching the small
+   * amount of gas present. BUBBLE_DUR scales linearly from ~300 ms (at
+   * GAS_PRESSURE_THRESHOLD) up to 2000 ms (at CO2_EXCESS_THRESHOLD).
    * @private
    */
-  _animLimewaterMilky(vesselEl, _params) {
+  _animLimewaterMilky(vesselEl, params) {
     if (AnimationManager.LIMEWATER_DEBUG) { this._buildLimewaterScene(vesselEl); return Promise.resolve(); }
-    const BUBBLE_DUR = 2000;   // ms of clear bubbling before ppt
+    // Scale pre-ppt bubble duration with remaining CO₂ pressure.
+    // co2Pressure is forwarded from GasTestEngine via TestBarUI.
+    const pressure       = params.co2Pressure ?? 0.35;
+    const MIN_P          = 0.05;   // GAS_PRESSURE_THRESHOLD
+    const MAX_P          = 0.35;   // CO2_EXCESS_THRESHOLD
+    const t              = Math.max(0, Math.min(1, (pressure - MIN_P) / (MAX_P - MIN_P)));
+    const BUBBLE_DUR     = Math.round(300 + t * 1700);   // 300 ms … 2000 ms
     const PPT_FADE   = 1000;   // ms for ppt to fully appear
-    const HOLD       = 2500;   // ms to show the white ppt
+    const HOLD       = 3000;   // ms to show the white ppt (slightly longer than before)
     const EXIT       = 500;    // ms slide-out anim
     const TOTAL      = BUBBLE_DUR + PPT_FADE + HOLD + EXIT;
 
@@ -1314,35 +1350,650 @@ export class AnimationManager {
     });
   }
 
-  /** Red litmus turns blue — NH₃ positive. @private */
-  _animLitmusBlue(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'litmusToBlue', 'rgba(180,30,30,0.38)', 1500);
-  }
+  /**
+   * Build an SVG litmus-paper scene anchored to vesselEl.
+   * A strip of paper held by tweezers slides down into the gas space above
+   * the vessel and changes colour when gas is detected.
+   * Acquires the test lock; cleanup() releases it.
+   *
+   * @param {HTMLElement} vesselEl
+   * @param {string}      paperFill  initial CSS fill of the paper strip
+   * @returns {{ sceneSvg, sceneG, addOverlay, cleanup }}
+   * @private
+   */
+  _buildLitmusPaperScene(vesselEl, paperFill) {
+    const svgNS  = 'http://www.w3.org/2000/svg';
+    const bounds = vesselEl.getBoundingClientRect();
+    const W = bounds.width  || 120;
+    const H = bounds.height || 180;  // eslint-disable-line no-unused-vars
 
-  /** Blue litmus turns red — acidic gas positive. @private */
-  _animLitmusRed(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'litmusToRed', 'rgba(25,70,220,0.38)', 1500);
-  }
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.style.cssText = `
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; overflow: visible;
+      pointer-events: none; z-index: 12;
+    `;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
 
-  /** Litmus paper unchanged — negative. @private */
-  _animLitmusUnchanged(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'litmusUnchanged', 'rgba(0,0,0,0.06)', 900);
+    const vesselId = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+
+    const attr = (el, k, v) => el.setAttribute(k, v);
+
+    // ── Paper geometry ────────────────────────────────────────────────────
+    const PW  = 14;             // paper width (SVG px)
+    const PH  = 38;             // paper height
+    const PX  = W * 0.50;      // paper h-centre
+    const PY  = 10;             // paper top edge y
+    const plx = PX - PW / 2;   // paper left x
+
+    // Clip path so colour overlays stay inside the paper rectangle
+    const clipUid = `lp-${Math.random().toString(36).slice(2)}`;
+    const defs    = document.createElementNS(svgNS, 'defs');
+    const cp      = document.createElementNS(svgNS, 'clipPath');
+    attr(cp, 'id', clipUid);
+    const cpRect  = document.createElementNS(svgNS, 'rect');
+    attr(cpRect, 'x', String(plx));  attr(cpRect, 'y', String(PY));
+    attr(cpRect, 'width', String(PW)); attr(cpRect, 'height', String(PH));
+    attr(cpRect, 'rx', '2');
+    cp.appendChild(cpRect); defs.appendChild(cp); svg.appendChild(defs);
+
+    // ── Scene group ───────────────────────────────────────────────────────
+    const sceneG = document.createElementNS(svgNS, 'g');
+    svg.appendChild(sceneG);
+
+    // ── Gas wisps (rise toward the paper from below) ──────────────────────
+    const WISP_Y = PY + PH + 14;
+    for (let i = 0; i < 3; i++) {
+      const wx = PX + (i - 1) * 7;
+      const w  = document.createElementNS(svgNS, 'ellipse');
+      attr(w, 'cx', String(wx));  attr(w, 'cy', String(WISP_Y));
+      attr(w, 'rx', '3');         attr(w, 'ry', '5');
+      attr(w, 'fill', 'rgba(255,255,255,0.30)');
+      w.style.animation = `ltWispRise ${1300 + i * 280}ms ease-out ${i * 320}ms infinite`;
+      sceneG.appendChild(w);
+    }
+
+    // ── Tweezers (two converging arms above the paper) ────────────────────
+    const TC = '#7a8090';
+    for (const [x1, x2] of [[-9, -3], [9, 3]]) {
+      const arm = document.createElementNS(svgNS, 'line');
+      attr(arm, 'x1', String(PX + x1)); attr(arm, 'y1', String(PY - 14));
+      attr(arm, 'x2', String(PX + x2)); attr(arm, 'y2', String(PY + 2));
+      attr(arm, 'stroke', TC); attr(arm, 'stroke-width', '1.8');
+      attr(arm, 'stroke-linecap', 'round');
+      sceneG.appendChild(arm);
+    }
+
+    // ── Paper body (initial colour) ───────────────────────────────────────
+    const paper = document.createElementNS(svgNS, 'rect');
+    attr(paper, 'x', String(plx)); attr(paper, 'y', String(PY));
+    attr(paper, 'width', String(PW)); attr(paper, 'height', String(PH));
+    attr(paper, 'rx', '2'); attr(paper, 'fill', paperFill);
+    sceneG.appendChild(paper);
+
+    // ── Gloss strip (rendered last so it stays above overlays) ───────────
+    const shine = document.createElementNS(svgNS, 'rect');
+    attr(shine, 'x', String(plx + 2)); attr(shine, 'y', String(PY + 4));
+    attr(shine, 'width', '3'); attr(shine, 'height', String(PH - 8));
+    attr(shine, 'rx', '1.5'); attr(shine, 'fill', 'rgba(255,255,255,0.28)');
+    sceneG.appendChild(shine);
+
+    vesselEl.appendChild(svg);
+
+    // Slide-in: set initial state, force reflow, then transition to final
+    sceneG.style.transform = 'translateY(-46px)';
+    sceneG.style.opacity   = '0';
+    sceneG.getBoundingClientRect();  // force layout
+    sceneG.style.transition = 'transform 500ms ease, opacity 500ms ease';
+    sceneG.style.transform  = 'translateY(0)';
+    sceneG.style.opacity    = '1';
+
+    // Factory: insert a colour-change overlay below the gloss strip
+    const addOverlay = (fill) => {
+      const ol = document.createElementNS(svgNS, 'rect');
+      attr(ol, 'x', String(plx)); attr(ol, 'y', String(PY));
+      attr(ol, 'width', String(PW)); attr(ol, 'height', String(PH));
+      attr(ol, 'rx', '2'); attr(ol, 'fill', fill); attr(ol, 'opacity', '0');
+      ol.setAttribute('clip-path', `url(#${clipUid})`);
+      sceneG.insertBefore(ol, shine);  // keep shine on top
+      void ol.getBoundingClientRect(); // commit opacity:0 to render tree before caller sets transition
+      return ol;
+    };
+
+    const cleanup = () => { svg.remove(); this.setTestLock(vesselId, false); };
+    return { sceneSvg: svg, sceneG, addOverlay, cleanup };
   }
 
   /**
-   * Flame test — shows ONLY the flame colour overlay.
-   * No text label, no element name (BUG-15).
+   * Slide the litmus scene group upward out of view, then call cleanup.
+   * @private
+   */
+  _litmusSlideOut(sceneG, cleanup, exitDur = 600) {
+    sceneG.style.transition = `transform ${exitDur}ms ease, opacity ${exitDur}ms ease`;
+    sceneG.style.transform  = 'translateY(-46px)';
+    sceneG.style.opacity    = '0';
+    setTimeout(cleanup, exitDur + 40);
+  }
+
+  /** NH₃ positive: damp red litmus turns blue. @private */
+  _animLitmusBlue(vesselEl, _params) {
+    const SLIDE_IN  = 500;
+    const GAS_PHASE = 1000;   // wisps rise before colour change
+    const FADE_DUR  = 2600;   // colour-change CSS transition
+    const HOLD      = 2000;
+    const EXIT      = 600;
+    const TOTAL     = SLIDE_IN + GAS_PHASE + FADE_DUR + HOLD + EXIT;
+
+    const { sceneG, addOverlay, cleanup } = this._buildLitmusPaperScene(vesselEl, '#c03050');
+
+    setTimeout(() => {
+      const ol = addOverlay('#2850d8');
+      ol.style.transition = `opacity ${FADE_DUR}ms ease-in-out`;
+      ol.style.opacity    = '1';
+    }, SLIDE_IN + GAS_PHASE);
+
+    setTimeout(() => this._litmusSlideOut(sceneG, cleanup, EXIT), TOTAL - EXIT);
+    return new Promise(resolve => { setTimeout(resolve, TOTAL); });
+  }
+
+  /** Acidic gas positive: damp blue litmus turns red. @private */
+  _animLitmusRed(vesselEl, _params) {
+    const SLIDE_IN  = 500;
+    const GAS_PHASE = 1000;
+    const FADE_DUR  = 2600;
+    const HOLD      = 2000;
+    const EXIT      = 600;
+    const TOTAL     = SLIDE_IN + GAS_PHASE + FADE_DUR + HOLD + EXIT;
+
+    const { sceneG, addOverlay, cleanup } = this._buildLitmusPaperScene(vesselEl, '#2850d8');
+
+    setTimeout(() => {
+      const ol = addOverlay('#c03050');
+      ol.style.transition = `opacity ${FADE_DUR}ms ease-in-out`;
+      ol.style.opacity    = '1';
+    }, SLIDE_IN + GAS_PHASE);
+
+    setTimeout(() => this._litmusSlideOut(sceneG, cleanup, EXIT), TOTAL - EXIT);
+    return new Promise(resolve => { setTimeout(resolve, TOTAL); });
+  }
+
+  /**
+   * Cl₂ positive: damp blue litmus → red → bleached near-white.
+   * Two sequential overlays simulate the two-stage Cl₂ reaction.
+   * @private
+   */
+  _animLitmusBleached(vesselEl, _params) {
+    const SLIDE_IN   = 500;
+    const GAS_PHASE  = 800;
+    const RED_DUR    = 2000;   // blue → red
+    const RED_HOLD   = 800;
+    const BLEACH_DUR = 2400;   // red → parchment white
+    const HOLD       = 1600;
+    const EXIT       = 600;
+    const TOTAL      = SLIDE_IN + GAS_PHASE + RED_DUR + RED_HOLD + BLEACH_DUR + HOLD + EXIT;
+
+    const { sceneG, addOverlay, cleanup } = this._buildLitmusPaperScene(vesselEl, '#2850d8');
+
+    setTimeout(() => {
+      const redOl = addOverlay('#c03050');
+      redOl.style.transition = `opacity ${RED_DUR}ms ease-in-out`;
+      redOl.style.opacity    = '1';
+    }, SLIDE_IN + GAS_PHASE);
+
+    setTimeout(() => {
+      const bleachOl = addOverlay('#eeebe4');
+      bleachOl.style.transition = `opacity ${BLEACH_DUR}ms ease-in-out`;
+      bleachOl.style.opacity    = '1';
+    }, SLIDE_IN + GAS_PHASE + RED_DUR + RED_HOLD);
+
+    setTimeout(() => this._litmusSlideOut(sceneG, cleanup, EXIT), TOTAL - EXIT);
+    return new Promise(resolve => { setTimeout(resolve, TOTAL); });
+  }
+
+  /** Negative: damp red litmus remains red. @private */
+  _animLitmusNochangeRed(vesselEl, _params) {
+    const HOLD  = 2400;
+    const EXIT  = 600;
+    const TOTAL = 500 + HOLD + EXIT;
+    const { sceneG, cleanup } = this._buildLitmusPaperScene(vesselEl, '#c03050');
+    setTimeout(() => this._litmusSlideOut(sceneG, cleanup, EXIT), TOTAL - EXIT);
+    return new Promise(resolve => { setTimeout(resolve, TOTAL); });
+  }
+
+  /** Negative: damp blue litmus remains blue. @private */
+  _animLitmusNochangeBlue(vesselEl, _params) {
+    const HOLD  = 2400;
+    const EXIT  = 600;
+    const TOTAL = 500 + HOLD + EXIT;
+    const { sceneG, cleanup } = this._buildLitmusPaperScene(vesselEl, '#2850d8');
+    setTimeout(() => this._litmusSlideOut(sceneG, cleanup, EXIT), TOTAL - EXIT);
+    return new Promise(resolve => { setTimeout(resolve, TOTAL); });
+  }
+
+  // ─── Dual litmus (both strips together, V-shape above vessel) ─────────────────
+
+  /**
+   * Build an SVG scene with two litmus strips held above the vessel:
+   * left strip (red) angled −45°, right strip (blue) angled +45°, forming a V.
+   * Gas wisps rise between them from below.
+   * Returns addLeftOverlay / addRightOverlay factories (same API as single scene).
+   * @param {HTMLElement} vesselEl
+   * @returns {{ sceneSvg, sceneG, addLeftOverlay, addRightOverlay, cleanup }}
+   * @private
+   */
+  _buildDualLitmusScene(vesselEl) {
+    const svgNS  = 'http://www.w3.org/2000/svg';
+    const bounds = vesselEl.getBoundingClientRect();
+    const W = bounds.width || 120;
+
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.style.cssText = `
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; overflow: visible;
+      pointer-events: none; z-index: 12;
+    `;
+    svg.setAttribute('viewBox', `0 0 ${W} 180`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+
+    const vesselId = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+
+    const attr = (el, k, v) => el.setAttribute(k, v);
+    const PW = 11;         // paper strip width (SVG px)
+    const PH = 34;         // paper strip height
+    const LX = W * 0.32;  // left pivot x
+    const RX = W * 0.68;  // right pivot x
+    const PY = 12;         // pivot y (held end)
+
+    const sceneG = document.createElementNS(svgNS, 'g');
+    svg.appendChild(sceneG);
+
+    // ── Gas wisps rise between the two strips ───────────────────────────
+    for (let i = 0; i < 3; i++) {
+      const wx = W * 0.50 + (i - 1) * 9;
+      const w  = document.createElementNS(svgNS, 'ellipse');
+      attr(w, 'cx', wx.toFixed(1)); attr(w, 'cy', String(PY + 18));
+      attr(w, 'rx', '3');           attr(w, 'ry', '5');
+      attr(w, 'fill', 'rgba(255,255,255,0.30)');
+      w.style.animation = `ltWispRise ${1300 + i * 280}ms ease-out ${i * 320}ms infinite`;
+      sceneG.appendChild(w);
+    }
+
+    // ── Helper: one strip + tweezers + overlay factory ────────────────────
+    const makeStrip = (pivotX, angle, paperFill) => {
+      const tx = `translate(${pivotX.toFixed(1)},${PY}) rotate(${angle})`;
+
+      // Tweezers behind paper
+      const twG = document.createElementNS(svgNS, 'g');
+      attr(twG, 'transform', tx);
+      for (const [x1, x2] of [[-7, -2], [7, 2]]) {
+        const arm = document.createElementNS(svgNS, 'line');
+        attr(arm, 'x1', String(x1)); attr(arm, 'y1', '-14');
+        attr(arm, 'x2', String(x2)); attr(arm, 'y2', '2');
+        attr(arm, 'stroke', '#7a8090'); attr(arm, 'stroke-width', '1.8');
+        attr(arm, 'stroke-linecap', 'round');
+        twG.appendChild(arm);
+      }
+      sceneG.appendChild(twG);
+
+      // Paper group (in front of tweezers)
+      const pG = document.createElementNS(svgNS, 'g');
+      attr(pG, 'transform', tx);
+
+      const paper = document.createElementNS(svgNS, 'rect');
+      attr(paper, 'x', String(-PW / 2)); attr(paper, 'y', '0');
+      attr(paper, 'width', String(PW));  attr(paper, 'height', String(PH));
+      attr(paper, 'rx', '2');            attr(paper, 'fill', paperFill);
+      pG.appendChild(paper);
+
+      const shine = document.createElementNS(svgNS, 'rect');
+      attr(shine, 'x', String(-PW / 2 + 2)); attr(shine, 'y', '4');
+      attr(shine, 'width', '2.5');            attr(shine, 'height', String(PH - 8));
+      attr(shine, 'rx', '1');                 attr(shine, 'fill', 'rgba(255,255,255,0.28)');
+      pG.appendChild(shine);
+
+      sceneG.appendChild(pG);
+
+      // Overlay factory — inserts below shine, forces reflow before returning
+      const addOverlay = (fill) => {
+        const ol = document.createElementNS(svgNS, 'rect');
+        attr(ol, 'x', String(-PW / 2)); attr(ol, 'y', '0');
+        attr(ol, 'width', String(PW));  attr(ol, 'height', String(PH));
+        attr(ol, 'rx', '2'); attr(ol, 'fill', fill); attr(ol, 'opacity', '0');
+        pG.insertBefore(ol, shine);
+        void ol.getBoundingClientRect();  // commit opacity:0 before transition
+        return ol;
+      };
+
+      return { addOverlay };
+    };
+
+    const { addOverlay: addLeftOverlay  } = makeStrip(LX, -45, '#c03050');
+    const { addOverlay: addRightOverlay } = makeStrip(RX,  45, '#2850d8');
+
+    vesselEl.appendChild(svg);
+
+    // Slide-in from above
+    sceneG.style.transform = 'translateY(-52px)';
+    sceneG.style.opacity   = '0';
+    sceneG.getBoundingClientRect();
+    sceneG.style.transition = 'transform 500ms ease, opacity 500ms ease';
+    sceneG.style.transform  = 'translateY(0)';
+    sceneG.style.opacity    = '1';
+
+    const cleanup = () => { svg.remove(); this.setTestLock(vesselId, false); };
+    return { sceneSvg: svg, sceneG, addLeftOverlay, addRightOverlay, cleanup };
+  }
+
+  /** NH₃: left (red) strip turns blue; right (blue) unchanged. @private */
+  _animDualLitmusNH3(vesselEl, _params) {
+    const SLIDE_IN  = 500;
+    const GAS_PHASE = 1000;
+    const FADE_DUR  = 2600;
+    const HOLD      = 2000;
+    const EXIT      = 600;
+    const TOTAL     = SLIDE_IN + GAS_PHASE + FADE_DUR + HOLD + EXIT;
+
+    const { sceneG, addLeftOverlay, cleanup } = this._buildDualLitmusScene(vesselEl);
+
+    setTimeout(() => {
+      const ol = addLeftOverlay('#2850d8');
+      ol.style.transition = `opacity ${FADE_DUR}ms ease-in-out`;
+      ol.style.opacity    = '1';
+    }, SLIDE_IN + GAS_PHASE);
+
+    setTimeout(() => this._litmusSlideOut(sceneG, cleanup, EXIT), TOTAL - EXIT);
+    return new Promise(resolve => { setTimeout(resolve, TOTAL); });
+  }
+
+  /** Acidic gas: right (blue) strip turns red; left (red) unchanged. @private */
+  _animDualLitmusAcid(vesselEl, _params) {
+    const SLIDE_IN  = 500;
+    const GAS_PHASE = 1000;
+    const FADE_DUR  = 2600;
+    const HOLD      = 2000;
+    const EXIT      = 600;
+    const TOTAL     = SLIDE_IN + GAS_PHASE + FADE_DUR + HOLD + EXIT;
+
+    const { sceneG, addRightOverlay, cleanup } = this._buildDualLitmusScene(vesselEl);
+
+    setTimeout(() => {
+      const ol = addRightOverlay('#c03050');
+      ol.style.transition = `opacity ${FADE_DUR}ms ease-in-out`;
+      ol.style.opacity    = '1';
+    }, SLIDE_IN + GAS_PHASE);
+
+    setTimeout(() => this._litmusSlideOut(sceneG, cleanup, EXIT), TOTAL - EXIT);
+    return new Promise(resolve => { setTimeout(resolve, TOTAL); });
+  }
+
+  /** Cl₂: right (blue) strip → red → bleached white; left (red) unchanged. @private */
+  _animDualLitmusCl2(vesselEl, _params) {
+    const SLIDE_IN   = 500;
+    const GAS_PHASE  = 800;
+    const RED_DUR    = 2000;
+    const RED_HOLD   = 800;
+    const BLEACH_DUR = 2400;
+    const HOLD       = 1600;
+    const EXIT       = 600;
+    const TOTAL      = SLIDE_IN + GAS_PHASE + RED_DUR + RED_HOLD + BLEACH_DUR + HOLD + EXIT;
+
+    const { sceneG, addRightOverlay, cleanup } = this._buildDualLitmusScene(vesselEl);
+
+    setTimeout(() => {
+      const redOl = addRightOverlay('#c03050');
+      redOl.style.transition = `opacity ${RED_DUR}ms ease-in-out`;
+      redOl.style.opacity    = '1';
+    }, SLIDE_IN + GAS_PHASE);
+
+    setTimeout(() => {
+      const bleachOl = addRightOverlay('#eeebe4');
+      bleachOl.style.transition = `opacity ${BLEACH_DUR}ms ease-in-out`;
+      bleachOl.style.opacity    = '1';
+    }, SLIDE_IN + GAS_PHASE + RED_DUR + RED_HOLD);
+
+    setTimeout(() => this._litmusSlideOut(sceneG, cleanup, EXIT), TOTAL - EXIT);
+    return new Promise(resolve => { setTimeout(resolve, TOTAL); });
+  }
+
+  /** Negative: neither strip changes colour. @private */
+  _animDualLitmusNegative(vesselEl, _params) {
+    const HOLD  = 2600;
+    const EXIT  = 600;
+    const TOTAL = 500 + HOLD + EXIT;
+    const { sceneG, cleanup } = this._buildDualLitmusScene(vesselEl);
+    setTimeout(() => this._litmusSlideOut(sceneG, cleanup, EXIT), TOTAL - EXIT);
+    return new Promise(resolve => { setTimeout(resolve, TOTAL); });
+  }
+
+  /**
+   * Build an SVG scene showing metal tongs holding a solid chip in a flame at
+   * the flask mouth.  Layout mirrors _buildSplintScene: the "active end" (flame
+   * + solid) is at the flask mouth and the tong arms extend downward outside the
+   * card, so the flame is large and readable at card scale.
+   *
+   * Returns { svg, glowEl } where glowEl is the blurred colour ellipse at the
+   * solid position, initially opacity 0.  The caller activates it.
+   * @private
+   */
+  _buildTongsFlameScene(containerEl, W, H, tipX, tipY) {
+    const svgNS = 'http://www.w3.org/2000/svg';
+
+    // ── Flame geometry — centred on the flask mouth ───────────────────────
+    const FH = Math.min(H * 0.20, 38);
+    const FW = FH * 0.40;
+
+    const bX     = tipX;           // flame base x = flask mouth centre
+    const bY     = tipY;           // flame base y = flask mouth top
+    const solidX = bX;
+    const solidY = bY - FH * 0.50; // solid gripped mid-flame
+
+    // ── Tong arms: converge from below onto the solid ─────────────────────
+    const JAW_GAP  = 4;
+    const SPREAD   = Math.min(W * 0.16, 20);   // half-spread at arm roots
+    const ARM_LEN  = Math.min(H * 0.42, 80);   // arm length (extends below card)
+    const ARM_W    = 3.5;
+
+    const ltTipX  = solidX - JAW_GAP;  const ltTipY  = solidY + 6;
+    const rtTipX  = solidX + JAW_GAP;  const rtTipY  = solidY + 6;
+    const ltRootX = solidX - SPREAD;   const ltRootY = solidY + ARM_LEN;
+    const rtRootX = solidX + SPREAD;   const rtRootY = solidY + ARM_LEN;
+
+    // ── SVG canvas ────────────────────────────────────────────────────────
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox',             `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.setAttribute('overflow',            'visible');
+    svg.style.cssText = `
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 15;
+      animation: tongsEnter 0.45s ease forwards;
+    `;
+
+    // ── Gaussian-blur filter for the colour glow halo ─────────────────────
+    const gid  = `tf-${Math.random().toString(36).slice(2)}`;
+    const defs = document.createElementNS(svgNS, 'defs');
+    const filt = document.createElementNS(svgNS, 'filter');
+    filt.setAttribute('id',     gid);
+    filt.setAttribute('x',      '-180%'); filt.setAttribute('y',      '-180%');
+    filt.setAttribute('width',  '460%');  filt.setAttribute('height', '460%');
+    const blur = document.createElementNS(svgNS, 'feGaussianBlur');
+    blur.setAttribute('stdDeviation', '9');
+    filt.appendChild(blur);
+    defs.appendChild(filt);
+    svg.appendChild(defs);
+
+    // ── Tong arms (behind flame) ──────────────────────────────────────────
+    for (const [x1, y1, x2, y2] of [
+      [ltRootX, ltRootY, ltTipX, ltTipY],
+      [rtRootX, rtRootY, rtTipX, rtTipY],
+    ]) {
+      const arm = document.createElementNS(svgNS, 'line');
+      arm.setAttribute('x1', x1.toFixed(1)); arm.setAttribute('y1', y1.toFixed(1));
+      arm.setAttribute('x2', x2.toFixed(1)); arm.setAttribute('y2', y2.toFixed(1));
+      arm.setAttribute('stroke',         '#7a8a9c');
+      arm.setAttribute('stroke-width',   String(ARM_W));
+      arm.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(arm);
+
+      const hi = document.createElementNS(svgNS, 'line');
+      hi.setAttribute('x1', (x1 + 1.2).toFixed(1)); hi.setAttribute('y1', y1.toFixed(1));
+      hi.setAttribute('x2', (x2 + 1.2).toFixed(1)); hi.setAttribute('y2', y2.toFixed(1));
+      hi.setAttribute('stroke',         'rgba(205,225,245,0.55)');
+      hi.setAttribute('stroke-width',   '1.3');
+      hi.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(hi);
+    }
+
+    // ── Colour glow ellipse (behind chip, in front of tongs) ──────────────
+    const glowEl = document.createElementNS(svgNS, 'ellipse');
+    glowEl.setAttribute('cx',     String(solidX));
+    glowEl.setAttribute('cy',     String(solidY));
+    glowEl.setAttribute('rx',     String(FW * 4.0));
+    glowEl.setAttribute('ry',     String(FH * 0.90));
+    glowEl.setAttribute('fill',   '#ffcc00');
+    glowEl.setAttribute('filter', `url(#${gid})`);
+    glowEl.style.opacity         = '0';
+    glowEl.style.transformBox    = 'fill-box';
+    glowEl.style.transformOrigin = '50% 50%';
+    svg.appendChild(glowEl);
+
+    // ── Flame layers ──────────────────────────────────────────────────────
+    function td(cx, cy, w, h) {
+      return [
+        `M${cx},${cy}`,
+        `C${cx + w},${cy - h * 0.20} ${cx + w * 0.62},${cy - h * 0.76} ${cx},${cy - h}`,
+        `C${cx - w * 0.62},${cy - h * 0.76} ${cx - w},${cy - h * 0.20} ${cx},${cy}`,
+        'Z',
+      ].join(' ');
+    }
+
+    const flameLayers = [
+      [FW * 1.00, FH * 1.00,        0, 'rgba(165,30,0,0.82)' ],
+      [FW * 0.72, FH * 0.80, FH*0.04, 'rgba(255,75,0,0.88)' ],
+      [FW * 0.46, FH * 0.58, FH*0.10, 'rgba(255,170,10,0.93)'],
+      [FW * 0.22, FH * 0.36, FH*0.16, 'rgba(255,248,185,0.97)'],
+    ];
+
+    flameLayers.forEach(([w, h, yOff, fill], i) => {
+      const p = document.createElementNS(svgNS, 'path');
+      p.setAttribute('d',    td(bX, bY - yOff, w, h));
+      p.setAttribute('fill', fill);
+      p.style.transformBox    = 'fill-box';
+      p.style.transformOrigin = '50% 100%';
+      p.style.animation = `flameFlicker ${0.38 + i * 0.06}s ease-in-out infinite`;
+      svg.appendChild(p);
+    });
+
+    // ── Solid chip (in front of flame, behind jaw tips) ───────────────────
+    const CHIP_W = 11;  const CHIP_H = 7;
+
+    const chip = document.createElementNS(svgNS, 'rect');
+    chip.setAttribute('x',      String(solidX - CHIP_W / 2));
+    chip.setAttribute('y',      String(solidY - CHIP_H / 2));
+    chip.setAttribute('width',  String(CHIP_W));
+    chip.setAttribute('height', String(CHIP_H));
+    chip.setAttribute('rx',     '2');
+    chip.setAttribute('fill',   '#c8b888');
+    svg.appendChild(chip);
+
+    const chipShine = document.createElementNS(svgNS, 'rect');
+    chipShine.setAttribute('x',      String(solidX - CHIP_W / 2 + 2));
+    chipShine.setAttribute('y',      String(solidY - CHIP_H / 2 + 1.5));
+    chipShine.setAttribute('width',  '2.5');
+    chipShine.setAttribute('height', String(CHIP_H - 3));
+    chipShine.setAttribute('rx',     '1');
+    chipShine.setAttribute('fill',   'rgba(255,248,220,0.38)');
+    svg.appendChild(chipShine);
+
+    containerEl.appendChild(svg);
+    return { svg, glowEl };
+  }
+
+  /**
+   * Flame test — metal tongs hold the solid in a Bunsen flame; the
+   * characteristic emission colour radiates as a blurred glow from the solid.
    * @private
    */
   _animFlameColour(vesselEl, params) {
-    // flameColour comes from GasTestEngine → TestBarUI → AnimationManager.play params
-    const colour = params.flameColour ?? '#ffcc00';
-    return this._testOverlay(vesselEl, 'flameColorShow', colour + '44', 2100);
+    const ENTER    = 500;   // tongs slide into position
+    const WAIT     = 400;   // solid settles in flame
+    const GLOW_DUR = 1800;  // colour glow fade-in
+    const HOLD     = 1600;  // hold glow visible
+    const EXIT_DUR = 500;
+    const TOTAL    = ENTER + WAIT + GLOW_DUR + HOLD + EXIT_DUR;
+
+    const colour   = params.flameColour ?? '#ffcc00';
+    const vesselId = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+
+    const containerEl = vesselEl.closest('.vessel-container') ?? vesselEl.parentElement ?? vesselEl;
+    const cRect     = containerEl.getBoundingClientRect();
+    const cardRefEl = containerEl.querySelector('.vessel-card') ?? vesselEl;
+    const vRect     = cardRefEl.getBoundingClientRect();
+    const W    = cRect.width  || 130;
+    const H    = cRect.height || 210;
+    const tipX = (vRect.left - cRect.left) + vRect.width  * 0.50;
+    const tipY = (vRect.top  - cRect.top)  + vRect.height * 0.03;
+
+    const { svg, glowEl } = this._buildTongsFlameScene(containerEl, W, H, tipX, tipY);
+
+    // Activate colour glow once tongs have settled
+    glowEl.setAttribute('fill', colour);
+    glowEl.style.transition = `opacity ${GLOW_DUR}ms ease-in-out`;
+    setTimeout(() => { glowEl.style.opacity = '0.85'; }, ENTER + WAIT);
+
+    // Fade whole scene out
+    setTimeout(() => {
+      svg.style.transition = `opacity ${EXIT_DUR}ms ease`;
+      svg.style.opacity    = '0';
+    }, TOTAL - EXIT_DUR);
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        svg.remove();
+        this.setTestLock(vesselId, false);
+        resolve();
+      }, TOTAL);
+    });
   }
 
-  /** Flame test — no distinctive colour; negative. @private */
+  /** Flame test — no distinctive colour; solid in orange Bunsen flame only. @private */
   _animFlameNoColour(vesselEl, _params) {
-    return this._testOverlay(vesselEl, 'flamePulse', 'rgba(255,170,70,0.06)', 1200);
+    const ENTER    = 500;
+    const HOLD     = 1600;
+    const EXIT_DUR = 500;
+    const TOTAL    = ENTER + HOLD + EXIT_DUR;
+
+    const vesselId = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+
+    const containerEl = vesselEl.closest('.vessel-container') ?? vesselEl.parentElement ?? vesselEl;
+    const cRect     = containerEl.getBoundingClientRect();
+    const cardRefEl = containerEl.querySelector('.vessel-card') ?? vesselEl;
+    const vRect     = cardRefEl.getBoundingClientRect();
+    const W    = cRect.width  || 130;
+    const H    = cRect.height || 210;
+    const tipX = (vRect.left - cRect.left) + vRect.width  * 0.50;
+    const tipY = (vRect.top  - cRect.top)  + vRect.height * 0.03;
+
+    const { svg } = this._buildTongsFlameScene(containerEl, W, H, tipX, tipY);
+
+    setTimeout(() => {
+      svg.style.transition = `opacity ${EXIT_DUR}ms ease`;
+      svg.style.opacity    = '0';
+    }, TOTAL - EXIT_DUR);
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        svg.remove();
+        this.setTestLock(vesselId, false);
+        resolve();
+      }, TOTAL);
+    });
   }
 
   /** AgNO₃ / BaCl₂ drop tests ─── */

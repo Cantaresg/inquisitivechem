@@ -194,6 +194,7 @@ export const GAS_RULES = [
     id: 'nh3_ammonium_alkali',
     requires: {
       ions: ['NH4+', 'OH-'],
+      isHot: true,
     },
     gas: 'NH3',
     pressure: 0.50,
@@ -210,6 +211,21 @@ export const GAS_RULES = [
     pressure: 0.40,
     observationKey: 'obs_nh3_thermal',
     equation: 'NH₄⁺(aq) + OH⁻(aq) → NH₃(g) + H₂O(l)',
+  },
+  {
+    id: 'nh3_nitrate_al_alkali',
+    // Aluminium reduces nitrate in alkaline solution on heating — classic nitrate test route.
+    // NOT the dedicated nitrate test; the route simply produces NH₃ as confirmable gas.
+    requires: {
+      ions: ['NO3-', 'OH-'],
+      anySolid: ['al_s'],
+      isHot: true,
+    },
+    gas: 'NH3',
+    pressure: 0.45,
+    overrideEquation: true,   // use rule.equation, not SOLID_ION_PRODUCTS equation
+    observationKey: 'obs_nh3_nitrate_al',
+    equation: '8Al(s) + 5NO₃⁻(aq) + 5OH⁻(aq) + 18H₂O(l) → 8[Al(OH)₄]⁻(aq) + 5NH₃(g)',
   },
   {
     id: 'h2s_sulfide_acid',
@@ -340,6 +356,21 @@ export const SOLUBLE_SOLIDS = {
     observationKey: 'obs_solid_dissolves_colourless',
     equation: 'Na₂CO₃(s) → 2Na⁺(aq) + CO₃²⁻(aq)',
   },
+  nacl_s: {
+    ions: { 'Na+': 0.2, 'Cl-': 0.2 },
+    observationKey: 'obs_solid_dissolves_colourless',
+    equation: 'NaCl(s) → Na⁺(aq) + Cl⁻(aq)',
+  },
+  kcl_s: {
+    ions: { 'K+': 0.2, 'Cl-': 0.2 },
+    observationKey: 'obs_solid_dissolves_colourless',
+    equation: 'KCl(s) → K⁺(aq) + Cl⁻(aq)',
+  },
+  k2co3_s: {
+    ions: { 'K+': 0.4, 'CO3²-': 0.2 },
+    observationKey: 'obs_solid_dissolves_colourless',
+    equation: 'K₂CO₃(s) → 2K⁺(aq) + CO₃²⁻(aq)',
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -370,6 +401,10 @@ export const SOLID_ION_PRODUCTS = {
   zno_s:    { ion: 'Zn2+',  stoich: 1, equation: 'ZnO(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂O(l)' },
   // Cu reacts with conc. H₂SO₄ (hot) → CuSO₄ + SO₂ + H₂O
   cu_s:     { ion: 'Cu2+',  stoich: 1, equation: 'Cu(s) + 2H₂SO₄(conc,hot) → Cu²⁺(aq) + SO₄²⁻(aq) + SO₂(g) + 2H₂O(l)' },
+  // Halide salts — dissolve in water; ion field used by flame-test detection only
+  nacl_s:   { ion: 'Na+',   stoich: 1, equation: 'NaCl(s) → Na⁺(aq) + Cl⁻(aq)' },
+  kcl_s:    { ion: 'K+',    stoich: 1, equation: 'KCl(s) → K⁺(aq) + Cl⁻(aq)' },
+  k2co3_s:  { ion: 'K+',    stoich: 2, equation: 'K₂CO₃(s) → 2K⁺(aq) + CO₃²⁻(aq)' },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -507,7 +542,6 @@ export const COMPLEXATION_RULES = [
       excessOH: true,
     },
     removesPpt: 'zn_oh2',
-    colorChange: { to: 'rgba(200,220,255,0.10)' },
     consumesIon: 'OH-',
     producesIon: { 'Zn(OH)4_2-': 0.05 },
     observationKey: 'obs_zn_ppt_dissolves',
@@ -522,7 +556,6 @@ export const COMPLEXATION_RULES = [
       excessNH3: true,
     },
     removesPpt: 'zn_oh2',
-    colorChange: { to: 'rgba(200,220,255,0.10)' },
     consumesIon: 'NH3',
     producesIon: { 'Zn(NH3)4_2+': 0.05 },
     observationKey: 'obs_zn_ppt_dissolves',
@@ -537,7 +570,6 @@ export const COMPLEXATION_RULES = [
       excessOH: true,
     },
     removesPpt: 'al_oh3',
-    colorChange: { to: 'rgba(200,220,255,0.10)' },
     consumesIon: 'OH-',
     producesIon: { 'Al(OH)4-': 0.05 },
     observationKey: 'obs_al_ppt_dissolves',
@@ -552,11 +584,218 @@ export const COMPLEXATION_RULES = [
       excessOH: true,
     },
     removesPpt: 'pb_oh2',
-    colorChange: { to: 'rgba(200,220,255,0.10)' },
     consumesIon: 'OH-',
     producesIon: { 'Pb(OH)4_2-': 0.05 },
     observationKey: 'obs_pb_ppt_dissolves',
     equation: 'Pb(OH)₂(s) + 2OH⁻(aq) → [Pb(OH)₄]²⁻(aq)',
+  },
+
+  // ── Carbonate ppts dissolve in acid (H⁺) → CO₂ effervescence ─────────────
+  // BaSO₄ has NO rule here — it is acid-insoluble, confirming SO₄²⁻.
+
+  {
+    id: 'baco3_acid',
+    requires: { ppt: 'baco3', ions: ['H+'] },
+    removesPpt: 'baco3',
+    gasAdded: { id: 'CO2', pressure: 0.40 },
+    observationKey: 'obs_carbonate_ppt_acid',
+    equation: 'BaCO₃(s) + 2H⁺(aq) → Ba²⁺(aq) + CO₂(g) + H₂O(l)',
+  },
+  {
+    id: 'ag2co3_acid',
+    requires: { ppt: 'ag2co3', ions: ['H+'] },
+    removesPpt: 'ag2co3',
+    gasAdded: { id: 'CO2', pressure: 0.40 },
+    observationKey: 'obs_carbonate_ppt_acid',
+    equation: 'Ag₂CO₃(s) + 2H⁺(aq) → 2Ag⁺(aq) + CO₂(g) + H₂O(l)',
+  },
+  {
+    id: 'pbco3_acid',
+    requires: { ppt: 'pbco3', ions: ['H+'] },
+    removesPpt: 'pbco3',
+    gasAdded: { id: 'CO2', pressure: 0.40 },
+    observationKey: 'obs_carbonate_ppt_acid',
+    equation: 'PbCO₃(s) + 2H⁺(aq) → Pb²⁺(aq) + CO₂(g) + H₂O(l)',
+  },
+  {
+    id: 'caco3_acid',
+    requires: { ppt: 'caco3', ions: ['H+'] },
+    removesPpt: 'caco3',
+    gasAdded: { id: 'CO2', pressure: 0.40 },
+    observationKey: 'obs_carbonate_ppt_acid',
+    equation: 'CaCO₃(s) + 2H⁺(aq) → Ca²⁺(aq) + CO₂(g) + H₂O(l)',
+  },
+  {
+    id: 'cuco3_ppt_acid',
+    requires: { ppt: 'cuco3', ions: ['H+'] },
+    removesPpt: 'cuco3',
+    gasAdded: { id: 'CO2', pressure: 0.40 },
+    observationKey: 'obs_carbonate_ppt_acid',
+    equation: 'CuCO₃(s) + 2H⁺(aq) → Cu²⁺(aq) + CO₂(g) + H₂O(l)',
+  },
+  {
+    id: 'feco3_acid',
+    requires: { ppt: 'feco3', ions: ['H+'] },
+    removesPpt: 'feco3',
+    gasAdded: { id: 'CO2', pressure: 0.40 },
+    observationKey: 'obs_carbonate_ppt_acid',
+    equation: 'FeCO₃(s) + 2H⁺(aq) → Fe²⁺(aq) + CO₂(g) + H₂O(l)',
+  },
+  {
+    id: 'znco3_ppt_acid',
+    requires: { ppt: 'znco3', ions: ['H+'] },
+    removesPpt: 'znco3',
+    gasAdded: { id: 'CO2', pressure: 0.40 },
+    observationKey: 'obs_carbonate_ppt_acid',
+    equation: 'ZnCO₃(s) + 2H⁺(aq) → Zn²⁺(aq) + CO₂(g) + H₂O(l)',
+  },
+  {
+    id: 'mgco3_ppt_acid',
+    requires: { ppt: 'mgco3', ions: ['H+'] },
+    removesPpt: 'mgco3',
+    gasAdded: { id: 'CO2', pressure: 0.40 },
+    observationKey: 'obs_carbonate_ppt_acid',
+    equation: 'MgCO₃(s) + 2H⁺(aq) → Mg²⁺(aq) + CO₂(g) + H₂O(l)',
+  },
+
+  // ── AgCl dissolves in dilute NH₃ → [Ag(NH₃)₂]⁺ ──────────────────────────
+  // AgBr / AgI do NOT dissolve in dilute NH₃ — no rule needed (ppt persists).
+  {
+    id: 'agcl_nh3',
+    requires: { ppt: 'agcl', ions: ['NH3'] },
+    removesPpt: 'agcl',
+    producesIon: { 'Ag(NH3)2+': 0.05, 'Cl-': 0.05 },
+    observationKey: 'obs_agcl_nh3',
+    equation: 'AgCl(s) + 2NH₃(aq) → [Ag(NH₃)₂]⁺(aq) + Cl⁻(aq)',
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DISPLACEMENT RULES
+// Checked during ReactionEngine._checkDisplacement(workingSolution).
+// A more-reactive metal solid reduces a metal cation in solution, depositing
+// the less-reactive metal as a solid and releasing the reactive metal as an ion.
+//
+// Rule shape:
+//   id             — unique identifier
+//   requires       — { solid: solidId, ion: ionSymbol }
+//                    solid: the reactive metal that must be present
+//                    ion:   the metal cation being displaced (must be present)
+//   ionChanges     — { displaced_ion: null, produced_ion: concentration }
+//   solidRemoved   — solid id consumed
+//   colorChange    — optional { to } (solution colour after reaction)
+//   observationKey — key into OBSERVATIONS
+//   equation       — balanced net ionic equation string
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const DISPLACEMENT_RULES = [
+
+  // ── Metal displaces Ag⁺ ──────────────────────────────────────────────────
+
+  {
+    id: 'al_displaces_ag',
+    requires: { solid: 'al_s', ion: 'Ag+' },
+    ionChanges: { 'Ag+': null, 'Al3+': 0.1 },
+    solidRemoved: 'al_s',
+    colorChange: null,
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Al(s) + 3Ag⁺(aq) → Al³⁺(aq) + 3Ag(s)',
+  },
+  {
+    id: 'zn_displaces_ag',
+    requires: { solid: 'zn_s', ion: 'Ag+' },
+    ionChanges: { 'Ag+': null, 'Zn2+': 0.1 },
+    solidRemoved: 'zn_s',
+    colorChange: null,
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Zn(s) + 2Ag⁺(aq) → Zn²⁺(aq) + 2Ag(s)',
+  },
+  {
+    id: 'fe_displaces_ag',
+    requires: { solid: 'fe_s', ion: 'Ag+' },
+    ionChanges: { 'Ag+': null, 'Fe2+': 0.1 },
+    solidRemoved: 'fe_s',
+    colorChange: null,
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Fe(s) + 2Ag⁺(aq) → Fe²⁺(aq) + 2Ag(s)',
+  },
+  {
+    id: 'mg_displaces_ag',
+    requires: { solid: 'mg_s', ion: 'Ag+' },
+    ionChanges: { 'Ag+': null, 'Mg2+': 0.1 },
+    solidRemoved: 'mg_s',
+    colorChange: null,
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Mg(s) + 2Ag⁺(aq) → Mg²⁺(aq) + 2Ag(s)',
+  },
+  {
+    id: 'cu_displaces_ag',
+    requires: { solid: 'cu_s', ion: 'Ag+' },
+    ionChanges: { 'Ag+': null, 'Cu2+': 0.1 },
+    solidRemoved: 'cu_s',
+    colorChange: { to: 'rgba(30,100,220,0.45)' },
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Cu(s) + 2Ag⁺(aq) → Cu²⁺(aq) + 2Ag(s)',
+  },
+
+  // ── Metal displaces Cu²⁺ ─────────────────────────────────────────────────
+
+  {
+    id: 'zn_displaces_cu',
+    requires: { solid: 'zn_s', ion: 'Cu2+' },
+    ionChanges: { 'Cu2+': null, 'Zn2+': 0.1 },
+    solidRemoved: 'zn_s',
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_pink_coat',
+    equation: 'Zn(s) + Cu²⁺(aq) → Zn²⁺(aq) + Cu(s)',
+  },
+  {
+    id: 'fe_displaces_cu',
+    requires: { solid: 'fe_s', ion: 'Cu2+' },
+    ionChanges: { 'Cu2+': null, 'Fe2+': 0.1 },
+    solidRemoved: 'fe_s',
+    colorChange: { to: 'rgba(100,180,100,0.35)' },
+    observationKey: 'obs_displacement_pink_coat',
+    equation: 'Fe(s) + Cu²⁺(aq) → Fe²⁺(aq) + Cu(s)',
+  },
+  {
+    id: 'mg_displaces_cu',
+    requires: { solid: 'mg_s', ion: 'Cu2+' },
+    ionChanges: { 'Cu2+': null, 'Mg2+': 0.1 },
+    solidRemoved: 'mg_s',
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_pink_coat',
+    equation: 'Mg(s) + Cu²⁺(aq) → Mg²⁺(aq) + Cu(s)',
+  },
+  {
+    id: 'al_displaces_cu',
+    requires: { solid: 'al_s', ion: 'Cu2+' },
+    ionChanges: { 'Cu2+': null, 'Al3+': 0.1 },
+    solidRemoved: 'al_s',
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_pink_coat',
+    equation: '2Al(s) + 3Cu²⁺(aq) → 2Al³⁺(aq) + 3Cu(s)',
+  },
+
+  // ── Metal displaces Fe²⁺ ─────────────────────────────────────────────────
+
+  {
+    id: 'zn_displaces_fe2',
+    requires: { solid: 'zn_s', ion: 'Fe2+' },
+    ionChanges: { 'Fe2+': null, 'Zn2+': 0.1 },
+    solidRemoved: 'zn_s',
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Zn(s) + Fe²⁺(aq) → Zn²⁺(aq) + Fe(s)',
+  },
+  {
+    id: 'mg_displaces_fe2',
+    requires: { solid: 'mg_s', ion: 'Fe2+' },
+    ionChanges: { 'Fe2+': null, 'Mg2+': 0.1 },
+    solidRemoved: 'mg_s',
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Mg(s) + Fe²⁺(aq) → Mg²⁺(aq) + Fe(s)',
   },
 ];
 
@@ -586,10 +825,14 @@ export const OBSERVATIONS = {
     'On heating, the solid began to decompose and colourless gas was evolved slowly.',
 
   obs_nh3_pungent:
-    'A pungent, sharp-smelling gas was produced. The gas was evolved steadily.',
+    'On warming, a pungent, sharp-smelling gas was evolved from the solution.',
+
 
   obs_nh3_thermal:
     'On heating, a pungent-smelling gas was evolved from the solution.',
+
+  obs_nh3_nitrate_al:
+    'On heating, a pungent-smelling gas was evolved. The solid gradually dissolved as the reaction proceeded.',
 
   obs_nh3_fumes:
     'A sharp, pungent odour was detected above the vessel.',
@@ -761,7 +1004,25 @@ export const OBSERVATIONS = {
   obs_ag2o_brown:
     'A dark brown precipitate formed.',
 
+  // ── Confirmatory acid / ligand steps ───────────────
+  obs_carbonate_ppt_acid:
+    'The white precipitate dissolved with effervescence on adding dilute acid, '
+    + 'confirming the presence of a carbonate precipitate rather than a sulphate.',
+
+  obs_agcl_nh3:
+    'The white precipitate dissolved on adding ammonia solution, '
+    + 'forming the colourless diamminesilver(I) complex ion. This confirms chloride.',
+
   // ── No reaction ────────────────────────────────────
   obs_no_visible_reaction:
     'No visible change was observed.',
+
+  // ── Displacement ───────────────────────────────────
+  obs_displacement_grey_coat:
+    'The surface of the solid became coated with a grey, metallic deposit. '
+    + 'The solid gradually dissolved as the reaction proceeded.',
+
+  obs_displacement_pink_coat:
+    'A pink, copper-coloured deposit formed on the surface of the solid. '
+    + 'The blue colour of the solution faded as the reaction proceeded.',
 };

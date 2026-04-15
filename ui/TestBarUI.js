@@ -27,9 +27,6 @@ const FALLBACK_ICONS = {
   'test_damp_red_litmus':      '📄',
   'test_damp_blue_litmus':     '📃',
   'test_flame':                '🔦',
-  'test_bacl2':                '💧',
-  'test_agno3':                '💧',
-  'test_universal_ind':        '🌈',
   'test_ph_paper':             '📏',
 };
 
@@ -178,10 +175,10 @@ export class TestBarUI {
       return;
     }
 
-    const { animId, observation, flameColour, phColour } = result;
+    const { animId, observation, flameColour, phColour, co2Pressure } = result;
 
     // Play animation with colour parameters (BUG-15)
-    this._animManager.play(animId, vesselEl, { flameColour, phColour });
+    this._animManager.play(animId, vesselEl, { flameColour, phColour, co2Pressure });
 
     // Log the test result
     const testDef = CONFIRMATORY_TESTS.find(t => t.id === testId);

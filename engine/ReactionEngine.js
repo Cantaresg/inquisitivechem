@@ -17,6 +17,7 @@ import {
   SOLID_ION_PRODUCTS,
   REDOX_RULES,
   COMPLEXATION_RULES,
+  DISPLACEMENT_RULES,
   OBSERVATIONS,
 } from '../data/reactions.js';
 import { EASTER_EGGS } from '../data/easter-eggs.js';
@@ -140,6 +141,9 @@ export class ReactionEngine {
 
     // Redox colour changes / ion transforms
     events.push(...ReactionEngine._checkRedox(sol));
+
+    // Displacement reactions (metal solid + metal cation → deposited metal + new cation)
+    events.push(...ReactionEngine._checkDisplacement(sol));
 
     // Complexation — dissolves ppts; checks both existing ppts AND precipEvents (BUG-05)
     events.push(...ReactionEngine._checkComplexation(sol, precipEvents));
@@ -304,7 +308,8 @@ export class ReactionEngine {
         observation: OBSERVATIONS[rule.observationKey] ?? '',
         // Use the solid's specific balanced equation when available (e.g. Mg + 2H⁺ → Mg²⁺ + H₂)
         // rather than the generic template on the gas rule.
-        equation:    (solidRemoved && SOLID_ION_PRODUCTS[solidRemoved]?.equation)
+        // Exception: rules with overrideEquation:true always use rule.equation.
+        equation:    (!rule.overrideEquation && solidRemoved && SOLID_ION_PRODUCTS[solidRemoved]?.equation)
                        ? SOLID_ION_PRODUCTS[solidRemoved].equation
                        : rule.equation,
         ionChanges,
@@ -433,7 +438,36 @@ export class ReactionEngine {
         equation:    rule.equation,
         ionChanges,
         pptRemoved:  rule.removesPpt ?? null,
+        gasAdded:    rule.gasAdded   ?? null,
         colorChange: rule.colorChange ? { from: null, to: rule.colorChange.to } : null,
+      }));
+    }
+    return events;
+  }
+
+  /**
+   * Displacement reactions.
+   * A more-reactive metal solid reduces a metal cation in solution.
+   * Fires without heat; covers all entries in DISPLACEMENT_RULES.
+   *
+   * @param {import('./Solution.js').Solution} sol  working clone
+   */
+  static _checkDisplacement(sol) {
+    const events = [];
+    for (const rule of DISPLACEMENT_RULES) {
+      const req = rule.requires;
+      // Solid must be present
+      if (!sol.solids.some(s => s.id === req.solid)) continue;
+      // Displaced cation must be present
+      if ((sol.ions[req.ion] ?? 0) <= 0) continue;
+
+      events.push(baseEvent('displacement', {
+        animId:      'anim_solid_dissolve',
+        observation: OBSERVATIONS[rule.observationKey] ?? '',
+        equation:    rule.equation,
+        ionChanges:  { ...rule.ionChanges },
+        solidRemoved: rule.solidRemoved,
+        colorChange:  rule.colorChange ? { from: null, to: rule.colorChange.to } : null,
       }));
     }
     return events;
@@ -462,7 +496,7 @@ export class ReactionEngine {
 /**
  * @typedef {Object} ReactionEvent
  * @property {string} id           — unique UUID for ObservationLog dedup (BUG-19)
- * @property {'precipitation'|'gas'|'redox'|'complexation'|'neutralisation'|'dissolution'|'no_reaction'} type
+ * @property {'precipitation'|'gas'|'redox'|'complexation'|'neutralisation'|'dissolution'|'displacement'|'no_reaction'} type
  * @property {string|null} animId  — id registered in AnimationManager
  * @property {string} observation  — plain English (empty = no log entry)
  * @property {string} equation     — balanced ionic equation string
