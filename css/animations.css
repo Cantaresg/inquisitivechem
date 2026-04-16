@@ -17,6 +17,15 @@
   100% { transform: translateY(-80px);  opacity: 0;    }
 }
 
+/* ── Bubbles, Al variant — starts at opacity 0 so circles are invisible
+   during the oxide-layer delay before their individual animation fires. ── */
+@keyframes bubbleRiseAl {
+  0%   { transform: translateY(0);      opacity: 0;    }
+  8%   { transform: translateY(-4px);   opacity: 0.55; }
+  70%  { transform: translateY(-50px);  opacity: 0.45; }
+  100% { transform: translateY(-80px);  opacity: 0;    }
+}
+
 /* ── Precipitate fall (anim_precipitate) ───────────────────── */
 @keyframes precipFall {
   0%   { transform: translateY(0);    opacity: 0.90; }
@@ -36,13 +45,15 @@
    TRAP-05: polygon count capped at 120 in AnimationManager.
    ═══════════════════════════════════════════════════════════ */
 
-/* Hexagonal flake: nucleates inside the solution and gently settles ~20 px.
-   Very slow, barely any lateral drift — mimics real PbI₂ platelet behaviour. */
+/* Hexagonal flake: nucleates inside the solution and drifts ~13 px over 10 s.
+   Linear timing keeps the drift constant; crystal stays visible for ~88% of
+   its lifetime before fading — gives a dreamy, slow-motion feel.           */
 @keyframes goldenRainSettle {
-  0%   { transform: translate(0px,  0px)  rotate(0deg);   opacity: 0;    }
-  10%  { opacity: 0.95; }
-  75%  { transform: translate(0px, 16px)  rotate(12deg);  opacity: 0.85; }
-  100% { transform: translate(0px, 22px)  rotate(18deg);  opacity: 0;    }
+  0%   { transform: translateY(0px);   opacity: 0;    }
+  8%   { opacity: 0.90; }
+  55%  { transform: translateY(5px);   opacity: 0.82; }
+  88%  { transform: translateY(10px);  opacity: 0.62; }
+  100% { transform: translateY(13px);  opacity: 0;    }
 }
 
 /* Sparkle glint: a tiny bright circle that pulses once to simulate a

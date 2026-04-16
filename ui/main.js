@@ -68,7 +68,7 @@ const obsLog = new ObservationLog(
 
 // ─── 4. BenchUI ──────────────────────────────────────────────────────────────
 
-const benchUI = new BenchUI(
+export const benchUI = new BenchUI(
   document.getElementById('bench-area'),
   animManager,
   obsLog,
@@ -112,3 +112,4 @@ function _rafTick(timestamp) {
   requestAnimationFrame(_rafTick);
 }
 requestAnimationFrame(_rafTick);
+

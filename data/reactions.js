@@ -150,10 +150,17 @@ export const GAS_RULES = [
       ions: ['H+'],
       anySolid: ['mg_s', 'zn_s', 'fe_s', 'al_s'],   // active metals only — NOT cu_s
     },
+    // Per-solid observation override (Al has a delay due to oxide layer)
+    observationMap: {
+      al_s: 'obs_h2_al_acid',
+    },
+    // Per-solid animation override (Al uses delayed-bubble animation)
+    animIdMap: {
+      al_s: 'anim_bubbles_al',
+    },
     gas: 'H2',
     pressure: 0.85,
     observationKey: 'obs_h2_metal_acid',
-    // Equation depends on which metal is present; engine fills in details via SOLID_ION_PRODUCTS
     equation: 'M(s) + nH⁺(aq) → Mⁿ⁺(aq) + n/2 H₂(g)',
   },
   {
@@ -170,7 +177,21 @@ export const GAS_RULES = [
     id: 'co2_solid_carbonate_acid',
     requires: {
       ions: ['H+'],
-      anySolid: ['na2co3_s', 'mgco3_s', 'caco3_s', 'znco3_s', 'cuco3_s'],
+      // Also matches ag2co3 and pbco3 as PRECIPITATES (engine also checks sol.ppts)
+      anySolid: ['na2co3_s', 'mgco3_s', 'caco3_s', 'znco3_s', 'cuco3_s', 'ag2co3_s', 'pbco3_s'],
+    },
+    // blockedByAnions: if this anion is present in solution when the solid/ppt reacts,
+    // the product cation immediately coats the surface and stops the reaction.
+    // Key = solidId (or pptId+'_s'); value = list of blocking anions.
+    blockedByAnions: {
+      caco3_s:  ['SO4²-'],
+      ag2co3_s: ['Cl-'],
+      pbco3_s:  ['Cl-', 'SO4²-'],
+    },
+    blockedObservationMap: {
+      caco3_s:  'obs_caso4_passivation',
+      ag2co3_s: 'obs_agcl_passivation',
+      pbco3_s:  'obs_pbsalt_passivation',
     },
     gas: 'CO2',
     pressure: 0.70,
@@ -352,22 +373,22 @@ export const DISSOLUTION_RULES = [
 
 export const SOLUBLE_SOLIDS = {
   na2co3_s: {
-    ions: { 'Na+': 0.2, 'CO3²-': 0.1 },
+    ions: { 'Na+': 2, 'CO3²-': 1 },
     observationKey: 'obs_solid_dissolves_colourless',
     equation: 'Na₂CO₃(s) → 2Na⁺(aq) + CO₃²⁻(aq)',
   },
   nacl_s: {
-    ions: { 'Na+': 0.2, 'Cl-': 0.2 },
+    ions: { 'Na+': 1, 'Cl-': 1 },
     observationKey: 'obs_solid_dissolves_colourless',
     equation: 'NaCl(s) → Na⁺(aq) + Cl⁻(aq)',
   },
   kcl_s: {
-    ions: { 'K+': 0.2, 'Cl-': 0.2 },
+    ions: { 'K+': 1, 'Cl-': 1 },
     observationKey: 'obs_solid_dissolves_colourless',
     equation: 'KCl(s) → K⁺(aq) + Cl⁻(aq)',
   },
   k2co3_s: {
-    ions: { 'K+': 0.4, 'CO3²-': 0.2 },
+    ions: { 'K+': 2, 'CO3²-': 1 },
     observationKey: 'obs_solid_dissolves_colourless',
     equation: 'K₂CO₃(s) → 2K⁺(aq) + CO₃²⁻(aq)',
   },
@@ -383,22 +404,25 @@ export const SOLUBLE_SOLIDS = {
 
 export const SOLID_ION_PRODUCTS = {
   // Metals (react with acid → cation + H₂ gas)
-  mg_s:     { ion: 'Mg2+',  stoich: 1, equation: 'Mg(s) + 2H⁺(aq) → Mg²⁺(aq) + H₂(g)' },
-  zn_s:     { ion: 'Zn2+',  stoich: 1, equation: 'Zn(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂(g)' },
-  fe_s:     { ion: 'Fe2+',  stoich: 1, equation: 'Fe(s) + 2H⁺(aq) → Fe²⁺(aq) + H₂(g)' },
-  al_s:     { ion: 'Al3+',  stoich: 1, equation: '2Al(s) + 6H⁺(aq) → 2Al³⁺(aq) + 3H₂(g)' },
+  // hConsumption = moles of H⁺ consumed per mole of solid
+  mg_s:     { ion: 'Mg2+',  stoich: 1, hConsumption: 2, equation: 'Mg(s) + 2H⁺(aq) → Mg²⁺(aq) + H₂(g)' },
+  zn_s:     { ion: 'Zn2+',  stoich: 1, hConsumption: 2, equation: 'Zn(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂(g)' },
+  fe_s:     { ion: 'Fe2+',  stoich: 1, hConsumption: 2, equation: 'Fe(s) + 2H⁺(aq) → Fe²⁺(aq) + H₂(g)' },
+  al_s:     { ion: 'Al3+',  stoich: 1, hConsumption: 3, equation: '2Al(s) + 6H⁺(aq) → 2Al³⁺(aq) + 3H₂(g)' },
   // Carbonates (react with acid → cation + CO₂ + H₂O)
-  na2co3_s: { ion: 'Na+',   stoich: 2, equation: 'Na₂CO₃(s) + 2H⁺(aq) → 2Na⁺(aq) + H₂O(l) + CO₂(g)' },
-  mgco3_s:  { ion: 'Mg2+',  stoich: 1, equation: 'MgCO₃(s) + 2H⁺(aq) → Mg²⁺(aq) + H₂O(l) + CO₂(g)' },
-  caco3_s:  { ion: 'Ca2+',  stoich: 1, equation: 'CaCO₃(s) + 2H⁺(aq) → Ca²⁺(aq) + H₂O(l) + CO₂(g)' },
-  znco3_s:  { ion: 'Zn2+',  stoich: 1, equation: 'ZnCO₃(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂O(l) + CO₂(g)' },
-  cuco3_s:  { ion: 'Cu2+',  stoich: 1, equation: 'CuCO₃(s) + 2H⁺(aq) → Cu²⁺(aq) + H₂O(l) + CO₂(g)' },
+  na2co3_s: { ion: 'Na+',   stoich: 2, hConsumption: 2, equation: 'Na₂CO₃(s) + 2H⁺(aq) → 2Na⁺(aq) + H₂O(l) + CO₂(g)' },
+  mgco3_s:  { ion: 'Mg2+',  stoich: 1, hConsumption: 2, equation: 'MgCO₃(s) + 2H⁺(aq) → Mg²⁺(aq) + H₂O(l) + CO₂(g)' },
+  caco3_s:  { ion: 'Ca2+',  stoich: 1, hConsumption: 2, equation: 'CaCO₃(s) + 2H⁺(aq) → Ca²⁺(aq) + H₂O(l) + CO₂(g)' },
+  znco3_s:  { ion: 'Zn2+',  stoich: 1, hConsumption: 2, equation: 'ZnCO₃(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂O(l) + CO₂(g)' },
+  cuco3_s:  { ion: 'Cu2+',  stoich: 1, hConsumption: 2, equation: 'CuCO₃(s) + 2H⁺(aq) → Cu²⁺(aq) + H₂O(l) + CO₂(g)' },
+  ag2co3_s: { ion: 'Ag+',   stoich: 2, hConsumption: 2, equation: 'Ag₂CO₃(s) + 2H⁺(aq) → 2Ag⁺(aq) + H₂O(l) + CO₂(g)' },
+  pbco3_s:  { ion: 'Pb2+',  stoich: 1, hConsumption: 2, equation: 'PbCO₃(s) + 2H⁺(aq) → Pb²⁺(aq) + H₂O(l) + CO₂(g)' },
   // Oxides (react with acid → cation + H₂O)
-  cao_s:    { ion: 'Ca2+',  stoich: 1, equation: 'CaO(s) + 2H⁺(aq) → Ca²⁺(aq) + H₂O(l)' },
-  mgo_s:    { ion: 'Mg2+',  stoich: 1, equation: 'MgO(s) + 2H⁺(aq) → Mg²⁺(aq) + H₂O(l)' },
-  cuo_s:    { ion: 'Cu2+',  stoich: 1, equation: 'CuO(s) + 2H⁺(aq) → Cu²⁺(aq) + H₂O(l)' },
-  fe2o3_s:  { ion: 'Fe3+',  stoich: 2, equation: 'Fe₂O₃(s) + 6H⁺(aq) → 2Fe³⁺(aq) + 3H₂O(l)' },
-  zno_s:    { ion: 'Zn2+',  stoich: 1, equation: 'ZnO(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂O(l)' },
+  cao_s:    { ion: 'Ca2+',  stoich: 1, hConsumption: 2, equation: 'CaO(s) + 2H⁺(aq) → Ca²⁺(aq) + H₂O(l)' },
+  mgo_s:    { ion: 'Mg2+',  stoich: 1, hConsumption: 2, equation: 'MgO(s) + 2H⁺(aq) → Mg²⁺(aq) + H₂O(l)' },
+  cuo_s:    { ion: 'Cu2+',  stoich: 1, hConsumption: 2, equation: 'CuO(s) + 2H⁺(aq) → Cu²⁺(aq) + H₂O(l)' },
+  fe2o3_s:  { ion: 'Fe3+',  stoich: 2, hConsumption: 6, equation: 'Fe₂O₃(s) + 6H⁺(aq) → 2Fe³⁺(aq) + 3H₂O(l)' },
+  zno_s:    { ion: 'Zn2+',  stoich: 1, hConsumption: 2, equation: 'ZnO(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂O(l)' },
   // Cu reacts with conc. H₂SO₄ (hot) → CuSO₄ + SO₂ + H₂O
   cu_s:     { ion: 'Cu2+',  stoich: 1, equation: 'Cu(s) + 2H₂SO₄(conc,hot) → Cu²⁺(aq) + SO₄²⁻(aq) + SO₂(g) + 2H₂O(l)' },
   // Halide salts — dissolve in water; ion field used by flame-test detection only
@@ -419,8 +443,11 @@ export const SOLID_ION_PRODUCTS = {
 //   ionTransform   — { ionSymbol: newSymbol | null }
 //                    null = ion is consumed / removed
 //                    string = ion symbol is renamed (e.g. 'Fe2+' → 'Fe3+')
+//   anyOfTransform — { ionSymbol: { ionTransform?, producesIon?, equation } }
+//                    per-reductant overrides; engine picks the first anyOf ion present.
+//                    Merged on top of the base ionTransform/producesIon.
 //   observationKey — key into OBSERVATIONS
-//   equation       — balanced net ionic equation string
+//   equation       — fallback balanced net ionic equation string
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const REDOX_RULES = [
@@ -433,28 +460,70 @@ export const REDOX_RULES = [
       anyOf: ['Fe2+', 'I-', 'Br-', 'H2O2', 'CH3COOH'],
     },
     colorChange: { from: 'rgba(80,0,90,0.80)', to: 'rgba(200,220,255,0.10)' },
-    ionTransform: {
-      'MnO4-': null,    // permanganate consumed → Mn²⁺ formed
-      'Fe2+':  'Fe3+',  // Fe²⁺ oxidised to Fe³⁺ (if present)
+    // Base: always consume MnO4⁻ and produce Mn²⁺
+    ionTransform: { 'MnO4-': null },
+    producesIon:  { 'Mn2+': 0.001 },
+    // Per-reductant: consume the reductant and use the correct balanced equation
+    anyOfTransform: {
+      'Fe2+': {
+        ionTransform: { 'Fe2+': 'Fe3+' },
+        equation: 'MnO₄⁻(aq) + 8H⁺(aq) + 5Fe²⁺(aq) → Mn²⁺(aq) + 5Fe³⁺(aq) + 4H₂O(l)',
+      },
+      'I-': {
+        ionTransform: { 'I-': null },
+        producesIon:  { 'I2': 0.001 },
+        equation: '2MnO₄⁻(aq) + 16H⁺(aq) + 10I⁻(aq) → 2Mn²⁺(aq) + 5I₂(aq) + 8H₂O(l)',
+      },
+      'Br-': {
+        ionTransform: { 'Br-': null },
+        producesIon:  { 'Br2': 0.001 },
+        equation: '2MnO₄⁻(aq) + 16H⁺(aq) + 10Br⁻(aq) → 2Mn²⁺(aq) + 5Br₂(aq) + 8H₂O(l)',
+      },
+      'H2O2': {
+        ionTransform: { 'H2O2': null },
+        equation: '2MnO₄⁻(aq) + 6H⁺(aq) + 5H₂O₂(aq) → 2Mn²⁺(aq) + 5O₂(g) + 8H₂O(l)',
+      },
+      'CH3COOH': {
+        ionTransform: { 'CH3COOH': null },
+        equation: '2MnO₄⁻(aq) + 5CH₃COOH(aq) + 6H⁺(aq) → 2Mn²⁺(aq) + 5CO₂(g) + 8H₂O(l)',
+      },
     },
-    producesIon: { 'Mn2+': 0.02 },
     observationKey: 'obs_purple_decolour',
-    equation: 'MnO₄⁻(aq) + 8H⁺(aq) + 5Fe²⁺(aq) → Mn²⁺(aq) + 5Fe³⁺(aq) + 4H₂O(l)',
+    equation: 'MnO₄⁻(aq) + H⁺(aq) + reductant → Mn²⁺(aq) + …',   // fallback only
   },
   {
     id: 'kmno4_neutral_decolour',
     // Permanganate decolourisation without acid (slower; becomes brown MnO₂)
+    // notIons guard: if H⁺ is present the acidic rule fires instead — do not double-fire.
     requires: {
       ions: ['MnO4-'],
       anyOf: ['Fe2+', 'I-', 'Br-', 'H2O2'],
+      notIons: ['H+'],
     },
     colorChange: { from: 'rgba(80,0,90,0.80)', to: 'rgba(80,50,20,0.40)' },
-    ionTransform: {
-      'MnO4-': null,
-      'Fe2+':  'Fe3+',
+    ionTransform: { 'MnO4-': null },
+    anyOfTransform: {
+      'Fe2+': {
+        ionTransform: { 'Fe2+': 'Fe3+' },
+        equation: '3Fe²⁺(aq) + MnO₄⁻(aq) + 2H₂O(l) → 3Fe³⁺(aq) + MnO₂(s) + 4OH⁻(aq)',
+      },
+      'I-': {
+        ionTransform: { 'I-': null },
+        producesIon:  { 'I2': 0.001 },
+        equation: '2MnO₄⁻(aq) + H₂O(l) + 3I⁻(aq) → 2MnO₂(s) + 3/2 I₂(aq) + 4OH⁻(aq)',
+      },
+      'Br-': {
+        ionTransform: { 'Br-': null },
+        producesIon:  { 'Br2': 0.001 },
+        equation: '2MnO₄⁻(aq) + H₂O(l) + 3Br⁻(aq) → 2MnO₂(s) + 3/2 Br₂(aq) + 4OH⁻(aq)',
+      },
+      'H2O2': {
+        ionTransform: { 'H2O2': null },
+        equation: '2MnO₄⁻(aq) + 3H₂O₂(aq) → 2MnO₂(s) + 3O₂(g) + 2H₂O(l)',
+      },
     },
     observationKey: 'obs_purple_to_brown',
-    equation: 'MnO₄⁻(aq) + 2H₂O + 3e⁻ → MnO₂(s) + 4OH⁻(aq)',
+    equation: 'MnO₄⁻(aq) + 2H₂O + 3e⁻ → MnO₂(s) + 4OH⁻(aq)',   // fallback only
   },
   {
     id: 'cr2o7_reduction',
@@ -464,13 +533,30 @@ export const REDOX_RULES = [
       anyOf: ['Fe2+', 'I-', 'Br-', 'H2O2'],
     },
     colorChange: { from: 'rgba(255,140,0,0.60)', to: 'rgba(0,120,0,0.40)' },
-    ionTransform: {
-      'Cr2O7²-': null,
-      'Fe2+':    'Fe3+',
+    ionTransform: { 'Cr2O7²-': null },
+    producesIon: { 'Cr3+': 0.001 },
+    anyOfTransform: {
+      'Fe2+': {
+        ionTransform: { 'Fe2+': 'Fe3+' },
+        equation: 'Cr₂O₇²⁻(aq) + 14H⁺(aq) + 6Fe²⁺(aq) → 2Cr³⁺(aq) + 6Fe³⁺(aq) + 7H₂O(l)',
+      },
+      'I-': {
+        ionTransform: { 'I-': null },
+        producesIon:  { 'I2': 0.001 },
+        equation: 'Cr₂O₇²⁻(aq) + 14H⁺(aq) + 6I⁻(aq) → 2Cr³⁺(aq) + 3I₂(aq) + 7H₂O(l)',
+      },
+      'Br-': {
+        ionTransform: { 'Br-': null },
+        producesIon:  { 'Br2': 0.001 },
+        equation: 'Cr₂O₇²⁻(aq) + 14H⁺(aq) + 6Br⁻(aq) → 2Cr³⁺(aq) + 3Br₂(aq) + 7H₂O(l)',
+      },
+      'H2O2': {
+        ionTransform: { 'H2O2': null },
+        equation: 'Cr₂O₇²⁻(aq) + 8H⁺(aq) + 3H₂O₂(aq) → 2Cr³⁺(aq) + 3O₂(g) + 7H₂O(l)',
+      },
     },
-    producesIon: { 'Cr3+': 0.02 },
     observationKey: 'obs_orange_to_green',
-    equation: 'Cr₂O₇²⁻(aq) + 14H⁺(aq) + 6Fe²⁺(aq) → 2Cr³⁺(aq) + 6Fe³⁺(aq) + 7H₂O(l)',
+    equation: 'Cr₂O₇²⁻(aq) + 14H⁺(aq) + 6Fe²⁺(aq) → 2Cr³⁺(aq) + 6Fe³⁺(aq) + 7H₂O(l)',   // fallback only
   },
   {
     id: 'fe2_oxidation_kmno4',
@@ -495,9 +581,41 @@ export const REDOX_RULES = [
       'Cr2O7²-': null,
       'I-':       null,
     },
-    producesIon: { 'I2': 0.05 },
-    observationKey: 'obs_iodine_brown',
+    producesIon: { 'I2': 0.001 },
     equation: 'Cr₂O₇²⁻(aq) + 14H⁺(aq) + 6I⁻(aq) → 2Cr³⁺(aq) + 3I₂(aq) + 7H₂O(l)',
+  },
+
+  // ── Halogen displacement (reactivity order: Cl₂ > Br₂ > I₂) ─────────────────
+  // A more reactive halogen oxidises the halide ion of a less reactive halogen,
+  // displacing it as the free element. No reaction occurs in the reverse direction.
+
+  {
+    id: 'cl2_displaces_br',
+    // Cl₂(aq) + 2Br⁻(aq) → 2Cl⁻(aq) + Br₂(aq) — solution turns orange-brown
+    requires: { ions: ['Cl2', 'Br-'] },
+    ionTransform: { 'Cl2': null, 'Br-': null },
+    producesIon: { 'Cl-': 0.002, 'Br2': 0.001 },
+    // No colorChange override needed — Br₂ in ION_COLOUR_MAP gives orange-brown automatically
+    observationKey: 'obs_cl2_displaces_br',
+    equation: 'Cl₂(aq) + 2Br⁻(aq) → 2Cl⁻(aq) + Br₂(aq)',
+  },
+  {
+    id: 'cl2_displaces_i',
+    // Cl₂(aq) + 2I⁻(aq) → 2Cl⁻(aq) + I₂(aq) — solution turns dark brown
+    requires: { ions: ['Cl2', 'I-'] },
+    ionTransform: { 'Cl2': null, 'I-': null },
+    producesIon: { 'Cl-': 0.002, 'I2': 0.001 },
+    observationKey: 'obs_halogen_displaces_i',
+    equation: 'Cl₂(aq) + 2I⁻(aq) → 2Cl⁻(aq) + I₂(aq)',
+  },
+  {
+    id: 'br2_displaces_i',
+    // Br₂(aq) + 2I⁻(aq) → 2Br⁻(aq) + I₂(aq) — solution turns dark brown
+    requires: { ions: ['Br2', 'I-'] },
+    ionTransform: { 'Br2': null, 'I-': null },
+    producesIon: { 'Br-': 0.002, 'I2': 0.001 },
+    observationKey: 'obs_halogen_displaces_i',
+    equation: 'Br₂(aq) + 2I⁻(aq) → 2Br⁻(aq) + I₂(aq)',
   },
 ];
 
@@ -529,7 +647,7 @@ export const COMPLEXATION_RULES = [
     removesPpt: 'cu_oh2',
     colorChange: { to: '#1a4fa0' },
     consumesIon: 'NH3',
-    producesIon: { 'Cu(NH3)4_2+': 0.05 },
+    producesIon: { 'Cu(NH3)4_2+': 0.001 },
     observationKey: 'obs_deep_blue_complex',
     equation: 'Cu(OH)₂(s) + 4NH₃(aq) → [Cu(NH₃)₄]²⁺(aq) + 2OH⁻(aq)',
   },
@@ -543,7 +661,7 @@ export const COMPLEXATION_RULES = [
     },
     removesPpt: 'zn_oh2',
     consumesIon: 'OH-',
-    producesIon: { 'Zn(OH)4_2-': 0.05 },
+    producesIon: { 'Zn(OH)4_2-': 0.001 },
     observationKey: 'obs_zn_ppt_dissolves',
     equation: 'Zn(OH)₂(s) + 2OH⁻(aq) → [Zn(OH)₄]²⁻(aq)',
   },
@@ -557,7 +675,7 @@ export const COMPLEXATION_RULES = [
     },
     removesPpt: 'zn_oh2',
     consumesIon: 'NH3',
-    producesIon: { 'Zn(NH3)4_2+': 0.05 },
+    producesIon: { 'Zn(NH3)4_2+': 0.001 },
     observationKey: 'obs_zn_ppt_dissolves',
     equation: 'Zn(OH)₂(s) + 4NH₃(aq) → [Zn(NH₃)₄]²⁺(aq) + 2OH⁻(aq)',
   },
@@ -571,7 +689,7 @@ export const COMPLEXATION_RULES = [
     },
     removesPpt: 'al_oh3',
     consumesIon: 'OH-',
-    producesIon: { 'Al(OH)4-': 0.05 },
+    producesIon: { 'Al(OH)4-': 0.001 },
     observationKey: 'obs_al_ppt_dissolves',
     equation: 'Al(OH)₃(s) + OH⁻(aq) → [Al(OH)₄]⁻(aq)',
   },
@@ -585,7 +703,7 @@ export const COMPLEXATION_RULES = [
     },
     removesPpt: 'pb_oh2',
     consumesIon: 'OH-',
-    producesIon: { 'Pb(OH)4_2-': 0.05 },
+    producesIon: { 'Pb(OH)4_2-': 0.001 },
     observationKey: 'obs_pb_ppt_dissolves',
     equation: 'Pb(OH)₂(s) + 2OH⁻(aq) → [Pb(OH)₄]²⁻(aq)',
   },
@@ -597,6 +715,8 @@ export const COMPLEXATION_RULES = [
     id: 'baco3_acid',
     requires: { ppt: 'baco3', ions: ['H+'] },
     removesPpt: 'baco3',
+    producesIon: { 'Ba2+': 0.001 },
+    hConsumption: 2,
     gasAdded: { id: 'CO2', pressure: 0.40 },
     observationKey: 'obs_carbonate_ppt_acid',
     equation: 'BaCO₃(s) + 2H⁺(aq) → Ba²⁺(aq) + CO₂(g) + H₂O(l)',
@@ -605,6 +725,8 @@ export const COMPLEXATION_RULES = [
     id: 'ag2co3_acid',
     requires: { ppt: 'ag2co3', ions: ['H+'] },
     removesPpt: 'ag2co3',
+    producesIon: { 'Ag+': 0.002 },
+    hConsumption: 2,
     gasAdded: { id: 'CO2', pressure: 0.40 },
     observationKey: 'obs_carbonate_ppt_acid',
     equation: 'Ag₂CO₃(s) + 2H⁺(aq) → 2Ag⁺(aq) + CO₂(g) + H₂O(l)',
@@ -613,6 +735,8 @@ export const COMPLEXATION_RULES = [
     id: 'pbco3_acid',
     requires: { ppt: 'pbco3', ions: ['H+'] },
     removesPpt: 'pbco3',
+    producesIon: { 'Pb2+': 0.001 },
+    hConsumption: 2,
     gasAdded: { id: 'CO2', pressure: 0.40 },
     observationKey: 'obs_carbonate_ppt_acid',
     equation: 'PbCO₃(s) + 2H⁺(aq) → Pb²⁺(aq) + CO₂(g) + H₂O(l)',
@@ -621,6 +745,8 @@ export const COMPLEXATION_RULES = [
     id: 'caco3_acid',
     requires: { ppt: 'caco3', ions: ['H+'] },
     removesPpt: 'caco3',
+    producesIon: { 'Ca2+': 0.001 },
+    hConsumption: 2,
     gasAdded: { id: 'CO2', pressure: 0.40 },
     observationKey: 'obs_carbonate_ppt_acid',
     equation: 'CaCO₃(s) + 2H⁺(aq) → Ca²⁺(aq) + CO₂(g) + H₂O(l)',
@@ -629,6 +755,8 @@ export const COMPLEXATION_RULES = [
     id: 'cuco3_ppt_acid',
     requires: { ppt: 'cuco3', ions: ['H+'] },
     removesPpt: 'cuco3',
+    producesIon: { 'Cu2+': 0.001 },
+    hConsumption: 2,
     gasAdded: { id: 'CO2', pressure: 0.40 },
     observationKey: 'obs_carbonate_ppt_acid',
     equation: 'CuCO₃(s) + 2H⁺(aq) → Cu²⁺(aq) + CO₂(g) + H₂O(l)',
@@ -637,6 +765,8 @@ export const COMPLEXATION_RULES = [
     id: 'feco3_acid',
     requires: { ppt: 'feco3', ions: ['H+'] },
     removesPpt: 'feco3',
+    producesIon: { 'Fe2+': 0.001 },
+    hConsumption: 2,
     gasAdded: { id: 'CO2', pressure: 0.40 },
     observationKey: 'obs_carbonate_ppt_acid',
     equation: 'FeCO₃(s) + 2H⁺(aq) → Fe²⁺(aq) + CO₂(g) + H₂O(l)',
@@ -645,6 +775,8 @@ export const COMPLEXATION_RULES = [
     id: 'znco3_ppt_acid',
     requires: { ppt: 'znco3', ions: ['H+'] },
     removesPpt: 'znco3',
+    producesIon: { 'Zn2+': 0.001 },
+    hConsumption: 2,
     gasAdded: { id: 'CO2', pressure: 0.40 },
     observationKey: 'obs_carbonate_ppt_acid',
     equation: 'ZnCO₃(s) + 2H⁺(aq) → Zn²⁺(aq) + CO₂(g) + H₂O(l)',
@@ -653,6 +785,8 @@ export const COMPLEXATION_RULES = [
     id: 'mgco3_ppt_acid',
     requires: { ppt: 'mgco3', ions: ['H+'] },
     removesPpt: 'mgco3',
+    producesIon: { 'Mg2+': 0.001 },
+    hConsumption: 2,
     gasAdded: { id: 'CO2', pressure: 0.40 },
     observationKey: 'obs_carbonate_ppt_acid',
     equation: 'MgCO₃(s) + 2H⁺(aq) → Mg²⁺(aq) + CO₂(g) + H₂O(l)',
@@ -664,7 +798,7 @@ export const COMPLEXATION_RULES = [
     id: 'agcl_nh3',
     requires: { ppt: 'agcl', ions: ['NH3'] },
     removesPpt: 'agcl',
-    producesIon: { 'Ag(NH3)2+': 0.05, 'Cl-': 0.05 },
+    producesIon: { 'Ag(NH3)2+': 0.001, 'Cl-': 0.001 },
     observationKey: 'obs_agcl_nh3',
     equation: 'AgCl(s) + 2NH₃(aq) → [Ag(NH₃)₂]⁺(aq) + Cl⁻(aq)',
   },
@@ -683,6 +817,7 @@ export const COMPLEXATION_RULES = [
 //                    ion:   the metal cation being displaced (must be present)
 //   ionChanges     — { displaced_ion: null, produced_ion: concentration }
 //   solidRemoved   — solid id consumed
+//   depositedSolid — { id, amount, color }  metal deposited as a visible solid
 //   colorChange    — optional { to } (solution colour after reaction)
 //   observationKey — key into OBSERVATIONS
 //   equation       — balanced net ionic equation string
@@ -695,8 +830,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'al_displaces_ag',
     requires: { solid: 'al_s', ion: 'Ag+' },
-    ionChanges: { 'Ag+': null, 'Al3+': 0.1 },
+    ionChanges: { 'Ag+': null, 'Al3+': 0.001 },
     solidRemoved: 'al_s',
+    depositedSolid: { id: 'dep_ag', amount: 0.001, color: '#c8c8c8' },
     colorChange: null,
     observationKey: 'obs_displacement_grey_coat',
     equation: 'Al(s) + 3Ag⁺(aq) → Al³⁺(aq) + 3Ag(s)',
@@ -704,8 +840,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'zn_displaces_ag',
     requires: { solid: 'zn_s', ion: 'Ag+' },
-    ionChanges: { 'Ag+': null, 'Zn2+': 0.1 },
+    ionChanges: { 'Ag+': null, 'Zn2+': 0.001 },
     solidRemoved: 'zn_s',
+    depositedSolid: { id: 'dep_ag', amount: 0.001, color: '#c8c8c8' },
     colorChange: null,
     observationKey: 'obs_displacement_grey_coat',
     equation: 'Zn(s) + 2Ag⁺(aq) → Zn²⁺(aq) + 2Ag(s)',
@@ -713,8 +850,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'fe_displaces_ag',
     requires: { solid: 'fe_s', ion: 'Ag+' },
-    ionChanges: { 'Ag+': null, 'Fe2+': 0.1 },
+    ionChanges: { 'Ag+': null, 'Fe2+': 0.001 },
     solidRemoved: 'fe_s',
+    depositedSolid: { id: 'dep_ag', amount: 0.001, color: '#c8c8c8' },
     colorChange: null,
     observationKey: 'obs_displacement_grey_coat',
     equation: 'Fe(s) + 2Ag⁺(aq) → Fe²⁺(aq) + 2Ag(s)',
@@ -722,8 +860,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'mg_displaces_ag',
     requires: { solid: 'mg_s', ion: 'Ag+' },
-    ionChanges: { 'Ag+': null, 'Mg2+': 0.1 },
+    ionChanges: { 'Ag+': null, 'Mg2+': 0.001 },
     solidRemoved: 'mg_s',
+    depositedSolid: { id: 'dep_ag', amount: 0.001, color: '#c8c8c8' },
     colorChange: null,
     observationKey: 'obs_displacement_grey_coat',
     equation: 'Mg(s) + 2Ag⁺(aq) → Mg²⁺(aq) + 2Ag(s)',
@@ -731,8 +870,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'cu_displaces_ag',
     requires: { solid: 'cu_s', ion: 'Ag+' },
-    ionChanges: { 'Ag+': null, 'Cu2+': 0.1 },
+    ionChanges: { 'Ag+': null, 'Cu2+': 0.001 },
     solidRemoved: 'cu_s',
+    depositedSolid: { id: 'dep_ag', amount: 0.001, color: '#c8c8c8' },
     colorChange: { to: 'rgba(30,100,220,0.45)' },
     observationKey: 'obs_displacement_grey_coat',
     equation: 'Cu(s) + 2Ag⁺(aq) → Cu²⁺(aq) + 2Ag(s)',
@@ -743,8 +883,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'zn_displaces_cu',
     requires: { solid: 'zn_s', ion: 'Cu2+' },
-    ionChanges: { 'Cu2+': null, 'Zn2+': 0.1 },
+    ionChanges: { 'Cu2+': null, 'Zn2+': 0.001 },
     solidRemoved: 'zn_s',
+    depositedSolid: { id: 'dep_cu', amount: 0.001, color: '#c87533' },
     colorChange: { to: 'rgba(200,220,255,0.10)' },
     observationKey: 'obs_displacement_pink_coat',
     equation: 'Zn(s) + Cu²⁺(aq) → Zn²⁺(aq) + Cu(s)',
@@ -752,8 +893,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'fe_displaces_cu',
     requires: { solid: 'fe_s', ion: 'Cu2+' },
-    ionChanges: { 'Cu2+': null, 'Fe2+': 0.1 },
+    ionChanges: { 'Cu2+': null, 'Fe2+': 0.001 },
     solidRemoved: 'fe_s',
+    depositedSolid: { id: 'dep_cu', amount: 0.001, color: '#c87533' },
     colorChange: { to: 'rgba(100,180,100,0.35)' },
     observationKey: 'obs_displacement_pink_coat',
     equation: 'Fe(s) + Cu²⁺(aq) → Fe²⁺(aq) + Cu(s)',
@@ -761,8 +903,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'mg_displaces_cu',
     requires: { solid: 'mg_s', ion: 'Cu2+' },
-    ionChanges: { 'Cu2+': null, 'Mg2+': 0.1 },
+    ionChanges: { 'Cu2+': null, 'Mg2+': 0.001 },
     solidRemoved: 'mg_s',
+    depositedSolid: { id: 'dep_cu', amount: 0.001, color: '#c87533' },
     colorChange: { to: 'rgba(200,220,255,0.10)' },
     observationKey: 'obs_displacement_pink_coat',
     equation: 'Mg(s) + Cu²⁺(aq) → Mg²⁺(aq) + Cu(s)',
@@ -770,8 +913,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'al_displaces_cu',
     requires: { solid: 'al_s', ion: 'Cu2+' },
-    ionChanges: { 'Cu2+': null, 'Al3+': 0.1 },
+    ionChanges: { 'Cu2+': null, 'Al3+': 0.001 },
     solidRemoved: 'al_s',
+    depositedSolid: { id: 'dep_cu', amount: 0.001, color: '#c87533' },
     colorChange: { to: 'rgba(200,220,255,0.10)' },
     observationKey: 'obs_displacement_pink_coat',
     equation: '2Al(s) + 3Cu²⁺(aq) → 2Al³⁺(aq) + 3Cu(s)',
@@ -782,8 +926,9 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'zn_displaces_fe2',
     requires: { solid: 'zn_s', ion: 'Fe2+' },
-    ionChanges: { 'Fe2+': null, 'Zn2+': 0.1 },
+    ionChanges: { 'Fe2+': null, 'Zn2+': 0.001 },
     solidRemoved: 'zn_s',
+    depositedSolid: { id: 'dep_fe', amount: 0.001, color: '#5a5a5a' },
     colorChange: { to: 'rgba(200,220,255,0.10)' },
     observationKey: 'obs_displacement_grey_coat',
     equation: 'Zn(s) + Fe²⁺(aq) → Zn²⁺(aq) + Fe(s)',
@@ -791,11 +936,56 @@ export const DISPLACEMENT_RULES = [
   {
     id: 'mg_displaces_fe2',
     requires: { solid: 'mg_s', ion: 'Fe2+' },
-    ionChanges: { 'Fe2+': null, 'Mg2+': 0.1 },
+    ionChanges: { 'Fe2+': null, 'Mg2+': 0.001 },
     solidRemoved: 'mg_s',
+    depositedSolid: { id: 'dep_fe', amount: 0.001, color: '#5a5a5a' },
     colorChange: { to: 'rgba(200,220,255,0.10)' },
     observationKey: 'obs_displacement_grey_coat',
     equation: 'Mg(s) + Fe²⁺(aq) → Mg²⁺(aq) + Fe(s)',
+  },
+
+  // ── Metal displaces Fe³⁺ (e.g. from FeCl₃ solution) ──────────────────────
+
+  {
+    id: 'zn_displaces_fe3',
+    requires: { solid: 'zn_s', ion: 'Fe3+' },
+    ionChanges: { 'Fe3+': null, 'Zn2+': 0.001 },
+    solidRemoved: 'zn_s',
+    depositedSolid: { id: 'dep_fe', amount: 0.001, color: '#5a5a5a' },
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_fe3_decolour',
+    equation: '3Zn(s) + 2Fe³⁺(aq) → 3Zn²⁺(aq) + 2Fe(s)',
+  },
+  {
+    id: 'mg_displaces_fe3',
+    requires: { solid: 'mg_s', ion: 'Fe3+' },
+    ionChanges: { 'Fe3+': null, 'Mg2+': 0.001 },
+    solidRemoved: 'mg_s',
+    depositedSolid: { id: 'dep_fe', amount: 0.001, color: '#5a5a5a' },
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_fe3_decolour',
+    equation: '3Mg(s) + 2Fe³⁺(aq) → 3Mg²⁺(aq) + 2Fe(s)',
+  },
+  {
+    id: 'al_displaces_fe3',
+    requires: { solid: 'al_s', ion: 'Fe3+' },
+    ionChanges: { 'Fe3+': null, 'Al3+': 0.001 },
+    solidRemoved: 'al_s',
+    depositedSolid: { id: 'dep_fe', amount: 0.001, color: '#5a5a5a' },
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_fe3_decolour',
+    equation: 'Al(s) + Fe³⁺(aq) → Al³⁺(aq) + Fe(s)',
+  },
+  {
+    id: 'fe_displaces_fe3',
+    // Fe(s) + 2Fe³⁺(aq) → 3Fe²⁺(aq)  — comproportionation; solid dissolves, no deposit
+    requires: { solid: 'fe_s', ion: 'Fe3+' },
+    ionChanges: { 'Fe3+': null, 'Fe2+': 0.001 },
+    solidRemoved: 'fe_s',
+    depositedSolid: null,
+    colorChange: { to: 'rgba(100,180,100,0.35)' },
+    observationKey: 'obs_displacement_fe3_comproportionation',
+    equation: 'Fe(s) + 2Fe³⁺(aq) → 3Fe²⁺(aq)',
   },
 ];
 
@@ -814,12 +1004,31 @@ export const OBSERVATIONS = {
   obs_h2_metal_acid:
     'Colourless gas evolved rapidly with vigorous effervescence.',
 
+  obs_h2_al_acid:
+    'After a brief delay while the surface oxide layer dissolved, the solid began '
+    + 'to react with the acid. Rapid effervescence followed as hydrogen gas was produced.',
+
   obs_co2_effervescence:
     'Effervescence observed immediately. Colourless gas evolved briskly.',
 
   obs_co2_solid_carbonate:
     'The solid began to dissolve and effervescence was observed. '
     + 'Colourless gas evolved briskly from the surface of the solid.',
+
+  obs_co2_brief_caso4:
+    'A brief burst of effervescence was observed before the reaction quickly stopped. '
+    + 'A white coating of insoluble calcium sulphate formed immediately on the surface '
+    + 'of the calcium carbonate, sealing it from further acid attack.',
+
+  obs_co2_brief_agcl:
+    'A brief burst of effervescence was observed before the reaction stopped. '
+    + 'A white coating of silver chloride formed immediately on the surface '
+    + 'of the pale yellow solid, blocking further acid from reaching the carbonate.',
+
+  obs_co2_brief_pbsalt:
+    'A brief burst of effervescence was observed before the reaction stopped. '
+    + 'An insoluble white lead salt coating formed immediately on the surface '
+    + 'of the solid, preventing further acid from reaching the carbonate.',
 
   obs_co2_thermal:
     'On heating, the solid began to decompose and colourless gas was evolved slowly.',
@@ -964,6 +1173,24 @@ export const OBSERVATIONS = {
   obs_iodine_brown:
     'The solution turned a yellow-brown colour.',
 
+  // ── Chromate chemistry ──────────────────────────────────────────────────
+  obs_chromate_acidification:
+    'The yellow solution turned orange. The chromate-dichromate equilibrium '
+    + 'shifted towards dichromate on acidification.',
+
+  obs_peroxochromate_blue:
+    'The solution turned a vivid, deep blue immediately. A transient peroxochromate '
+    + 'complex (CrO₅) formed on addition of hydrogen peroxide in acidic conditions. '
+    + 'In ether the blue layer is clearly separated.',
+
+  obs_peroxochromate_decompose:
+    'The deep blue colour faded and the solution turned green. The peroxochromate '
+    + 'complex decomposed to chromium(III) ions, releasing oxygen gas.',
+
+  obs_chromate_h2o2_alkali:
+    'The yellow chromate solution turned a deep blue-violet. A peroxochromate '
+    + 'complex formed in neutral/alkaline conditions on addition of hydrogen peroxide.',
+
   // ── Complexation ──────────────────────────────────
   obs_deep_blue_complex:
     'The pale blue precipitate dissolved and the solution turned a deep, intense blue.',
@@ -1017,6 +1244,27 @@ export const OBSERVATIONS = {
   obs_no_visible_reaction:
     'No visible change was observed.',
 
+  // ── Passivation / blocked reactions ────────────────
+  obs_caso4_passivation:
+    'A thin white coating formed on the surface of the solid. '
+    + 'Effervescence quickly stopped as the insoluble sulphate layer prevented '
+    + 'further acid from reaching the carbonate.',
+
+  obs_agcl_passivation:
+    'A white coating immediately formed on the surface of the pale yellow solid. '
+    + 'The insoluble silver chloride layer prevented further acid from reaching '
+    + 'the carbonate beneath, stopping the reaction almost instantly.',
+
+  obs_pbsalt_passivation:
+    'A white coating formed on the surface of the solid. '
+    + 'The insoluble lead salt layer prevented further acid from reaching '
+    + 'the carbonate beneath, quickly stopping any effervescence.',
+
+  obs_al2o3_breach:
+    'No visible reaction initially — the aluminium surface is coated with an invisible '
+    + 'oxide layer. After a brief delay the layer dissolves in the acid and rapid '
+    + 'effervescence begins.',
+
   // ── Displacement ───────────────────────────────────
   obs_displacement_grey_coat:
     'The surface of the solid became coated with a grey, metallic deposit. '
@@ -1025,4 +1273,20 @@ export const OBSERVATIONS = {
   obs_displacement_pink_coat:
     'A pink, copper-coloured deposit formed on the surface of the solid. '
     + 'The blue colour of the solution faded as the reaction proceeded.',
+
+  obs_displacement_fe3_decolour:
+    'A dark grey metallic deposit formed on the surface of the solid. '
+    + 'The orange-brown colour of the solution faded to colourless as the iron(III) ions were reduced.',
+
+  obs_displacement_fe3_comproportionation:
+    'The iron solid gradually dissolved. '
+    + 'The orange-brown colour of the solution faded to pale green as iron(III) was reduced to iron(II).',
+
+  // ── Halogen displacement ────────────────────────────
+  obs_cl2_displaces_br:
+    'The pale yellow-green colour of the solution faded. '
+    + 'An orange-brown colour developed as bromine was displaced into solution by the more reactive chlorine.',
+
+  obs_halogen_displaces_i:
+    'The solution turned dark brown as iodine was displaced into solution by the more reactive halogen.',
 };

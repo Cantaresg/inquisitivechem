@@ -13,15 +13,20 @@
  * Deliberately module-scoped constant — not exported.
  */
 const ION_COLOUR_MAP = [
-  { ion: 'MnO4-',    css: 'rgba(80,0,90,0.80)' },       // permanganate — deep purple
-  { ion: 'Cr2O7²-',  css: 'rgba(255,140,0,0.60)' },      // dichromate — orange
-  { ion: 'Cu(NH3)4_2+', css: '#1a4fa0' },                // tetraamine copper — deep blue
-  { ion: 'Cu2+',     css: 'rgba(30,100,220,0.45)' },     // copper(II) — blue
-  { ion: 'Fe3+',     css: 'rgba(200,100,20,0.50)' },     // iron(III) — yellow/orange
-  { ion: 'Cr3+',     css: 'rgba(0,120,0,0.40)' },        // chromium(III) — green
-  { ion: 'I2',       css: 'rgba(100,60,0,0.50)' },       // iodine — brown
-  { ion: 'Fe2+',     css: 'rgba(100,180,100,0.35)' },    // iron(II) — pale green
-  { ion: 'Mn2+',     css: 'rgba(200,220,255,0.10)' },    // manganese(II) — essentially colourless
+  { ion: 'MnO4-',          css: 'rgba(80,0,90,0.80)' },        // permanganate — deep purple
+  { ion: 'CrO4\u00b2-',   css: 'rgba(210,190,0,0.65)' },      // chromate — yellow
+  { ion: 'Cr2O7\u00b2-',  css: 'rgba(255,140,0,0.60)' },      // dichromate — orange
+  { ion: 'CrO5',           css: 'rgba(15,30,210,0.82)' },      // peroxochromate — vivid deep blue
+  { ion: 'Cu(NH3)4_2+',   css: '#1a4fa0' },                   // tetraamine copper — deep blue
+  { ion: 'Cu2+', alsoRequires: 'Cl-', css: 'rgba(0,160,80,0.55)' }, // CuCl₂ — green
+  { ion: 'Cu2+',           css: 'rgba(30,100,220,0.45)' },     // copper(II) — blue
+  { ion: 'Fe3+',           css: 'rgba(200,100,20,0.50)' },     // iron(III) — yellow/orange
+  { ion: 'Cr3+',           css: 'rgba(0,120,0,0.40)' },        // chromium(III) — green
+  { ion: 'Br2',            css: 'rgba(190,70,10,0.55)' },      // bromine water — orange-brown
+  { ion: 'Cl2',            css: 'rgba(160,210,30,0.40)' },     // chlorine water — yellow-green
+  { ion: 'I2',             css: 'rgba(100,60,0,0.50)' },       // iodine — brown
+  { ion: 'Fe2+',           css: 'rgba(100,180,100,0.35)' },    // iron(II) — pale green
+  { ion: 'Mn2+',           css: 'rgba(200,220,255,0.10)' },    // manganese(II) — essentially colourless
 ];
 
 /** Pressure lost per second (linear decay). 0.80 → threshold (0.05) in ~12 s. */
@@ -32,8 +37,11 @@ export const GAS_PRESSURE_THRESHOLD = 0.05;
 
 export class Solution {
   constructor() {
-    /** @type {Object.<string, number>} ion symbol → relative concentration */
+    /** @type {Object.<string, number>} ion symbol → moles present in this solution */
     this.ions = {};
+
+    /** Total volume of solution in litres (incremented by 0.001 per addition). */
+    this.volumeL = 0;
 
     /**
      * Solid reagent chunks present in the vessel.
@@ -80,7 +88,9 @@ export class Solution {
   get color() {
     if (this._colorOverride !== null) return this._colorOverride;
     for (const entry of ION_COLOUR_MAP) {
-      if ((this.ions[entry.ion] ?? 0) > 0) return entry.css;
+      if ((this.ions[entry.ion] ?? 0) <= 0) continue;
+      if (entry.alsoRequires && (this.ions[entry.alsoRequires] ?? 0) <= 0) continue;
+      return entry.css;
     }
     return 'rgba(180,220,255,0.12)';  // colourless / default water
   }
@@ -92,6 +102,17 @@ export class Solution {
    */
   set color(value) {
     this._colorOverride = value;
+  }
+
+  // ─── Concentration helper ─────────────────────────────────────────────────
+
+  /**
+   * Molar concentration of an ion.  Safe when volumeL is zero.
+   * @param {string} symbol
+   * @returns {number}  mol / L
+   */
+  concentration(symbol) {
+    return (this.ions[symbol] ?? 0) / Math.max(this.volumeL, 1e-6);
   }
 
   // ─── Ion methods ──────────────────────────────────────────────────────────
@@ -135,12 +156,14 @@ export class Solution {
    * @param {number} amount  relative amount (1.0 = full portion)
    * @param {string|null} [color]  CSS colour for the solid chip in VesselUI
    */
-  addSolid(solidId, amount, color = null) {
+  addSolid(solidId, amount, color = null, passivated = false) {
     const existing = this.solids.find(s => s.id === solidId);
     if (existing) {
       existing.amount += amount;
+      // Once depassivated, always depassivated — oxide layer can't re-form instantly
+      existing.passivated = existing.passivated && passivated;
     } else {
-      this.solids.push({ id: solidId, amount, color });
+      this.solids.push({ id: solidId, amount, color, passivated });
     }
   }
 
@@ -209,8 +232,8 @@ export class Solution {
    * BUG-03: must be called after every event application.
    */
   recalculatePH() {
-    const h  = Math.max(0, this.ions['H+']  ?? 0);
-    const oh = Math.max(0, this.ions['OH-'] ?? 0);
+    const h  = Math.max(0, this.concentration('H+'));
+    const oh = Math.max(0, this.concentration('OH-'));
 
     if (h > 1e-9) {
       this.pH = -Math.log10(h);
@@ -267,6 +290,7 @@ export class Solution {
     c.pH             = this.pH;
     c.isHot          = this.isHot;
     c.isFiltered     = this.isFiltered;
+    c.volumeL        = this.volumeL;
     return c;
   }
 }

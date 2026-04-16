@@ -87,7 +87,8 @@ function baseEvent(type, extra = {}) {
     pptRemoved:  null,
     gasAdded:    null,
     colorChange: null,
-    solidRemoved: null,
+    solidRemoved:    null,
+    solidDeposited:  null,   // { id, amount, color } — metal deposited by displacement
     ...extra,
   };
 }
@@ -112,8 +113,11 @@ export class ReactionEngine {
     // ── Step 1: build a working clone (BUG-02) ──────────────────────────────
     const sol = vessel.solution.clone();
     sol.addIons(addedReagent.ions ?? {});
+    sol.volumeL += 0.001;   // 1 cm³ per addition
     if (Array.isArray(addedReagent.solids)) {
-      for (const s of addedReagent.solids) sol.addSolid(s.id, s.amount);
+      for (const s of addedReagent.solids) {
+        sol.addSolid(s.id, s.amount, s.color ?? null, s.passivated ?? false);
+      }
     }
     // Propagate heat state from vessel (needed for gas/decomposition rules)
     sol.isHot = vessel.isHot;
@@ -123,27 +127,55 @@ export class ReactionEngine {
     // ── Step 2: full sweep — collect ALL events (BUG-01) ───────────────────
     const events = [];
 
-    // Acid-base neutralisation event (communicates ionChanges back to BenchUI)
-    events.push(...ReactionEngine._checkNeutralisation(vessel.solution, addedReagent));
-
     // Soluble solid spontaneous dissolution (no acid needed, e.g. Na₂CO₃ in water)
-    events.push(...ReactionEngine._checkSolubleSolids(sol));
+    const solubleEvents = ReactionEngine._checkSolubleSolids(sol);
+    events.push(...solubleEvents);
 
-    // Solid + acid → ions ± gas (oxide neutralisation, metal + acid)
-    events.push(...ReactionEngine._checkDissolution(sol));
+    // Solid oxide/hydroxide + acid → salt + water (no gas produced).
+    const dissolutionEvents = ReactionEngine._checkDissolution(sol);
+    events.push(...dissolutionEvents);
 
-    // Gas evolution (metal + acid, carbonate + acid, NH₄⁺ + OH⁻, etc.)
-    events.push(...ReactionEngine._checkGasRules(sol, addedReagent));
+    // Gas-producing solid reactions (metal + acid, carbonate + acid, etc.)
+    // Collect first so we can apply their ion output to the clone before precipitation.
+    const preGasEvents = ReactionEngine._checkGasRules(sol, addedReagent, []);
+    events.push(...preGasEvents);
 
-    // Ionic precipitation
+    // ─── Displacement events collected HERE — before gas ionChanges are applied — so
+    //     water-reactive metals (Ca) are still present in the clone when the check runs.
+    //     Ca water reaction (ca_water gas rule) removes ca_s AND produces OH⁻; if we
+    //     applied that before checking displacement, Ca would never displace anything.
+    //     Displacement ionChanges (nulling the displaced cation) are applied AFTER
+    //     precipitation so the OH⁻ from the water reaction can still precipitate metal
+    //     hydroxides in the same sweep — giving the full three-tier cascade:
+    //       Ca → displaces Fe(s)  AND  Ca + H₂O → OH⁻ → Fe(OH)₂ ppt.
+    const displacementEvents = ReactionEngine._checkDisplacement(sol);
+    events.push(...displacementEvents);
+
+    // ─── Apply dissolution + gas ionChanges to the clone so that precipitation
+    //     sees the cations released by solid reactions in this same sweep. ────
+    // This is read-only application on the clone (not the live vessel) — BUG-02 is safe
+    // because we never touch vessel.solution here.
+    ReactionEngine._applyIonChangesToClone(sol, [...solubleEvents, ...dissolutionEvents, ...preGasEvents]);
+
+    // Ionic precipitation — now sees released cations (e.g. Cu²⁺ from CuCO₃ + H₂SO₄)
+    // AND OH⁻ produced by water-reactive metals (e.g. Ca + H₂O → Ca²⁺ + 2OH⁻).
+    // BUG-01: never stops on first match.
     const precipEvents = ReactionEngine._checkPrecipitation(sol);
     events.push(...precipEvents);
 
+    // Apply ppt ionChanges AND displacement ionChanges together.
+    // Displacement applied here (not before precipitation) so OH⁻ from Ca water reaction
+    // can precipitate the same cation that Ca also directly displaces in the same sweep.
+    // applyPpts:false preserves the two-stage complexation behaviour.
+    ReactionEngine._applyIonChangesToClone(sol, [...precipEvents, ...displacementEvents], { applyPpts: false });
+    // Acid-base neutralisation — runs AFTER solid reactions so H⁺ consumed by
+    // dissolving solids is accounted for before OH⁻ is spent on neutralisation.
+    const solidEvents = events.filter(ev =>
+      ev.type === 'gas' || ev.type === 'dissolution');
+    events.push(...ReactionEngine._checkNeutralisation(vessel.solution, addedReagent, solidEvents));
+
     // Redox colour changes / ion transforms
     events.push(...ReactionEngine._checkRedox(sol));
-
-    // Displacement reactions (metal solid + metal cation → deposited metal + new cation)
-    events.push(...ReactionEngine._checkDisplacement(sol));
 
     // Complexation — dissolves ppts; checks both existing ppts AND precipEvents (BUG-05)
     events.push(...ReactionEngine._checkComplexation(sol, precipEvents));
@@ -157,15 +189,61 @@ export class ReactionEngine {
   // ─── Private sweep methods ─────────────────────────────────────────────────
 
   /**
+   * Lightweight "apply" pass on the working clone only.
+   * Propagates ionChanges and solidRemoved from dissolution/gas events so that
+   * subsequent sweeps (precipitation, complexation) see the post-reaction ion state.
+   * Does NOT touch the live vessel (BUG-02 safe).
+   *
+   * @param {import('./Solution.js').Solution} sol
+   * @param {ReactionEvent[]} events
+   * @param {{ applyPpts?: boolean }} [opts]  set applyPpts:false to skip pptAdded (used after
+   *   precipitation so complexation two-stage logic still sees ppts as "just formed").
+   * @private
+   */
+  static _applyIonChangesToClone(sol, events, { applyPpts = true } = {}) {
+    for (const ev of events) {
+      for (const [sym, val] of Object.entries(ev.ionChanges ?? {})) {
+        if (val === null) {
+          delete sol.ions[sym];
+        } else {
+          sol.ions[sym] = val;
+        }
+      }
+      if (ev.solidRemoved) {
+        sol.solids = sol.solids.filter(s => s.id !== ev.solidRemoved);
+      }
+      if (applyPpts && ev.pptAdded) {
+        if (!sol.ppts.some(p => p.id === ev.pptAdded.id)) {
+          sol.ppts.push({ ...ev.pptAdded });
+        }
+      }
+    }
+  }
+  /**
    * Neutralisation: H⁺ + OH⁻ → H₂O
    * Computes ion delta from the ORIGINAL solution + added reagent (without mutating).
    * Returns at most one event. Empty observation so BenchUI skips log entry.
    */
-  static _checkNeutralisation(originalSol, addedReagent) {
-    // Compute what the merged H⁺ and OH⁻ would be
+  static _checkNeutralisation(originalSol, addedReagent, solidEvents = []) {
+    // Compute what the merged H⁺ and OH⁻ would be, AFTER subtracting H⁺ consumed
+    // by solid/gas/dissolution reactions in this same sweep.
+    // This prevents excess-acid from "stealing" the OH⁻ that should precipitate cations.
     const addedIons  = addedReagent.ions ?? {};
-    const h  = (originalSol.ions['H+']  ?? 0) + (addedIons['H+']  ?? 0);
+    let h  = (originalSol.ions['H+']  ?? 0) + (addedIons['H+']  ?? 0);
     const oh = (originalSol.ions['OH-'] ?? 0) + (addedIons['OH-'] ?? 0);
+
+    // Subtract H⁺ consumed by solid reactions (gas + dissolution events)
+    for (const ev of solidEvents) {
+      if (ev.ionChanges?.['H+'] === null) {
+        // H⁺ fully consumed by solid reaction
+        h = 0;
+        break;
+      } else if (typeof ev.ionChanges?.['H+'] === 'number') {
+        // H⁺ partially consumed: ionChanges['H+'] is the REMAINING amount
+        h = ev.ionChanges['H+'];
+        break;
+      }
+    }
 
     if (h <= 0 || oh <= 0) return [];  // nothing to cancel
 
@@ -198,11 +276,17 @@ export class ReactionEngine {
     const events = [];
     for (const [solidId, spec] of Object.entries(SOLUBLE_SOLIDS)) {
       if (!sol.solids.some(s => s.id === solidId)) continue;
+      const solid = sol.solids.find(s => s.id === solidId);
+      const ionChanges = {};
+      for (const [sym, stoich] of Object.entries(spec.ions)) {
+        // Absolute: pre-existing ion amount + newly dissolved
+        ionChanges[sym] = (sol.ions[sym] ?? 0) + (solid?.amount ?? 0.001) * stoich;
+      }
       events.push(baseEvent('dissolution', {
         animId:      'anim_solid_dissolve',
         observation: OBSERVATIONS[spec.observationKey] ?? '',
         equation:    spec.equation,
-        ionChanges:  { ...spec.ions },
+        ionChanges,
         solidRemoved: solidId,
       }));
     }
@@ -222,11 +306,13 @@ export class ReactionEngine {
         if (!sol.solids.some(s => s.id === 'cao_s')) continue;
         // CaO reacts with water (or any aqueous solution) even without acid
         const product = SOLID_ION_PRODUCTS['cao_s'];
+        const caoSolid = sol.solids.find(s => s.id === 'cao_s');
+        const caoMol = caoSolid?.amount ?? 0.001;
         events.push(baseEvent('dissolution', {
           animId:      'anim_solid_dissolve',
           observation: OBSERVATIONS[rule.observationMap['cao_s']] ?? '',
           equation:    rule.equation,
-          ionChanges:  { [product.ion]: 0.02, 'OH-': 0.04 },
+          ionChanges:  { [product.ion]: (sol.ions['Ca2+'] ?? 0) + caoMol, 'OH-': (sol.ions['OH-'] ?? 0) + 2 * caoMol },
           solidRemoved: 'cao_s',
         }));
         continue;
@@ -244,11 +330,20 @@ export class ReactionEngine {
       if (!product) continue;
 
       const colorChange = rule.colorChangeMap?.[solidId] ?? null;
+      // Absolute: pre-existing ion amount + newly produced
+      const ionChanges = { [product.ion]: (sol.ions[product.ion] ?? 0) + matchedSolid.amount * product.stoich };
+      // Consume H⁺ stoichiometrically
+      if (typeof product.hConsumption === 'number') {
+        const hPresent = sol.ions['H+'] ?? 0;
+        const hConsumed = matchedSolid.amount * product.hConsumption;
+        const hRemaining = hPresent - hConsumed;
+        ionChanges['H+'] = hRemaining <= 1e-9 ? null : hRemaining;
+      }
       events.push(baseEvent('dissolution', {
         animId:      'anim_solid_dissolve',
         observation: OBSERVATIONS[rule.observationMap?.[solidId]] ?? '',
         equation:    product.equation,
-        ionChanges:  { [product.ion]: product.stoich * 0.1 },
+        ionChanges,
         colorChange: colorChange ? { from: null, to: colorChange.to } : null,
         solidRemoved: solidId,
       }));
@@ -265,7 +360,7 @@ export class ReactionEngine {
    * @param {import('./Solution.js').Solution} sol  working clone
    * @param {Object} addedReagent  original reagent (for dissolvedGas check)
    */
-  static _checkGasRules(sol, addedReagent) {
+  static _checkGasRules(sol, addedReagent, precipEvents = []) {
     const events = [];
 
     for (const rule of GAS_RULES) {
@@ -281,40 +376,102 @@ export class ReactionEngine {
         if (!req.ions.every(ion => (sol.ions[ion] ?? 0) > 0)) continue;
       }
 
-      // At least one listed solid must be present
+      // Match solid OR ppt.
+      // anySolid entries whose id ends in '_s' also match ppts whose id = solidId.slice(0,-2).
+      // This lets Ag₂CO₃ and PbCO₃ ppts react with acid without needing to be solid reagents.
       let matchedSolid = null;
+      let matchedPpt   = null;
       if (req.anySolid?.length) {
         matchedSolid = sol.solids.find(s => req.anySolid.includes(s.id));
-        if (!matchedSolid) continue;
+        if (!matchedSolid) {
+          // Check if a ppt matches any listed solid (pptId === solidId without '_s' suffix).
+          // Skip ppts that have a dedicated complexation + acid rule — let complexation handle
+          // them exclusively to avoid double-firing CO₂ and double-producing the cation.
+          matchedPpt = sol.ppts.find(p =>
+            req.anySolid.some(sid => sid.endsWith('_s') && sid.slice(0, -2) === p.id) &&
+            !COMPLEXATION_RULES.some(cr => cr.requires?.ppt === p.id && cr.requires?.ions?.includes('H+')));
+        }
+        if (!matchedSolid && !matchedPpt) continue;
       }
 
       // Heat gate (TRAP-06)
       if (req.isHot && !sol.isHot) continue;
 
-      // Build optional ionChanges + solidRemoved for solid-consuming reactions
-      const ionChanges  = {};
-      let   solidRemoved = null;
+      // The solid id used for product lookups and block checks
+      const solidId = matchedSolid?.id ?? (matchedPpt ? matchedPpt.id + '_s' : null);
 
-      if (matchedSolid) {
-        solidRemoved = matchedSolid.id;
-        const product = SOLID_ION_PRODUCTS[solidRemoved];
-        if (product) {
-          ionChanges[product.ion] = product.stoich * 0.1;
+      // blockedByAnions: if a blocking anion is present in solution when the carbonate
+      // solid/ppt would dissolve, the released cation immediately coats the surface.
+      // First contact (coating ppt not yet in sol.ppts): brief gas burst + pptAdded.
+      // Subsequent contacts (coating already in sol.ppts): fully blocked.
+      if (rule.blockedByAnions && solidId) {
+        const blockAnions = rule.blockedByAnions[solidId] ?? [];
+        const matchedAnion = blockAnions.find(anion => (sol.ions[anion] ?? 0) > 0);
+        if (matchedAnion) {
+          // Use a marker ion to track coat state (avoids adding a visible ppt to the vessel)
+          const coatIon = rule.coatMarkerIons?.[solidId];
+          const coatAlreadyPresent = coatIon ? (sol.ions[coatIon] ?? 0) > 0 : false;
+
+          if (!coatAlreadyPresent) {
+            // First contact: brief effervescence, then coat seals surface
+            const obsKey = rule.blockedFirstContactObs?.[solidId] ?? 'obs_co2_solid_carbonate';
+            events.push(baseEvent('gas', {
+              animId:       'anim_bubbles',
+              observation:  OBSERVATIONS[obsKey] ?? '',
+              equation:     SOLID_ION_PRODUCTS[solidId]?.equation ?? rule.equation,
+              ionChanges:   coatIon ? { [coatIon]: 1 } : {},  // marker only, no cation released
+              gasAdded:     { id: rule.gas, pressure: 0.20 },  // brief, low pressure
+              solidRemoved: null,   // solid stays — it is now coated
+            }));
+          } else {
+            // Subsequent contacts: coat present, no reaction
+            const obsKey = rule.blockedObservationMap?.[solidId] ?? 'obs_caso4_passivation';
+            events.push(baseEvent('passivation', {
+              observation: OBSERVATIONS[obsKey] ?? '',
+              equation:    '',
+              ionChanges:  {},
+            }));
+          }
+          continue;
         }
       }
 
+      // Pick observation and animId: per-solid overrides take priority
+      const obsKey   = (solidId && rule.observationMap?.[solidId])  ?? rule.observationKey;
+      const animId   = (solidId && rule.animIdMap?.[solidId])       ?? 'anim_bubbles';
+
+      // Build ionChanges for solid-consuming reactions
+      const ionChanges  = {};
+      let   solidRemoved = null;
+      let   pptRemoved   = null;
+
+      if (solidId) {
+        const product = SOLID_ION_PRODUCTS[solidId];
+        if (product) {
+          const amount = matchedSolid?.amount ?? 0.001; // ppts use a fixed portion
+          // Absolute: pre-existing ion amount + newly produced (keeps SET semantics correct)
+          ionChanges[product.ion] = (sol.ions[product.ion] ?? 0) + amount * product.stoich;
+          if (typeof product.hConsumption === 'number') {
+            const hPresent   = sol.ions['H+'] ?? 0;
+            const hConsumed  = amount * product.hConsumption;
+            const hRemaining = hPresent - hConsumed;
+            ionChanges['H+'] = hRemaining <= 1e-9 ? null : hRemaining;
+          }
+        }
+        if (matchedSolid) solidRemoved = solidId;
+        if (matchedPpt)   pptRemoved   = matchedPpt.id;
+      }
+
       events.push(baseEvent('gas', {
-        animId:      'anim_bubbles',
-        observation: OBSERVATIONS[rule.observationKey] ?? '',
-        // Use the solid's specific balanced equation when available (e.g. Mg + 2H⁺ → Mg²⁺ + H₂)
-        // rather than the generic template on the gas rule.
-        // Exception: rules with overrideEquation:true always use rule.equation.
-        equation:    (!rule.overrideEquation && solidRemoved && SOLID_ION_PRODUCTS[solidRemoved]?.equation)
-                       ? SOLID_ION_PRODUCTS[solidRemoved].equation
+        animId,
+        observation: OBSERVATIONS[obsKey] ?? '',
+        equation:    (!rule.overrideEquation && solidId && SOLID_ION_PRODUCTS[solidId]?.equation)
+                       ? SOLID_ION_PRODUCTS[solidId].equation
                        : rule.equation,
         ionChanges,
         gasAdded:    { id: rule.gas, pressure: rule.pressure },
         solidRemoved,
+        pptRemoved,
       }));
     }
     return events;
@@ -343,6 +500,10 @@ export class ReactionEngine {
           animId:      'anim_precipitate',
           observation: OBSERVATIONS[PPT_OBS_MAP[pptDesc.id]] ?? '',
           equation:    pptDesc.equation ?? '',
+          // Remove the precipitating cation from solution so the colour updates
+          // and subsequent sweeps/additions see the correct ionic state.
+          // The anion is left in solution (typically in excess — e.g. excess NaOH).
+          ionChanges:  { [cation]: null },
           pptAdded:    {
             id:      pptDesc.id,
             color:   pptDesc.color,
@@ -372,13 +533,30 @@ export class ReactionEngine {
       }
 
       // At least one of anyOf ions must be present
+      // Track which one matched first — used for anyOfTransform resolution below.
+      let matchedAnyOf = null;
       if (req.anyOf?.length) {
-        if (!req.anyOf.some(ion => (sol.ions[ion] ?? 0) > 0)) continue;
+        matchedAnyOf = req.anyOf.find(ion => (sol.ions[ion] ?? 0) > 0) ?? null;
+        if (matchedAnyOf === null) continue;
       }
 
-      // Build ionChanges from ionTransform map
+      // notIons: ALL listed ions must be absent (used for pH-conditional rules)
+      if (req.notIons?.length) {
+        if (req.notIons.some(ion => (sol.ions[ion] ?? 0) > 0)) continue;
+      }
+
+      // Resolve per-reductant overrides (anyOfTransform).
+      // Merged on top of the base ionTransform / producesIon / equation.
+      const extra = (rule.anyOfTransform && matchedAnyOf)
+        ? (rule.anyOfTransform[matchedAnyOf] ?? {})
+        : {};
+      const mergedTransform  = { ...(rule.ionTransform  ?? {}), ...(extra.ionTransform  ?? {}) };
+      const mergedProducesIon = { ...(rule.producesIon ?? {}), ...(extra.producesIon ?? {}) };
+      const equation = extra.equation ?? rule.equation;
+
+      // Build ionChanges from merged ionTransform map
       const ionChanges = {};
-      for (const [sym, target] of Object.entries(rule.ionTransform ?? {})) {
+      for (const [sym, target] of Object.entries(mergedTransform)) {
         if ((sol.ions[sym] ?? 0) > 0) {
           ionChanges[sym] = null;  // consumed
           if (typeof target === 'string') {
@@ -387,14 +565,14 @@ export class ReactionEngine {
         }
       }
       // Ions produced by the redox reaction (e.g. Mn²⁺ from MnO₄⁻ reduction)
-      for (const [sym, val] of Object.entries(rule.producesIon ?? {})) {
+      for (const [sym, val] of Object.entries(mergedProducesIon)) {
         ionChanges[sym] = (ionChanges[sym] ?? 0) + val;
       }
 
       events.push(baseEvent('redox', {
         animId:      'anim_color_fade',
         observation: OBSERVATIONS[rule.observationKey] ?? '',
-        equation:    rule.equation,
+        equation,
         ionChanges,
         colorChange: rule.colorChange ?? null,
       }));
@@ -430,7 +608,18 @@ export class ReactionEngine {
         if (!req.ions.every(ion => (sol.ions[ion] ?? 0) > 0)) continue;
       }
 
-      const ionChanges = { ...(rule.producesIon ?? {}) };
+      // Build ionChanges: absolute values (pre-existing + delta) so SET semantics stay correct.
+      // Also consume H⁺ stoichiometrically when carbonate ppts dissolve in acid (hConsumption).
+      const ionChanges = {};
+      for (const [sym, val] of Object.entries(rule.producesIon ?? {})) {
+        ionChanges[sym] = (sol.ions[sym] ?? 0) + val;
+      }
+      if (rule.hConsumption) {
+        const hPresent   = sol.ions['H+'] ?? 0;
+        const hConsumed  = 0.001 * rule.hConsumption;  // token mol per ppt portion
+        const hRemaining = hPresent - hConsumed;
+        ionChanges['H+'] = hRemaining <= 1e-9 ? null : hRemaining;
+      }
 
       events.push(baseEvent('complexation', {
         animId:      'anim_color_fade',
@@ -461,13 +650,24 @@ export class ReactionEngine {
       // Displaced cation must be present
       if ((sol.ions[req.ion] ?? 0) <= 0) continue;
 
+      // Al₂O₃ passivation: Al does not displace metals from solution under normal conditions.
+      // The oxide layer must be removed by a strongly acidic or alkaline medium first.
+      // At school level: Al only displaces when the solution is acidic (H⁺ present) or hot.
+      if (req.solid === 'al_s') {
+        const hConc = sol.volumeL > 0
+          ? (sol.ions['H+'] ?? 0) / sol.volumeL
+          : (sol.ions['H+'] ?? 0) / 1e-6;
+        if (hConc < 0.3 && !sol.isHot) continue;
+      }
+
       events.push(baseEvent('displacement', {
-        animId:      'anim_solid_dissolve',
-        observation: OBSERVATIONS[rule.observationKey] ?? '',
-        equation:    rule.equation,
-        ionChanges:  { ...rule.ionChanges },
-        solidRemoved: rule.solidRemoved,
-        colorChange:  rule.colorChange ? { from: null, to: rule.colorChange.to } : null,
+        animId:         'anim_solid_dissolve',
+        observation:    OBSERVATIONS[rule.observationKey] ?? '',
+        equation:       rule.equation,
+        ionChanges:     { ...rule.ionChanges },
+        solidRemoved:   rule.solidRemoved,
+        solidDeposited: rule.depositedSolid ?? null,
+        colorChange:    rule.colorChange ? { from: null, to: rule.colorChange.to } : null,
       }));
     }
     return events;

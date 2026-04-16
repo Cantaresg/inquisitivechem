@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/chem-lab.css">
   <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/debug-log.css">
 </head>
 <body>
 
@@ -19,6 +20,9 @@
       <li><a href="../website/index.html#simulations">Simulations</a></li>
       <li><a href="../website/index.html#teachers">For Teachers</a></li>
       <li><a class="nav-cta" href="../website/index.html#feedback">FEEDBACK</a></li>
+      <li><button id="debug-log-nav-btn" type="button" hidden
+                  aria-expanded="false" aria-controls="debug-log-panel"
+                  title="Toggle reaction debug log">🔬 Debug Log</button></li>
     </ul>
   </nav>
 
@@ -85,6 +89,19 @@
 
   </div><!-- /#chem-lab-app -->
 
+  <!-- ── Debug reaction log panel ─────────────────────────────────────────── -->
+  <aside id="debug-log-panel" aria-label="Reaction debug log" hidden>
+    <div id="debug-log-header">
+      <span id="debug-log-title">🔬 Reaction Debug Log</span>
+      <div id="debug-log-actions">
+        <button id="debug-log-export" type="button">Export .txt</button>
+        <button id="debug-log-clear"  type="button">Clear</button>
+        <button id="debug-log-close"  type="button" aria-label="Close debug panel">✕</button>
+      </div>
+    </div>
+    <div id="debug-log-list"></div>
+  </aside>
+
   <!-- ── Toast container ───────────────────────────────────────────────────── -->
   <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
@@ -93,6 +110,7 @@
 
   <!-- ── Entry point ───────────────────────────────────────────────────────── -->
   <script type="module" src="ui/main.js"></script>
+  <script type="module" src="ui/debug-main.js"></script>
 
 </body>
 </html>

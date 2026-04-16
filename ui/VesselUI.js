@@ -204,14 +204,42 @@ export class VesselUI {
       const heightPx = Math.min(sol.ppts.length * 22 + 14, 70);
       layer.style.height = `${heightPx}px`;
 
-      // Fill the layer with the ppt colour(s) — looks like settled sediment
       const colors = sol.ppts.map(p => p.color ?? 'rgba(200,200,200,0.85)');
-      if (colors.length === 1) {
+      const isGoldenRain = sol.ppts.some(p => p.id === 'pbi2');
+
+      if (isGoldenRain && colors.length === 1) {
+        // Layered radial gradients simulate light catching different facets of the
+        // crystal sediment — gives a glittery, faceted look rather than flat colour.
+        layer.style.background = [
+          'radial-gradient(ellipse at 18% 28%, rgba(255,255,180,0.60) 0%, transparent 40%)',
+          'radial-gradient(ellipse at 78% 52%, rgba(255,228,40,0.42)  0%, transparent 35%)',
+          'radial-gradient(ellipse at 50% 82%, rgba(190,130,0,0.32)   0%, transparent 42%)',
+          'radial-gradient(ellipse at 40% 15%, rgba(255,255,220,0.35) 0%, transparent 30%)',
+          colors[0],
+        ].join(', ');
+      } else if (colors.length === 1) {
         layer.style.background = colors[0];
       } else {
-        const step  = 100 / colors.length;
-        const stops = colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`);
-        layer.style.background = `linear-gradient(to right, ${stops.join(', ')})`;
+        // Mixed precipitates: scatter overlapping blobs of each colour so the
+        // sediment looks mottled/speckled rather than striped into distinct bands.
+        // Positions are deterministic (based on ppt ids) so renders are stable.
+        const seed = sol.ppts.reduce((a, p, i) => a + p.id.charCodeAt(0) * (i + 3), 0);
+        const blobs = [];
+        const blobsPerColor = Math.max(6, Math.round(14 / colors.length));
+        colors.forEach((color, ci) => {
+          for (let i = 0; i < blobsPerColor; i++) {
+            const n  = (seed + ci * 97 + i * 53) & 0xffff;
+            const x  = 3  + ((n * 71)       % 94);   // 3..97 %
+            const y  = 5  + (((n * 53) >> 3) % 90);  // 5..95 %
+            const rx = 14 + ((n * 29)        % 30);  // x-radius 14..44 %
+            const ry = 9  + ((n * 17)        % 18);  // y-radius 9..27 %  (flatter blobs)
+            blobs.push(
+              `radial-gradient(ellipse ${rx}% ${ry}% at ${x}% ${y}%, ${color} 0%, transparent 78%)`
+            );
+          }
+        });
+        // Solid base of the first ppt colour underneath all blobs
+        layer.style.background = [...blobs, colors[0]].join(', ');
       }
 
       // Grain overlay div giving a powdery/granular texture (CSS class handles it)
@@ -272,8 +300,11 @@ export class VesselUI {
     svg.appendChild(defs);
 
     // ── Shoulder hatching ─────────────────────────────────────────────────
-    // Four diagonal lines each side, going from upper to lower-outer,
-    // clipped so they never bleed outside the flask silhouette.
+    // Four diagonal lines each side confined to the shoulder zone (y ≤ ~90)
+    // where the neck transitions to the body. Extending them further causes
+    // them to bleed visibly through the liquid layer (sketch overlay z-index
+    // sits above the liquid; clipping only prevents lines from leaving the
+    // flask silhouette, not from showing through the liquid fill).
     const hatch = document.createElementNS(NS, 'g');
     hatch.setAttribute('clip-path',    `url(#${CLIP_ID})`);
     hatch.setAttribute('stroke',       GREY);
@@ -281,10 +312,10 @@ export class VesselUI {
     hatch.setAttribute('opacity',      '0.55');
     const lines = [
       // left shoulder              right shoulder
-      [36, 56,  6, 82],            [84, 56, 114, 82],
-      [38, 70,  8, 104],           [82, 70, 112, 104],
-      [40, 88, 10, 130],           [80, 88, 110, 130],
-      [42, 110, 14, 156],          [78, 110, 106, 156],
+      [45, 52, 20, 68],            [75, 52, 100, 68],
+      [44, 60, 13, 78],            [76, 60, 107, 78],
+      [43, 68,  8, 88],            [77, 68, 112, 88],
+      [42, 76,  6, 96],            [78, 76, 114, 96],
     ];
     for (const [x1, y1, x2, y2] of lines) {
       const l = document.createElementNS(NS, 'line');

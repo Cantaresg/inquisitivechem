@@ -71,6 +71,17 @@ export class BenchUI {
     this._toolBtns = null;
 
     this._bindBenchEvents();
+
+    /** @type {import('./DebugLogger.js').DebugLogger|null} */
+    this._debugLogger = null;
+  }
+
+  /**
+   * Attach a DebugLogger instance. Called from debug-main.js after init.
+   * @param {import('./DebugLogger.js').DebugLogger} logger
+   */
+  setDebugLogger(logger) {
+    this._debugLogger = logger;
   }
 
   // ─── Public API ───────────────────────────────────────────────────────────
@@ -109,7 +120,18 @@ export class BenchUI {
     // 'solid_dish' accepts reagent drops (unlike 'evaporating_dish' which rejects them).
     const vesselType = reagent.category === 'solid' ? 'solid_dish' : 'conical_flask';
     const vessel = new Vessel(SYMBOL_MAP[reagent.id] ?? reagent.label ?? reagent.id, vesselType);
-    this._populateSolution(vessel.solution, reagent);
+
+    // Scale the initial reagent exactly like handleDrop does for subsequent additions.
+    // Without this, a vessel created from H₂SO₄ (ions:{H+:2}) would add H⁺=2 instead of 0.002.
+    const molFactor = (reagent.concentration ?? 1) * 0.001;
+    const scaledFirst = {
+      ...reagent,
+      ions:   Object.fromEntries(
+                Object.entries(reagent.ions ?? {}).map(([k, v]) => [k, v * molFactor])
+              ),
+      solids: reagent.solids?.map(s => ({ ...s, amount: 0.001 })) ?? [],
+    };
+    this._populateSolution(vessel.solution, scaledFirst);
 
     const vesselUI = new VesselUI(vessel, this._dm);
     vesselUI.render();
@@ -151,6 +173,10 @@ export class BenchUI {
       return;
     }
 
+    // Snapshot before mutation — used by DebugLogger to show diffs
+    const ionsBefore = { ...slot.vessel.solution.ions };
+    const pptsBefore = slot.vessel.solution.ppts.map(p => p.id ?? p);
+
     // Name becomes "Mixture N" when a second reagent is combined (BUG-13)
     const isFirstAddition = Object.keys(slot.vessel.solution.ions).length === 0
       && slot.vessel.solution.solids.length === 0;
@@ -160,10 +186,19 @@ export class BenchUI {
     }
 
     // Step 1: run the engine on a clone (BUG-02) to get events
-    const events = ReactionEngine.process(slot.vessel, reagent);
+    // Scale reagent ions: stoich coefficient × concentration × 0.001 L = moles added
+    const molFactor = (reagent.concentration ?? 1) * 0.001;
+    const scaledReagent = {
+      ...reagent,
+      ions: Object.fromEntries(
+        Object.entries(reagent.ions ?? {}).map(([k, v]) => [k, v * molFactor])
+      ),
+      solids: reagent.solids?.map(s => ({ ...s, amount: 0.001 })) ?? [],
+    };
+    const events = ReactionEngine.process(slot.vessel, scaledReagent);
 
     // Step 2: apply the reagent to the LIVE solution (the "pour" step)
-    this._populateSolution(slot.vessel.solution, reagent);
+    this._populateSolution(slot.vessel.solution, scaledReagent);
 
     // Step 3: apply all event side-effects to the live solution
     this._applyEvents(slot.vessel.solution, events);
@@ -200,6 +235,19 @@ export class BenchUI {
     if (!anyObservation) {
       this._showToast('No visible reaction.', 'info');
     }
+
+    // Debug logger hook (only active when DebugLogger is attached)
+    if (this._debugLogger) {
+      this._debugLogger.log({
+        vesselName:   slot.vessel.name,
+        reagentLabel: reagent.label ?? reagent.id,
+        ionsBefore:   Object.keys(ionsBefore),
+        ionsAfter:    Object.keys(slot.vessel.solution.ions),
+        pptsBefore,
+        pptsAfter:    slot.vessel.solution.ppts.map(p => p.id ?? p),
+        events,
+      });
+    }
   }
 
   /**
@@ -227,6 +275,7 @@ export class BenchUI {
     filtrateSol.ions        = { ...sourceSol.ions };
     filtrateSol.gases       = sourceSol.gases.map(g => ({ ...g }));
     filtrateSol.pH          = sourceSol.pH;
+    filtrateSol.volumeL     = sourceSol.volumeL;
     filtrateSol._colorOverride = sourceSol._colorOverride;
 
     // Residue: clear ions/gases from source vessel, keep ppts + solids
@@ -251,10 +300,11 @@ export class BenchUI {
    * @private
    */
   _populateSolution(sol, reagent) {
-    sol.addIons(reagent.ions ?? {});
+    sol.volumeL = (sol.volumeL ?? 0) + 0.001;      // +1 cm³ per addition
+    sol.addIons(reagent.ions ?? {});               // ions already in moles
     if (Array.isArray(reagent.solids)) {
       // Pass the reagent display colour so VesselUI can draw solid chips (Bug-2).
-      for (const s of reagent.solids) sol.addSolid(s.id, s.amount, reagent.color ?? null);
+      for (const s of reagent.solids) sol.addSolid(s.id, s.amount, reagent.color ?? null, s.passivated ?? false);
     }
     if (reagent.dissolvedGas) {
       sol.addGas(reagent.dissolvedGas, 0.75);
@@ -283,6 +333,11 @@ export class BenchUI {
         sol.removeSolid(ev.solidRemoved);
       }
 
+      // Solid deposited (displacement reaction — less-reactive metal appears as solid)
+      if (ev.solidDeposited) {
+        sol.addSolid(ev.solidDeposited.id, ev.solidDeposited.amount, ev.solidDeposited.color);
+      }
+
       // Precipitate added
       if (ev.pptAdded) {
         sol.addPpt(ev.pptAdded);
@@ -301,6 +356,12 @@ export class BenchUI {
       // Explicit colour override (redox, complexation, easter egg)
       if (ev.colorChange?.to) {
         sol.color = ev.colorChange.to;
+      }
+
+      // Al₂O₃ passivation state change — clears or sets passivated flag on solid
+      if (ev.solidPassivation) {
+        const solid = sol.solids.find(s => s.id === ev.solidPassivation.id);
+        if (solid) solid.passivated = ev.solidPassivation.passivated;
       }
     }
 
@@ -399,11 +460,45 @@ export class BenchUI {
         });
       }
     } else if (sol._goldenRainReady) {
-      sol.addPpt({ id: 'pbi2', color: '#f5d800', formula: 'PbI₂', label: 'golden yellow' });
       sol.color = null;
       sol._goldenRainReady = false;
-      slot.vesselUI.render();
-      this._animManager.play('anim_golden_rain', slot.vesselUI.cardEl);
+      slot.vesselUI.render();  // render clear solution; ppt builds up gradually below
+
+      // Timing constants mirror _animGoldenRain (FALL_DUR=10000, STAGGER=4500, TOTAL=15000)
+      // Crystals begin fading at ~8 000 ms; sediment starts building at the same moment
+      // and grows slowly over 7 s, so it fully fills just as the last crystals vanish.
+      const SETTLE_START = 8000;
+      const SETTLE_DUR   = 7000;
+
+      setTimeout(() => {
+        sol.addPpt({ id: 'pbi2', color: '#f5d800', formula: 'PbI₂', label: 'golden yellow' });
+        slot.vesselUI.render();
+        const pptLayer = slot.vesselUI.cardEl.querySelector('.vessel-ppt');
+        if (pptLayer) {
+          // Grow from the bottom like settling sediment accumulating
+          pptLayer.style.transformOrigin = 'bottom';
+          pptLayer.style.transform       = 'scaleY(0)';
+          pptLayer.style.opacity         = '0';
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            pptLayer.style.transition =
+              `transform ${SETTLE_DUR}ms cubic-bezier(0.1, 0, 0.35, 1),` +
+              `opacity   ${Math.round(SETTLE_DUR * 0.65)}ms ease-in`;
+            pptLayer.style.transform = 'scaleY(1)';
+            pptLayer.style.opacity   = '1';
+          }));
+        }
+      }, SETTLE_START);
+
+      this._animManager.play('anim_golden_rain', slot.vesselUI.cardEl).then(() => {
+        // Strip inline transition/transform so future render() calls work normally
+        const pptLayer = slot.vesselUI.cardEl.querySelector('.vessel-ppt');
+        if (pptLayer) {
+          pptLayer.style.transition     = '';
+          pptLayer.style.transform      = '';
+          pptLayer.style.transformOrigin = '';
+          pptLayer.style.opacity         = '';
+        }
+      });
       this._obsLog.append({
         id: _uid(), type: 'precipitation',
         observation: 'On cooling, shimmering golden crystals of lead(II) iodide rained back out of solution — the classic "golden rain" experiment.',

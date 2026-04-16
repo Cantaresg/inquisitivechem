@@ -99,6 +99,7 @@ export class AnimationManager {
   _registerAll() {
     // Reaction animations
     this._registry.set('anim_bubbles',        (v, p) => this._animBubbles(v, p));
+    this._registry.set('anim_bubbles_al',     (v, p) => this._animBubblesAl(v, p));
     this._registry.set('anim_precipitate',    (v, p) => this._animPrecipitate(v, p));
     this._registry.set('anim_color_fade',     (v, p) => this._animColorFade(v, p));
     this._registry.set('anim_solid_dissolve', (v, p) => this._animSolidDissolve(v, p));
@@ -177,9 +178,9 @@ export class AnimationManager {
    * @private
    */
   _animBubbles(vesselEl, _params) {
-    const DURATION = 3200;
+    const DURATION = 1600;
     const COUNT    = 10;
-    const SPACING  = 280;
+    const SPACING  = 140;
     const svgNS    = 'http://www.w3.org/2000/svg';
 
     const svg = document.createElementNS(svgNS, 'svg');
@@ -219,7 +220,9 @@ export class AnimationManager {
       circle.setAttribute('cx', String(W * (0.12 + Math.random() * 0.76)));
       circle.setAttribute('cy', String(liquidBottom - Math.random() * H * 0.18));
       circle.setAttribute('r',  String(r));
-      circle.setAttribute('fill', 'rgba(255,255,255,0.50)');
+      // Fade off: later bubbles are progressively more transparent (reaction winding down)
+      const opacity = (0.55 * Math.max(0.12, 1 - (i / COUNT) * 0.88)).toFixed(2);
+      circle.setAttribute('fill', `rgba(255,255,255,${opacity})`);
       circle.style.animation = `bubbleRise ${dur}ms ease-out ${i * SPACING}ms forwards`;
       g.appendChild(circle);
     }
@@ -230,6 +233,110 @@ export class AnimationManager {
     const total = DURATION + COUNT * SPACING + 150;
     return new Promise(resolve => {
       setTimeout(() => { svg.remove(); resolve(); }, total);
+    });
+  }
+
+  /**
+   * Al + acid: 2 s pause (oxide layer dissolving), then slowly-building effervescence.
+   * Starts with rare, tiny bubbles that gradually accelerate — the reverse arc of CaCO3.
+   * @private
+   */
+  _animBubblesAl(vesselEl, _params) {
+    const DELAY    = 1800;   // ms of silence — long enough to notice the still solid
+    const COUNT    = 16;     // more steps = smoother ramp
+    const DURATION = 1600;
+    const svgNS    = 'http://www.w3.org/2000/svg';
+
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.style.cssText = `
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 9;
+    `;
+    svg.setAttribute('overflow', 'hidden');
+
+    const bounds = vesselEl.getBoundingClientRect();
+    const W = bounds.width  || 120;
+    const H = bounds.height || 180;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+
+    const clipId = `al-clip-${Math.random().toString(36).slice(2)}`;
+    const defs   = document.createElementNS(svgNS, 'defs');
+    const clipPath = document.createElementNS(svgNS, 'clipPath');
+    clipPath.setAttribute('id', clipId);
+    const clipRect = document.createElementNS(svgNS, 'rect');
+    clipRect.setAttribute('x', '0'); clipRect.setAttribute('y', '0');
+    clipRect.setAttribute('width', String(W)); clipRect.setAttribute('height', String(H));
+    clipPath.appendChild(clipRect);
+    defs.appendChild(clipPath);
+    svg.appendChild(defs);
+
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('clip-path', `url(#${clipId})`);
+
+    // ── Ghost solid chip ─────────────────────────────────────────────────────
+    // The real Al solid was already removed from solution before this animation
+    // runs. Re-inject a visual chip into the vessel-solids layer so the student
+    // sees "quiet solid sitting there" for the full DELAY period, then fade it
+    // out over ~600 ms once bubbling begins.
+    const solidsLayer = vesselEl.querySelector('.vessel-solids');
+    let ghostChip = null;
+    if (solidsLayer) {
+      ghostChip = document.createElement('div');
+      ghostChip.className = 'vessel-solid-chip';
+      ghostChip.style.cssText = `
+        background: #c8c8c8;
+        width: 30px; height: 14px;
+        transform: rotate(-6deg);
+        transition: opacity 1800ms ease-in;
+        opacity: 0.93;
+      `;
+      solidsLayer.style.height = '34px';
+      solidsLayer.appendChild(ghostChip);
+    }
+
+    const liquidBottom = H * 0.96;
+    // Power-curve stagger: 60 + 500*(1-t)^2  — feels like a gentle ease-in.
+    // At t=0: ~560 ms gap (very slow). At t=0.5: ~185 ms. At t=1: ~60 ms (brisk).
+    // This gives a smooth, continuous acceleration rather than a sudden burst.
+    let accum = DELAY;
+    for (let i = 0; i < COUNT; i++) {
+      const t       = i / (COUNT - 1);                           // 0 → 1
+      const stagger = Math.round(60 + 500 * Math.pow(1 - t, 2)); // 560 ms → 60 ms
+      const r       = (0.7 + t * 2.3).toFixed(2);               // 0.7 → 3.0
+      const dur     = DURATION - i * 40;
+
+      const circle = document.createElementNS(svgNS, 'circle');
+      circle.setAttribute('cx', String(W * (0.15 + Math.random() * 0.70)));
+      circle.setAttribute('cy', String(liquidBottom - Math.random() * H * 0.14));
+      circle.setAttribute('r',  String(r));
+      circle.setAttribute('fill', 'rgba(255,255,255,0.50)');
+      circle.style.animation = `bubbleRiseAl ${dur}ms ease-out ${accum}ms both`;
+      g.appendChild(circle);
+      accum += stagger;
+    }
+
+    svg.appendChild(g);
+    vesselEl.appendChild(svg);
+
+    // Chip fades out when bubbling is picking up steam — roughly the midpoint
+    // of the stagger sequence.  Use a slow ease-in so solid seems to dissolve.
+    if (ghostChip) {
+      const midAccum = DELAY + Math.round(COUNT / 2 * (560 + 60) / 2); // ≈ midpoint
+      setTimeout(() => {
+        ghostChip.style.opacity = '0';
+        setTimeout(() => {
+          ghostChip.remove();
+          if (solidsLayer && solidsLayer.children.length === 0) {
+            solidsLayer.style.height = '0';
+          }
+        }, 1800);
+      }, midAccum);
+    }
+
+    return new Promise(resolve => {
+      setTimeout(() => { svg.remove(); resolve(); }, accum + DURATION + 150);
     });
   }
 
@@ -276,7 +383,7 @@ export class AnimationManager {
 
     // Liquid occupies bottom 55 % → top of liquid surface is at SVG y = 0.45 * H.
     // Particles start just below the surface and fall deeper.
-    const liquidTop = H * 0.42;
+    const liquidTop = H * 0.45;
     for (let i = 0; i < COUNT; i++) {
       const r    = document.createElementNS(svgNS, 'rect');
       const size = 3 + Math.random() * 4;
@@ -349,14 +456,19 @@ export class AnimationManager {
    * @private
    */
   _animGoldenRain(vesselEl, _params) {
-    // Phase durations (ms) — crystals nucleate slowly and barely move
-    const FALL_DUR  = 6000;  // gentle settling duration
-    const SPARK_DUR = 900;   // sparkle flash duration
-    const STAGGER   = 3000;  // long stagger — crystals nucleate gradually
+    // Remove any leftover SVG from a previous run (e.g. if user re-cools before
+    // the animation finished — prevents ghost/jittering particles).
+    vesselEl.querySelectorAll('[data-golden-rain]').forEach(el => el.remove());
+
+    // Phase durations (ms) — crystals drift lazily for a dreamy effect
+    const FALL_DUR  = 10000; // slow drift — crystals stay visible for ~10 s
+    const SPARK_DUR = 800;   // sparkle flash duration
+    const STAGGER   = 4500;  // long stagger — crystals nucleate throughout
     const TOTAL     = FALL_DUR + STAGGER + 500;
 
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
+    svg.dataset.goldenRain = '1';   // marker so a re-play can clean this up
     svg.style.cssText = `
       position: absolute; inset: 0;
       width: 100%; height: 100%;
@@ -385,114 +497,96 @@ export class AnimationManager {
     const g = document.createElementNS(svgNS, 'g');
     g.setAttribute('clip-path', `url(#${clipId})`);
 
+    // ── Ambient solution tint — very subtle amber wash (dissolved PbI₂ yellows the water)
+    const tint = document.createElementNS(svgNS, 'rect');
+    tint.setAttribute('x',      String(W * 0.06));
+    tint.setAttribute('y',      String(H * 0.49));
+    tint.setAttribute('width',  String(W * 0.88));
+    tint.setAttribute('height', String(H * 0.44));
+    tint.setAttribute('rx',     String(W * 0.06));
+    tint.setAttribute('fill',   'rgba(240,190,0,0.10)');
+    g.appendChild(tint);
+
     // ── Hexagonal crystal flakes ──────────────────────────────────────────
-    // Start positions constrained to the solution volume:
-    //   • y: 45–85% of card height  (solution surface to near base)
-    //   • x: 12–88% of card width    (within the flask body walls)
-    // Crystals nucleate in place and gently settle — very little translation.
+    // y starts at 54% (9% below the liquid surface at 45%) so crystals never
+    // appear to pop through the surface boundary on fade-in.
+    //   • y: 54–85% of card height
+    //   • x: 12–88% of card width (within the flask body walls)
+    // Stagger is biased toward later values via Math.pow(x, 0.4): the median
+    // crystal starts at ~76% of STAGGER, so density builds up slowly.
     for (let i = 0; i < MAX_RAIN_POLYGONS; i++) {
       const poly  = document.createElementNS(svgNS, 'polygon');
-      const cx    = W * 0.12 + Math.random() * W * 0.76;   // within flask body
-      const cy    = H * 0.45 + Math.random() * H * 0.40;   // within solution
-      const r     = 1.0 + Math.random() * 2.5;             // 1–3.5 px glitter scale
-      const light = 55 + Math.random() * 30;               // 55–85%
-      const hue   = 44 + Math.random() * 16;               // 44–60° gold
-      poly.setAttribute('points', _hexPoints(cx, cy, r));
-      poly.setAttribute('fill', `hsl(${hue}, 100%, ${light}%)`);
-      poly.style.animation =
-        `goldenRainSettle ${FALL_DUR}ms ease-in-out ${Math.random() * STAGGER}ms forwards`;
-      g.appendChild(poly);
-    }
-
-    // ── Sparkle glints within solution volume only
-    const SPARKLE_COUNT = 45;
-    for (let i = 0; i < SPARKLE_COUNT; i++) {
       const cx    = W * 0.12 + Math.random() * W * 0.76;
-      const cy    = H * 0.45 + Math.random() * H * 0.40;
-      const r     = 0.8 + Math.random() * 1.8;             // 0.8–2.6 px tiny glints
-      const delay = Math.random() * (FALL_DUR + STAGGER - SPARK_DUR);
-      const circ  = document.createElementNS(svgNS, 'circle');
-      circ.setAttribute('cx', String(cx));
-      circ.setAttribute('cy', String(cy));
-      circ.setAttribute('r',  String(r));
-      circ.setAttribute('fill', `hsl(${52 + Math.random() * 10}, 100%, 88%)`);
-      circ.style.animation =
-        `crystalSparkle ${SPARK_DUR}ms ease-in-out ${delay}ms forwards`;
-      circ.style.opacity = '0';
-      g.appendChild(circ);
-    }
-
-    svg.appendChild(g);
-    vesselEl.appendChild(svg);
-
-    return new Promise(resolve => {
-      setTimeout(() => { svg.remove(); resolve(); }, TOTAL);
-    });
-  }
-
-    const svgNS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNS, 'svg');
-    svg.style.cssText = `
-      position: absolute; inset: 0;
-      width: 100%; height: 100%;
-      pointer-events: none; z-index: 16;
-    `;
-    svg.setAttribute('overflow', 'hidden');
-
-    const rect = vesselEl.getBoundingClientRect();
-    const W = rect.width  || 120;
-    const H = rect.height || 180;
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    svg.setAttribute('preserveAspectRatio', 'none');
-
-    // SVG-internal clipPath — compositing-layer-safe clipping (TRAP-05)
-    const clipId   = `gr-clip-${Math.random().toString(36).slice(2)}`;
-    const defs     = document.createElementNS(svgNS, 'defs');
-    const clipPath = document.createElementNS(svgNS, 'clipPath');
-    clipPath.setAttribute('id', clipId);
-    const clipRect = document.createElementNS(svgNS, 'rect');
-    clipRect.setAttribute('x', '0'); clipRect.setAttribute('y', '0');
-    clipRect.setAttribute('width', String(W)); clipRect.setAttribute('height', String(H));
-    clipPath.appendChild(clipRect);
-    defs.appendChild(clipPath);
-    svg.appendChild(defs);
-
-    const g = document.createElementNS(svgNS, 'g');
-    g.setAttribute('clip-path', `url(#${clipId})`);
-
-    // ── Hexagonal crystal flakes ──────────────────────────────────────────
-    // Small glitter-scale platelets scattered throughout the solution depth.
-    // Radius 1–3.5 px so they read as fine crystalline particles, not shapes.
-    for (let i = 0; i < MAX_RAIN_POLYGONS; i++) {
-      const poly  = document.createElementNS(svgNS, 'polygon');
-      const cx    = 3 + Math.random() * (W - 6);
-      const cy    = Math.random() * H * 0.70;         // nucleate at any depth
-      const r     = 1.0 + Math.random() * 2.5;        // 1–3.5 px (glitter scale)
-      const light = 55 + Math.random() * 30;          // 55–85% (bright gold)
-      const hue   = 44 + Math.random() * 16;          // 44–60° (gold range)
+      const cy    = H * 0.54 + Math.random() * H * 0.31;  // 54–85%, below surface
+      const r     = 1.0 + Math.random() * 2.5;
+      const light = 55 + Math.random() * 30;
+      const hue   = 44 + Math.random() * 16;
+      const delay = Math.random() * STAGGER;  // uniform — constant nucleation rate
       poly.setAttribute('points', _hexPoints(cx, cy, r));
       poly.setAttribute('fill', `hsl(${hue}, 100%, ${light}%)`);
-      poly.style.animation =
-        `goldenRainFall ${FALL_DUR}ms ease-in ${Math.random() * STAGGER}ms forwards`;
+      // 'both' applies the 0% keyframe (opacity:0) during the delay period,
+      // preventing the flash of all polygons appearing simultaneously.
+      poly.style.animation = `goldenRainSettle ${FALL_DUR}ms linear ${delay}ms both`;
       g.appendChild(poly);
     }
 
-    // ── Sparkle glints — tiny circles that flash to simulate light reflections
-    const SPARKLE_COUNT = 45;
+    // ── Fine circle sparkle glints (warm-gold to cool-white spectrum)
+    const SPARKLE_COUNT = 100;
     for (let i = 0; i < SPARKLE_COUNT; i++) {
-      const cx    = 4 + Math.random() * (W - 8);
-      const cy    = 4 + Math.random() * (H - 8);
-      const r     = 0.8 + Math.random() * 1.8;        // 0.8–2.6 px (tiny glints)
-      const delay = Math.random() * (FALL_DUR + STAGGER - SPARK_DUR); // fire any time
+      const cx    = W * 0.14 + Math.random() * W * 0.72;
+      const cy    = H * 0.54 + Math.random() * H * 0.31;
+      const r     = 0.5 + Math.random() * 2.4;
+      const delay = Math.random() * (FALL_DUR + STAGGER - SPARK_DUR);
+      // Colour spectrum: warm gold (hsl 44-56) through pale yellow-white (hsl 52, 100%, 92%)
       const circ  = document.createElementNS(svgNS, 'circle');
       circ.setAttribute('cx', String(cx));
       circ.setAttribute('cy', String(cy));
       circ.setAttribute('r',  String(r));
-      circ.setAttribute('fill', `hsl(${52 + Math.random() * 10}, 100%, 88%)`);
+      circ.setAttribute('fill', `hsl(${44 + Math.random() * 20}, 100%, ${78 + Math.random() * 20}%)`);
       circ.style.animation =
-        `crystalSparkle ${SPARK_DUR}ms ease-in-out ${delay}ms forwards`;
+        `crystalSparkle ${400 + Math.random() * 700}ms ease-in-out ${delay}ms forwards`;
+      circ.style.transformBox = 'fill-box';
+      circ.style.transformOrigin = 'center';
       circ.style.opacity = '0';
       g.appendChild(circ);
+    }
+
+    // ── 4-pointed star glints — mimic bright facet reflections off platelet crystals
+    const STAR_COUNT = 30;
+    for (let i = 0; i < STAR_COUNT; i++) {
+      const cx    = W * 0.14 + Math.random() * W * 0.72;
+      const cy    = H * 0.54 + Math.random() * H * 0.31;
+      const r     = 1.2 + Math.random() * 2.0;
+      const delay = Math.random() * (FALL_DUR + STAGGER - 900);
+      const star  = document.createElementNS(svgNS, 'polygon');
+      star.setAttribute('points', _crossPoints(cx, cy, r));
+      // White to very pale gold — specular reflection colour
+      star.setAttribute('fill', `hsl(${48 + Math.random() * 10}, ${Math.random() < 0.4 ? 0 : 100}%, ${88 + Math.random() * 12}%)`);
+      star.style.animation = `crystalSparkle ${500 + Math.random() * 700}ms ease-in-out ${delay}ms forwards`;
+      star.style.transformBox = 'fill-box';
+      star.style.transformOrigin = 'center';
+      star.style.opacity = '0';
+      g.appendChild(star);
+    }
+
+    // ── Specular flash ovals — large bright patches, slow enough not to jitter
+    // (replaced old 360ms burst glints which caused a rapid-flicker artefact)
+    const BURST_COUNT = 14;
+    for (let i = 0; i < BURST_COUNT; i++) {
+      const cx    = W * 0.16 + Math.random() * W * 0.68;
+      const cy    = H * 0.54 + Math.random() * H * 0.28;
+      const r     = 1.0 + Math.random() * 2.0;
+      const delay = Math.random() * (FALL_DUR + STAGGER - 1200);
+      const burst = document.createElementNS(svgNS, 'circle');
+      burst.setAttribute('cx',   String(cx));
+      burst.setAttribute('cy',   String(cy));
+      burst.setAttribute('r',    String(r));
+      burst.setAttribute('fill', 'rgba(255,255,240,0.96)');
+      burst.style.animation = `crystalSparkle ${700 + Math.random() * 700}ms ease-in-out ${delay}ms forwards`;
+      burst.style.transformBox = 'fill-box';
+      burst.style.transformOrigin = 'center';
+      burst.style.opacity = '0';
+      g.appendChild(burst);
     }
 
     svg.appendChild(g);
@@ -2175,4 +2269,27 @@ function _hexPoints(cx, cy, r) {
     pts.push(`${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`);
   }
   return pts.join(' ');
+}
+
+/**
+ * Build SVG points string for a 4-pointed star centred at (cx, cy) with
+ * outer radius r. Arm half-width is 20% of r, giving a sharp-crossed shape
+ * that mimics a specular glint off a flat crystal facet.
+ * @param {number} cx
+ * @param {number} cy
+ * @param {number} r
+ * @returns {string}
+ */
+function _crossPoints(cx, cy, r) {
+  const t = 0.20; // arm half-width ratio
+  return [
+    [cx,       cy - r   ],
+    [cx + t*r, cy - t*r ],
+    [cx + r,   cy       ],
+    [cx + t*r, cy + t*r ],
+    [cx,       cy + r   ],
+    [cx - t*r, cy + t*r ],
+    [cx - r,   cy       ],
+    [cx - t*r, cy - t*r ],
+  ].map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
 }
