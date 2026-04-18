@@ -318,6 +318,33 @@ export class ReactionEngine {
         continue;
       }
 
+      // Amphoteric oxide + alkali dissolution (uses alkaliProductMap instead of SOLID_ION_PRODUCTS)
+      if (rule.alkaliProductMap) {
+        const req = rule.requires;
+        if (req.ions?.length && !req.ions.every(ion => (sol.ions[ion] ?? 0) > 0)) continue;
+        const matchedSolid = sol.solids.find(s => req.anySolid?.includes(s.id));
+        if (!matchedSolid) continue;
+        const solidId = matchedSolid.id;
+        const product = rule.alkaliProductMap[solidId];
+        if (!product) continue;
+        const ionChanges = {
+          [product.ion]: (sol.ions[product.ion] ?? 0) + matchedSolid.amount * product.stoich,
+        };
+        if (typeof product.ohConsumption === 'number') {
+          const ohPresent = sol.ions['OH-'] ?? 0;
+          const ohRemaining = ohPresent - matchedSolid.amount * product.ohConsumption;
+          ionChanges['OH-'] = ohRemaining <= 1e-9 ? null : ohRemaining;
+        }
+        events.push(baseEvent('dissolution', {
+          animId:      'anim_solid_dissolve',
+          observation: OBSERVATIONS[rule.observationMap?.[solidId]] ?? '',
+          equation:    product.equation,
+          ionChanges,
+          solidRemoved: solidId,
+        }));
+        continue;
+      }
+
       // Standard oxide + acid neutralisation
       const req = rule.requires;
       if (req.ions?.length && !req.ions.every(ion => (sol.ions[ion] ?? 0) > 0)) continue;

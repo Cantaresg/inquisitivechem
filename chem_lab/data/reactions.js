@@ -393,7 +393,7 @@ export const DISSOLUTION_RULES = [
     id: 'oxide_acid_neutralisation',
     requires: {
       ions: ['H+'],
-      anySolid: ['cao_s', 'mgo_s', 'cuo_s', 'fe2o3_s', 'zno_s'],
+      anySolid: ['cao_s', 'mgo_s', 'cuo_s', 'fe2o3_s', 'al2o3_s', 'zno_s', 'pbo_s'],
     },
     colorChangeMap: {
       // Only these two produce visibly coloured solutions
@@ -405,9 +405,32 @@ export const DISSOLUTION_RULES = [
       mgo_s:   'obs_oxide_dissolves_colourless',
       cuo_s:   'obs_cuo_dissolves_blue',
       fe2o3_s: 'obs_fe2o3_dissolves_brown',
+      al2o3_s: 'obs_al2o3_dissolves_acid',
       zno_s:   'obs_oxide_dissolves_colourless',
+      pbo_s:   'obs_oxide_dissolves_colourless',
     },
     equation: 'MO(s) + 2H⁺(aq) → M²⁺(aq) + H₂O(l)',
+  },
+  {
+    id: 'amphoteric_oxide_alkali',
+    // Al₂O₃ and PbO dissolve in excess NaOH (amphoteric behaviour).
+    // ZnO is also amphoteric and already handled as a solid; adding the alkali path here.
+    // alkaliProductMap supplies the product ion per solid (used by engine instead of
+    // SOLID_ION_PRODUCTS) and ohConsumption (moles of OH⁻ consumed per mole of solid).
+    requires: {
+      ions: ['OH-'],
+      anySolid: ['al2o3_s', 'pbo_s', 'zno_s'],
+    },
+    alkaliProductMap: {
+      al2o3_s: { ion: 'Al(OH)4-',   stoich: 2, ohConsumption: 2, equation: 'Al₂O₃(s) + 2OH⁻(aq) + 3H₂O(l) → 2[Al(OH)₄]⁻(aq)' },
+      pbo_s:   { ion: 'Pb(OH)4_2-', stoich: 1, ohConsumption: 2, equation: 'PbO(s) + 2OH⁻(aq) + H₂O(l) → [Pb(OH)₄]²⁻(aq)' },
+      zno_s:   { ion: 'Zn(OH)4_2-', stoich: 1, ohConsumption: 2, equation: 'ZnO(s) + 2OH⁻(aq) + H₂O(l) → [Zn(OH)₄]²⁻(aq)' },
+    },
+    observationMap: {
+      al2o3_s: 'obs_amphoteric_oxide_dissolves',
+      pbo_s:   'obs_amphoteric_oxide_dissolves',
+      zno_s:   'obs_amphoteric_oxide_dissolves',
+    },
   },
   {
     id: 'cao_water_slaking',
@@ -484,7 +507,9 @@ export const SOLID_ION_PRODUCTS = {
   mgo_s:    { ion: 'Mg2+',  stoich: 1, hConsumption: 2, equation: 'MgO(s) + 2H⁺(aq) → Mg²⁺(aq) + H₂O(l)' },
   cuo_s:    { ion: 'Cu2+',  stoich: 1, hConsumption: 2, equation: 'CuO(s) + 2H⁺(aq) → Cu²⁺(aq) + H₂O(l)' },
   fe2o3_s:  { ion: 'Fe3+',  stoich: 2, hConsumption: 6, equation: 'Fe₂O₃(s) + 6H⁺(aq) → 2Fe³⁺(aq) + 3H₂O(l)' },
+  al2o3_s:  { ion: 'Al3+',  stoich: 2, hConsumption: 6, equation: 'Al₂O₃(s) + 6H⁺(aq) → 2Al³⁺(aq) + 3H₂O(l)' },
   zno_s:    { ion: 'Zn2+',  stoich: 1, hConsumption: 2, equation: 'ZnO(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂O(l)' },
+  pbo_s:    { ion: 'Pb2+',  stoich: 1, hConsumption: 2, equation: 'PbO(s) + 2H⁺(aq) → Pb²⁺(aq) + H₂O(l)' },
   // Cu reacts with conc. H₂SO₄ (hot) → CuSO₄ + SO₂ + H₂O
   cu_s:     { ion: 'Cu2+',  stoich: 1, equation: 'Cu(s) + 2H₂SO₄(conc,hot) → Cu²⁺(aq) + SO₄²⁻(aq) + SO₂(g) + 2H₂O(l)' },
   // MnO₂ reacts with conc. HCl (hot) → MnCl₂ + Cl₂ + H₂O
@@ -1383,6 +1408,14 @@ export const OBSERVATIONS = {
   // ── Dissolution / neutralisation ──────────────────
   obs_oxide_dissolves_colourless:
     'The solid slowly dissolved and the solution remained colourless.',
+
+  obs_al2o3_dissolves_acid:
+    'The white solid dissolved slowly in the acid to give a colourless solution '
+    + 'containing aluminium ions.',
+
+  obs_amphoteric_oxide_dissolves:
+    'The solid dissolved in the excess alkali to give a colourless solution. '
+    + 'This confirms the amphoteric nature of the oxide — it reacts with both acids and bases.',
 
   obs_cuo_dissolves_blue:
     'The black solid dissolved slowly, and the solution turned a clear blue colour.',
