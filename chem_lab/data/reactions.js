@@ -148,11 +148,13 @@ export const GAS_RULES = [
     id: 'h2_metal_acid',
     requires: {
       ions: ['H+'],
-      anySolid: ['mg_s', 'zn_s', 'fe_s', 'al_s'],   // active metals only — NOT cu_s
+      anySolid: ['ca_s', 'mg_s', 'zn_s', 'fe_s', 'al_s'],   // active metals only — NOT cu_s
     },
-    // Per-solid observation override (Al has a delay due to oxide layer)
+    // Per-solid observation override (Al has a delay due to oxide layer;
+    // Ca reacts more vigorously than the other metals)
     observationMap: {
       al_s: 'obs_h2_al_acid',
+      ca_s: 'obs_h2_ca_acid',
     },
     // Per-solid animation override (Al uses delayed-bubble animation)
     animIdMap: {
@@ -162,6 +164,28 @@ export const GAS_RULES = [
     pressure: 0.85,
     observationKey: 'obs_h2_metal_acid',
     equation: 'M(s) + nH⁺(aq) → Mⁿ⁺(aq) + n/2 H₂(g)',
+  },
+  {
+    id: 'ca_water',
+    // Calcium reacts vigorously with cold water — no H⁺ required.
+    // notIons guard: when H⁺ is present, h2_metal_acid handles Ca instead.
+    // producesIons: used in place of SOLID_ION_PRODUCTS because this reaction
+    // releases BOTH Ca²⁺ AND OH⁻ from a single solid.
+    // The OH⁻ produced here is visible to the subsequent precipitation sweep,
+    // enabling the full three-tier cascade (e.g. Ca + FeSO₄):
+    //   step 1 — displacement:  Ca → Fe(s) deposit
+    //   step 2 — water reaction: Ca + H₂O → H₂(g) + Ca²⁺ + 2OH⁻
+    //   step 3 — precipitation:  Fe²⁺ + 2OH⁻ → Fe(OH)₂(s) green ppt
+    requires: {
+      anySolid: ['ca_s'],
+      notIons:  ['H+'],
+    },
+    gas: 'H2',
+    pressure: 0.75,
+    producesIons: { 'Ca2+': 1, 'OH-': 2 },
+    overrideEquation: true,
+    observationKey: 'obs_ca_water_reaction',
+    equation: 'Ca(s) + 2H₂O(l) → Ca²⁺(aq) + 2OH⁻(aq) + H₂(g)',
   },
   {
     id: 'co2_aqueous_carbonate_acid',
@@ -312,6 +336,43 @@ export const GAS_RULES = [
     observationKey: 'obs_so2_choking',
     equation: 'Cu(s) + 2H₂SO₄(conc) → CuSO₄(aq) + SO₂(g) + 2H₂O(l)',
   },
+  {
+    id: 'so2_sulfite_acid',
+    // Na₂SO₃(aq) + H₂SO₄(dil) → Na₂SO₄(aq) + SO₂(g) + H₂O(l)
+    // Net ionic: SO₃²⁻(aq) + 2H⁺(aq) → SO₂(g) + H₂O(l)
+    requires: {
+      ions: ['SO3²-', 'H+'],
+    },
+    gas: 'SO2',
+    pressure: 0.65,
+    observationKey: 'obs_so2_sulfite_acid',
+    equation: 'SO₃²⁻(aq) + 2H⁺(aq) → SO₂(g) + H₂O(l)',
+  },
+  {
+    id: 'cl2_mno2_hcl',
+    // MnO₂(s) + 4HCl(conc, hot) → MnCl₂(aq) + Cl₂(g) + 2H₂O(l)
+    // Requires heat and HCl (Cl⁻ + H⁺); isHot used as proxy for concentrated HCl.
+    requires: {
+      ions: ['H+', 'Cl-'],
+      anySolid: ['mno2_s'],
+      isHot: true,
+    },
+    gas: 'Cl2',
+    pressure: 0.60,
+    observationKey: 'obs_cl2_mno2_hcl',
+    equation: 'MnO₂(s) + 4HCl(conc) → MnCl₂(aq) + Cl₂(g) + 2H₂O(l)',
+  },
+  {
+    id: 'cl2_kmno4_hcl',
+    // 2KMnO₄ + 16HCl(conc) → 2KCl + 2MnCl₂ + 5Cl₂ + 8H₂O  (no heat needed)
+    requires: {
+      ions: ['MnO4-', 'H+', 'Cl-'],
+    },
+    gas: 'Cl2',
+    pressure: 0.60,
+    observationKey: 'obs_cl2_kmno4_hcl',
+    equation: '2MnO₄⁻(aq) + 16H⁺(aq) + 10Cl⁻(aq) → 2Mn²⁺(aq) + 5Cl₂(g) + 8H₂O(l)',
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -405,6 +466,7 @@ export const SOLUBLE_SOLIDS = {
 export const SOLID_ION_PRODUCTS = {
   // Metals (react with acid → cation + H₂ gas)
   // hConsumption = moles of H⁺ consumed per mole of solid
+  ca_s:     { ion: 'Ca2+',  stoich: 1, hConsumption: 2, equation: 'Ca(s) + 2H⁺(aq) → Ca²⁺(aq) + H₂(g)' },
   mg_s:     { ion: 'Mg2+',  stoich: 1, hConsumption: 2, equation: 'Mg(s) + 2H⁺(aq) → Mg²⁺(aq) + H₂(g)' },
   zn_s:     { ion: 'Zn2+',  stoich: 1, hConsumption: 2, equation: 'Zn(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂(g)' },
   fe_s:     { ion: 'Fe2+',  stoich: 1, hConsumption: 2, equation: 'Fe(s) + 2H⁺(aq) → Fe²⁺(aq) + H₂(g)' },
@@ -425,6 +487,8 @@ export const SOLID_ION_PRODUCTS = {
   zno_s:    { ion: 'Zn2+',  stoich: 1, hConsumption: 2, equation: 'ZnO(s) + 2H⁺(aq) → Zn²⁺(aq) + H₂O(l)' },
   // Cu reacts with conc. H₂SO₄ (hot) → CuSO₄ + SO₂ + H₂O
   cu_s:     { ion: 'Cu2+',  stoich: 1, equation: 'Cu(s) + 2H₂SO₄(conc,hot) → Cu²⁺(aq) + SO₄²⁻(aq) + SO₂(g) + 2H₂O(l)' },
+  // MnO₂ reacts with conc. HCl (hot) → MnCl₂ + Cl₂ + H₂O
+  mno2_s:   { ion: 'Mn2+',  stoich: 1, equation: 'MnO₂(s) + 4HCl(conc,hot) → Mn²⁺(aq) + Cl₂(g) + 2H₂O(l)' },
   // Halide salts — dissolve in water; ion field used by flame-test detection only
   nacl_s:   { ion: 'Na+',   stoich: 1, equation: 'NaCl(s) → Na⁺(aq) + Cl⁻(aq)' },
   kcl_s:    { ion: 'K+',    stoich: 1, equation: 'KCl(s) → K⁺(aq) + Cl⁻(aq)' },
@@ -616,6 +680,43 @@ export const REDOX_RULES = [
     producesIon: { 'Br-': 0.002, 'I2': 0.001 },
     observationKey: 'obs_halogen_displaces_i',
     equation: 'Br₂(aq) + 2I⁻(aq) → 2Br⁻(aq) + I₂(aq)',
+  },
+
+  // ── Easter egg: chemiluminescence ─────────────────────────────────────────
+
+  {
+    id: 'luminol_glow',
+    // Luminol is oxidised by H₂O₂ in alkaline solution (the OH⁻ is pre-loaded
+    // into the luminol reagent itself — no separate NaOH step required).
+    // The excited 3-aminophthalate dianion relaxes by emitting blue-green light.
+    requires: {
+      ions: ['luminol', 'H2O2'],
+    },
+    animId: 'anim_luminol_glow',
+    colorChange: { from: null, to: 'rgba(200, 220, 255, 0.10)' },  // solution becomes near-colourless
+    ionTransform: { 'luminol': null, 'H2O2': null },
+    observationKey: 'obs_luminol_glow',
+    equation: 'luminol + H₂O₂ + 2OH⁻ → 3-aminophthalate²⁻ + N₂(g) + H₂O + hν (425 nm)',
+  },
+
+  // ── Easter egg: traffic light ──────────────────────────────────────────────
+
+  {
+    id: 'traffic_light',
+    // Indigo carmine (oxidised form, blue) is reduced by glucose in alkaline
+    // solution through a series of intermediate oxidation states:
+    //   blue (oxidised) → green → red/orange → yellow (leuco form, fully reduced)
+    // Shaking re-introduces dissolved O₂ and reverses the process, cycling
+    // back through red → green → blue. The simulation plays one complete
+    // reducing cycle; the observation describes the reversible nature.
+    requires: {
+      ions: ['IndigoCarmine', 'glucose', 'OH-'],
+    },
+    animId: 'anim_traffic_light',
+    colorChange: { from: null, to: 'rgba(190, 170, 55, 0.40)' },  // final: yellow (leuco form)
+    ionTransform: { 'IndigoCarmine': null, 'glucose': null },
+    observationKey: 'obs_traffic_light',
+    equation: 'indigo carmine (blue) + glucose + OH⁻ → leuco-indigo carmine (yellow)',
   },
 ];
 
@@ -825,6 +926,61 @@ export const COMPLEXATION_RULES = [
 
 export const DISPLACEMENT_RULES = [
 
+  // ── Calcium displaces metals ──────────────────────────────────────────────
+  // In neutral salt solutions the ca_water gas rule also fires, giving the full
+  // three-tier cascade: displacement → OH⁻ produced → metal-hydroxide ppt.
+
+  {
+    id: 'ca_displaces_cu',
+    requires: { solid: 'ca_s', ion: 'Cu2+' },
+    ionChanges: { 'Cu2+': null, 'Ca2+': 0.001 },
+    solidRemoved: 'ca_s',
+    depositedSolid: { id: 'dep_cu', amount: 0.001, color: '#c87533' },
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_pink_coat',
+    equation: 'Ca(s) + Cu²⁺(aq) → Ca²⁺(aq) + Cu(s)',
+  },
+  {
+    id: 'ca_displaces_fe2',
+    requires: { solid: 'ca_s', ion: 'Fe2+' },
+    ionChanges: { 'Fe2+': null, 'Ca2+': 0.001 },
+    solidRemoved: 'ca_s',
+    depositedSolid: { id: 'dep_fe', amount: 0.001, color: '#5a5a5a' },
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Ca(s) + Fe²⁺(aq) → Ca²⁺(aq) + Fe(s)',
+  },
+  {
+    id: 'ca_displaces_fe3',
+    requires: { solid: 'ca_s', ion: 'Fe3+' },
+    ionChanges: { 'Fe3+': null, 'Ca2+': 0.001 },
+    solidRemoved: 'ca_s',
+    depositedSolid: { id: 'dep_fe', amount: 0.001, color: '#5a5a5a' },
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_fe3_decolour',
+    equation: '3Ca(s) + 2Fe³⁺(aq) → 3Ca²⁺(aq) + 2Fe(s)',
+  },
+  {
+    id: 'ca_displaces_ag',
+    requires: { solid: 'ca_s', ion: 'Ag+' },
+    ionChanges: { 'Ag+': null, 'Ca2+': 0.001 },
+    solidRemoved: 'ca_s',
+    depositedSolid: { id: 'dep_ag', amount: 0.001, color: '#c8c8c8' },
+    colorChange: null,
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Ca(s) + 2Ag⁺(aq) → Ca²⁺(aq) + 2Ag(s)',
+  },
+  {
+    id: 'ca_displaces_zn',
+    requires: { solid: 'ca_s', ion: 'Zn2+' },
+    ionChanges: { 'Zn2+': null, 'Ca2+': 0.001 },
+    solidRemoved: 'ca_s',
+    depositedSolid: { id: 'dep_zn', amount: 0.001, color: '#9aadbb' },
+    colorChange: { to: 'rgba(200,220,255,0.10)' },
+    observationKey: 'obs_displacement_grey_coat',
+    equation: 'Ca(s) + Zn²⁺(aq) → Ca²⁺(aq) + Zn(s)',
+  },
+
   // ── Metal displaces Ag⁺ ──────────────────────────────────────────────────
 
   {
@@ -1004,6 +1160,14 @@ export const OBSERVATIONS = {
   obs_h2_metal_acid:
     'Colourless gas evolved rapidly with vigorous effervescence.',
 
+  obs_h2_ca_acid:
+    'Vigorous effervescence was observed immediately. Colourless gas was produced rapidly '
+    + 'as the solid reacted with the acid.',
+
+  obs_ca_water_reaction:
+    'Vigorous effervescence was observed. The solid moved around the surface '
+    + 'as colourless gas was produced. The solution became warm.',
+
   obs_h2_al_acid:
     'After a brief delay while the surface oxide layer dissolved, the solid began '
     + 'to react with the acid. Rapid effervescence followed as hydrogen gas was produced.',
@@ -1060,6 +1224,18 @@ export const OBSERVATIONS = {
 
   obs_so2_choking:
     'A colourless gas with a sharp, choking odour was produced on heating.',
+
+  obs_so2_sulfite_acid:
+    'Effervescence was observed immediately. A colourless gas with a sharp, choking '
+    + 'odour was evolved briskly from the solution.',
+
+  obs_cl2_mno2_hcl:
+    'On heating, a pale yellow-green gas with a sharp, choking odour was evolved '
+    + 'from around the solid. The solid gradually dissolved as the reaction proceeded.',
+
+  obs_cl2_kmno4_hcl:
+    'A pale yellow-green gas with a pungent, bleach-like odour was evolved immediately. '
+    + 'The intense purple colour of the permanganate solution rapidly disappeared.',
 
   // ── Precipitation (silver) ─────────────────────────
   obs_agcl_white:
@@ -1289,4 +1465,17 @@ export const OBSERVATIONS = {
 
   obs_halogen_displaces_i:
     'The solution turned dark brown as iodine was displaced into solution by the more reactive halogen.',
+
+  // ── Easter eggs ──────────────────────────────────────────────────────────
+
+  obs_luminol_glow:
+    'The solution darkened instantly and a vivid blue-green glow appeared, '
+    + 'pulsing from within the liquid. The glow persisted for several seconds '
+    + 'before fading as the excited product relaxed to its ground state.',
+
+  obs_traffic_light:
+    'The blue colour changed rapidly to green, then turned red, then orange-amber, '
+    + 'and finally settled to a pale yellow as the indicator was fully reduced by '
+    + 'the glucose in alkaline solution. Shaking the vessel restarts the colour '
+    + 'cycle by dissolving fresh oxygen from the air.',
 };

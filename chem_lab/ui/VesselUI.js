@@ -434,4 +434,16 @@ export class VesselUI {
    * been removed from the vessel display (labels are in the Observation log).
    */
   updateGasOnly() {}
+
+  /**
+   * Refresh the liquid colour layer and precipitate layer.
+   * Called by BenchUI.tick() after tickFe2Oxidation() to show the gradual
+   * colour shifts: Fe²⁺ (pale green) → Fe³⁺ (reddish-brown) in solution,
+   * and Fe(OH)₂ ppt (green) → Fe(OH)₃ (reddish-brown) in the ppt layer.
+   */
+  updateLiquidOnly() {
+    const sol = this.vessel.solution;
+    this._updateLiquid(sol);
+    this._updatePptLayer(sol);
+  }
 }

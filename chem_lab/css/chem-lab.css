@@ -365,6 +365,11 @@ nav {
   border-color: #00a0e6;
   color: #60ccff;
 }
+.tool-btn[data-tool="swirl"].active {
+  background: rgba(100,180,255,0.22);
+  border-color: #60b8ff;
+  color: #90d0ff;
+}
 .tool-btn[data-tool="wash"].active {
   background: rgba(255,107,107,0.25);
   border-color: var(--danger);
@@ -530,6 +535,9 @@ nav {
 }
 
 /* ── Vessel: solid-chunk layer ───────────────────────────────────────────── */
+/* z-index 3: above vessel-ppt (2) so displaced metal blocks are always      */
+/* visible on top of any co-formed precipitate layer (e.g. Ca + FeSO₄        */
+/* produces both Fe metal and Fe(OH)₂ ppt; the metal chip should sit above). */
 .vessel-solids {
   position: absolute;
   left: 0; right: 0; bottom: 0;
@@ -543,7 +551,7 @@ nav {
   overflow: hidden;
   padding: 4px 6px;
   gap: 4px;
-  z-index: 1;
+  z-index: 3;
 }
 
 .vessel-solid-chip {

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acid–Base Titration Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,300&family=Inconsolata:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <style>
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+    #app       { height: 100vh; display: flex; flex-direction: column; }
+    #loading   { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 14px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div id="loading">Loading lab…</div>
+  <div id="app" style="display:none;"></div>
+
+  <script type="module">
+    import { SessionConfig } from './js/SessionConfig.js';
+    import { TitrationLab  } from './js/TitrationLab.js';
+
+    (async () => {
+      const params = new URLSearchParams(location.search);
+      const key    = params.get('key') ?? null;
+
+      const config = await SessionConfig.load(key);
+
+      // §8.5 — if no config at all, redirect to the menu
+      if (!config) {
+        location.replace('landing.html');
+        return;
+      }
+
+      document.getElementById('loading').remove();
+      const appEl = document.getElementById('app');
+      appEl.style.display = '';
+
+      const lab = new TitrationLab(appEl, config);
+
+      // Expose on window for DevTools / export button access
+      window._lab = lab;
+
+      // Global keyboard shortcuts
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') lab.stageCtrl.current?.exit?.();
+        if (e.ctrlKey && e.key === 'e') { e.preventDefault(); lab.exportCSV(); }
+      });
+    })();
+  </script>
+</body>
+</html>

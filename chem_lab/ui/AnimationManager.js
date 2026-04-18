@@ -104,6 +104,9 @@ export class AnimationManager {
     this._registry.set('anim_color_fade',     (v, p) => this._animColorFade(v, p));
     this._registry.set('anim_solid_dissolve', (v, p) => this._animSolidDissolve(v, p));
     this._registry.set('anim_golden_rain',    (v, p) => this._animGoldenRain(v, p));
+    this._registry.set('anim_luminol_glow',           (v, p) => this._animLuminolGlow(v, p));
+    this._registry.set('anim_traffic_light',          (v, p) => this._animTrafficLight(v, p));
+    this._registry.set('anim_traffic_light_reverse',  (v, p) => this._animTrafficLightReverse(v, p));
 
     // Gas tests
     this._registry.set('anim_squeaky_pop',               (v, p) => this._animSqueakyPop(v, p));
@@ -114,6 +117,10 @@ export class AnimationManager {
     this._registry.set('anim_limewater_milky',            (v, p) => this._animLimewaterMilky(v, p));
     this._registry.set('anim_limewater_clear',            (v, p) => this._animLimewaterClear(v, p));
     this._registry.set('anim_limewater_excess',           (v, p) => this._animLimewaterExcess(v, p));
+    this._registry.set('anim_kmno4_tube_decolour',        (v, p) => this._animKMnO4TubeDecolour(v, p));
+    this._registry.set('anim_kmno4_tube_negative',        (v, p) => this._animKMnO4TubeNegative(v, p));
+    this._registry.set('anim_k2cr2o7_tube_green',         (v, p) => this._animK2Cr2O7TubeGreen(v, p));
+    this._registry.set('anim_k2cr2o7_tube_negative',      (v, p) => this._animK2Cr2O7TubeNegative(v, p));
     this._registry.set('anim_litmus_blue',                (v, p) => this._animLitmusBlue(v, p));
     this._registry.set('anim_litmus_red',                 (v, p) => this._animLitmusRed(v, p));
     this._registry.set('anim_litmus_bleached',            (v, p) => this._animLitmusBleached(v, p));
@@ -1519,6 +1526,263 @@ export class AnimationManager {
     });
   }
 
+  // ─── SO₂ colour-change tube animations ───────────────────────────────────
+
+  /**
+   * Build a coloured test-tube scene identical to the limewater tube but with
+   * a configurable liquid colour.  Used for acidified KMnO₄ and K₂Cr₂O₇ tests.
+   *
+   * @param {HTMLElement} vesselEl
+   * @param {string}      liquidFill  — CSS fill for the coloured liquid
+   * @returns {{ sceneSvg, liquidEl, colourGroup, cleanup }}
+   * @private
+   */
+  _buildColourChangeTubeScene(vesselEl, liquidFill) {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const attr  = (el, k, v) => el.setAttribute(k, v);
+
+    const cardEl     = vesselEl.closest('.vessel-container')?.querySelector('.vessel-card') ?? vesselEl;
+    const cardR      = cardEl.getBoundingClientRect();
+    const SW         = 180;
+    const SH         = 220;
+    const sceneBaseX = cardR.right - 23;
+    const sceneBaseY = cardR.top   + AnimationManager.LIMEWATER_TUBE_OFFSET_Y - 40;
+
+    const svg = document.createElementNS(svgNS, 'svg');
+    attr(svg, 'width',    String(SW));
+    attr(svg, 'height',   String(SH));
+    attr(svg, 'viewBox',  `0 0 ${SW} ${SH}`);
+    attr(svg, 'overflow', 'visible');
+    svg.style.cssText = `
+      position: fixed;
+      left: ${sceneBaseX}px; top: ${sceneBaseY}px;
+      pointer-events: none; z-index: 300;
+      opacity: 0;
+      animation: lwSlideIn 0.45s ease forwards;
+    `;
+    document.body.appendChild(svg);
+
+    const TILT    = 50;
+    const PIVOT_X = 30;
+    const PIVOT_Y = 55;
+    const OR      = 16;
+    const IR      = 12;
+    const TH      = 105;
+    const HOSE_R  = 4;
+    const LIQ_TOP = TH * 0.40;
+
+    const roundedTubePath = (halfW) => [
+      `M ${-halfW} 0`,
+      `L ${-halfW} ${(TH - halfW).toFixed(1)}`,
+      `A ${halfW} ${halfW} 0 0 0 ${halfW} ${(TH - halfW).toFixed(1)}`,
+      `L ${halfW} 0`,
+    ].join(' ');
+
+    const liquidPath = [
+      `M ${-IR} ${LIQ_TOP.toFixed(1)}`,
+      `L ${-IR} ${(TH - IR).toFixed(1)}`,
+      `A ${IR} ${IR} 0 0 0 ${IR} ${(TH - IR).toFixed(1)}`,
+      `L ${IR} ${LIQ_TOP.toFixed(1)}`,
+      'Z',
+    ].join(' ');
+
+    const clipId = `cct-${Math.random().toString(36).slice(2)}`;
+    const defs   = document.createElementNS(svgNS, 'defs');
+    const clip   = document.createElementNS(svgNS, 'clipPath');
+    attr(clip, 'id', clipId);
+    const clipEl = document.createElementNS(svgNS, 'path');
+    attr(clipEl, 'd', liquidPath);
+    clip.appendChild(clipEl);
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    const tubeG = document.createElementNS(svgNS, 'g');
+    attr(tubeG, 'transform', `translate(${PIVOT_X},${PIVOT_Y}) rotate(${-TILT})`);
+    svg.appendChild(tubeG);
+
+    // Outer glass
+    const outerEl = document.createElementNS(svgNS, 'path');
+    attr(outerEl, 'd',               roundedTubePath(OR));
+    attr(outerEl, 'fill',            'rgba(155,200,255,0.13)');
+    attr(outerEl, 'stroke',          'rgba(140,185,240,0.80)');
+    attr(outerEl, 'stroke-width',    '1.5');
+    attr(outerEl, 'stroke-linejoin', 'round');
+    tubeG.appendChild(outerEl);
+
+    for (const s of [-1, 1]) {
+      const e = document.createElementNS(svgNS, 'line');
+      attr(e, 'x1', String(s * IR)); attr(e, 'y1', '0');
+      attr(e, 'x2', String(s * IR)); attr(e, 'y2', '10');
+      attr(e, 'stroke', 'rgba(140,185,240,0.50)'); attr(e, 'stroke-width', '1');
+      tubeG.appendChild(e);
+    }
+
+    // Coloured liquid fill
+    const liquidEl = document.createElementNS(svgNS, 'path');
+    attr(liquidEl, 'd',    liquidPath);
+    attr(liquidEl, 'fill', liquidFill);
+    tubeG.appendChild(liquidEl);
+
+    // Colour-change overlay group (initially hidden; used for transition)
+    const colourGroup = document.createElementNS(svgNS, 'g');
+    attr(colourGroup, 'clip-path', `url(#${clipId})`);
+    colourGroup.style.opacity = '0';
+    tubeG.appendChild(colourGroup);
+
+    // Bubbles
+    const bubbleGroup = document.createElementNS(svgNS, 'g');
+    attr(bubbleGroup, 'clip-path', `url(#${clipId})`);
+    for (let i = 0; i < 7; i++) {
+      const b = document.createElementNS(svgNS, 'circle');
+      attr(b, 'cx',   ((Math.random() * 2 - 1) * IR * 0.55).toFixed(1));
+      attr(b, 'cy',   (TH - IR - 4 - Math.random() * 12).toFixed(1));
+      attr(b, 'r',    (1.4 + Math.random() * 1.8).toFixed(1));
+      attr(b, 'fill', 'rgba(255,255,255,0.55)');
+      b.style.animation = `lwBubbleRise ${900 + Math.random() * 650}ms ease-out ${i * 210}ms infinite`;
+      b.style.setProperty('--lw-bx', '0px');
+      b.style.setProperty('--lw-by', `${-(TH * 0.55).toFixed(1)}px`);
+      bubbleGroup.appendChild(b);
+    }
+    tubeG.appendChild(bubbleGroup);
+
+    // Glass highlight
+    const hl = document.createElementNS(svgNS, 'line');
+    attr(hl, 'x1', String((IR * 0.58).toFixed(1))); attr(hl, 'y1', '6');
+    attr(hl, 'x2', String((IR * 0.58).toFixed(1))); attr(hl, 'y2', String((TH * 0.62).toFixed(1)));
+    attr(hl, 'stroke', 'rgba(255,255,255,0.28)');
+    attr(hl, 'stroke-width', '1.2'); attr(hl, 'stroke-linecap', 'round');
+    tubeG.appendChild(hl);
+
+    // Rubber stopper + delivery hose
+    const fStopper = document.createElementNS(svgNS, 'path');
+    attr(fStopper, 'd', 'M -39 0 L -5 0 L -5 4 L -11 24 L -33 24 L -39 4 Z');
+    attr(fStopper, 'fill',           '#3a3a3a');
+    attr(fStopper, 'stroke',         '#1a1a1a');
+    attr(fStopper, 'stroke-width',   '1');
+    attr(fStopper, 'stroke-linejoin','round');
+    const fGrip = document.createElementNS(svgNS, 'line');
+    attr(fGrip, 'x1', '-35'); attr(fGrip, 'y1', '8');
+    attr(fGrip, 'x2', '-9');  attr(fGrip, 'y2', '8');
+    attr(fGrip, 'stroke', 'rgba(255,255,255,0.15)'); attr(fGrip, 'stroke-width', '1.2');
+
+    const hose = document.createElementNS(svgNS, 'path');
+    attr(hose, 'd',             `M -22 22 C 0 30, 15 45, ${PIVOT_X} ${PIVOT_Y}`);
+    attr(hose, 'fill',          'none');
+    attr(hose, 'stroke',        '#2a2a2a');
+    attr(hose, 'stroke-width',  String(HOSE_R * 2));
+    attr(hose, 'stroke-linecap','round');
+
+    const stopperG = document.createElementNS(svgNS, 'g');
+    stopperG.appendChild(fStopper);
+    stopperG.appendChild(fGrip);
+    stopperG.setAttribute('transform', 'translate(-15,10)');
+    svg.insertBefore(hose, tubeG);
+    svg.appendChild(stopperG);
+
+    const vesselId = vesselEl.dataset.vesselId ?? '';
+    this.setTestLock(vesselId, true);
+    const cleanup = () => { svg.remove(); this.setTestLock(vesselId, false); };
+    return { sceneSvg: svg, liquidEl, colourGroup, cleanup };
+  }
+
+  /**
+   * Acidified KMnO₄ test — positive (SO₂): purple → colourless over ~3 s,
+   * held 2 s, tube exits.  Total ~6 s.
+   * @private
+   */
+  _animKMnO4TubeDecolour(vesselEl, _params) {
+    const BUBBLE_DUR = 1500;   // bubbling before colour change
+    const FADE_DUR   = 2500;   // purple → colourless transition
+    const HOLD       = 2000;
+    const EXIT       = 500;
+    const TOTAL      = BUBBLE_DUR + FADE_DUR + HOLD + EXIT;
+
+    // Purple KMnO₄ liquid
+    const { sceneSvg, liquidEl, cleanup } = this._buildColourChangeTubeScene(
+      vesselEl, 'rgba(100,0,120,0.80)',
+    );
+
+    // After bubbling phase, transition the liquid itself to near-colourless
+    setTimeout(() => {
+      liquidEl.style.transition = `fill ${FADE_DUR}ms ease`;
+      liquidEl.style.fill       = 'rgba(195,225,255,0.35)';
+    }, BUBBLE_DUR);
+
+    setTimeout(() => {
+      sceneSvg.style.animation = 'lwSlideOut 0.45s ease forwards';
+    }, TOTAL - EXIT);
+
+    return new Promise(resolve => {
+      setTimeout(() => { cleanup(); resolve(); }, TOTAL);
+    });
+  }
+
+  /**
+   * Acidified KMnO₄ test — negative: tube stays purple, slides out.  Total ~3 s.
+   * @private
+   */
+  _animKMnO4TubeNegative(vesselEl, _params) {
+    const TOTAL = 3000;
+    const { sceneSvg, cleanup } = this._buildColourChangeTubeScene(
+      vesselEl, 'rgba(100,0,120,0.80)',
+    );
+    setTimeout(() => {
+      sceneSvg.style.animation = 'lwSlideOut 0.45s ease forwards';
+    }, TOTAL - 500);
+    return new Promise(resolve => {
+      setTimeout(() => { cleanup(); resolve(); }, TOTAL);
+    });
+  }
+
+  /**
+   * Acidified K₂Cr₂O₇ test — positive (SO₂): orange → green over ~3 s,
+   * held 2 s, tube exits.  Total ~6 s.
+   * @private
+   */
+  _animK2Cr2O7TubeGreen(vesselEl, _params) {
+    const BUBBLE_DUR = 1500;
+    const FADE_DUR   = 2500;
+    const HOLD       = 2000;
+    const EXIT       = 500;
+    const TOTAL      = BUBBLE_DUR + FADE_DUR + HOLD + EXIT;
+
+    // Orange K₂Cr₂O₇ liquid
+    const { sceneSvg, liquidEl, cleanup } = this._buildColourChangeTubeScene(
+      vesselEl, 'rgba(220,110,0,0.75)',
+    );
+
+    // After bubbling, fade orange → green (Cr³⁺ colour)
+    setTimeout(() => {
+      liquidEl.style.transition = `fill ${FADE_DUR}ms ease`;
+      liquidEl.style.fill       = 'rgba(0,130,60,0.65)';
+    }, BUBBLE_DUR);
+
+    setTimeout(() => {
+      sceneSvg.style.animation = 'lwSlideOut 0.45s ease forwards';
+    }, TOTAL - EXIT);
+
+    return new Promise(resolve => {
+      setTimeout(() => { cleanup(); resolve(); }, TOTAL);
+    });
+  }
+
+  /**
+   * Acidified K₂Cr₂O₇ test — negative: tube stays orange, slides out.  Total ~3 s.
+   * @private
+   */
+  _animK2Cr2O7TubeNegative(vesselEl, _params) {
+    const TOTAL = 3000;
+    const { sceneSvg, cleanup } = this._buildColourChangeTubeScene(
+      vesselEl, 'rgba(220,110,0,0.75)',
+    );
+    setTimeout(() => {
+      sceneSvg.style.animation = 'lwSlideOut 0.45s ease forwards';
+    }, TOTAL - 500);
+    return new Promise(resolve => {
+      setTimeout(() => { cleanup(); resolve(); }, TOTAL);
+    });
+  }
+
   /**
    * Build an SVG litmus-paper scene anchored to vesselEl.
    * A strip of paper held by tweezers slides down into the gas space above
@@ -2249,6 +2513,158 @@ export class AnimationManager {
       : colour.startsWith('#') ? colour + '88'
       : colour;
     return this._testOverlay(vesselEl, 'indicatorColorReveal', colourWithAlpha, 1700);
+  }
+
+  // ─── Easter egg animations ────────────────────────────────────────────────
+
+  /**
+   * Luminol chemiluminescence — blue-green glow in the dark.
+   * A dark curtain fades over the vessel, then a radial blue-green glow pulses
+   * three times before both fade back out.
+   * @private
+   */
+  _animLuminolGlow(vesselEl, _params) {
+    const FADE_IN   = 900;   // curtain darkens
+    const HOLD      = 600;   // brief pause before first pulse
+    const PULSE_ON  = 1100;  // glow ramps up
+    const PULSE_OFF = 850;   // glow dims between pulses (not full off — "breathing" feel)
+    const PULSES    = 3;
+    const LAST_HOLD = 800;   // final glow lingers
+    const FADE_OUT  = 1400;  // curtain + glow fade back
+
+    // Dark curtain covers the entire vessel card
+    const curtain = document.createElement('div');
+    curtain.style.cssText = `
+      position: absolute; inset: 0;
+      background: rgba(0, 4, 20, 0);
+      pointer-events: none;
+      z-index: 22;
+      transition: background ${FADE_IN}ms ease;
+      border-radius: inherit;
+    `;
+    vesselEl.appendChild(curtain);
+
+    // Radial blue-green glow centred on the liquid zone (lower 70 % of card)
+    const glow = document.createElement('div');
+    glow.style.cssText = `
+      position: absolute;
+      left: 0; right: 0; bottom: 0; top: 28%;
+      pointer-events: none;
+      z-index: 23;
+      background: radial-gradient(ellipse at 50% 60%,
+        rgba(100, 255, 195, 0.95) 0%,
+        rgba(30,  220, 160, 0.68) 22%,
+        rgba(0,   140,  95, 0.32) 52%,
+        transparent 76%);
+      opacity: 0;
+      transition: opacity ${PULSE_ON}ms ease-in-out;
+      border-radius: inherit;
+    `;
+    vesselEl.appendChild(glow);
+
+    let t = 0;
+
+    // Fade curtain to near-black (small delay so rAF picks up the initial state)
+    setTimeout(() => { curtain.style.background = 'rgba(0, 4, 20, 0.93)'; }, 20);
+    t += FADE_IN + HOLD;
+
+    // Pulse glow PULSES times
+    for (let i = 0; i < PULSES; i++) {
+      setTimeout(() => { glow.style.opacity = '1'; }, t);
+      t += PULSE_ON;
+      setTimeout(() => { glow.style.opacity = '0.14'; }, t);
+      t += PULSE_OFF;
+    }
+
+    // Final full-brightness hold before fade-out
+    setTimeout(() => { glow.style.opacity = '1'; }, t);
+    t += PULSE_ON + LAST_HOLD;
+
+    // Fade curtain and glow out together
+    setTimeout(() => {
+      glow.style.transition = `opacity ${FADE_OUT}ms ease`;
+      glow.style.opacity    = '0';
+      curtain.style.transition = `background ${FADE_OUT}ms ease`;
+      curtain.style.background = 'rgba(0, 4, 20, 0)';
+    }, t);
+    t += FADE_OUT + 100;
+
+    // DOM cleanup
+    setTimeout(() => { curtain.remove(); glow.remove(); }, t);
+
+    return new Promise(resolve => setTimeout(resolve, t + 100));
+  }
+
+  /**
+   * Traffic light — indigo carmine reducing sequence.
+   * Plays one complete reducing cycle through the indicator's colour states:
+   *   green → red → amber → yellow (leuco form).
+   * render() has already set the liquid to yellow (the final colorChange.to);
+   * this animation overrides that temporarily and ends back at yellow.
+   * @private
+   */
+  _animTrafficLight(vesselEl, _params) {
+    return AnimationManager._trafficLightSequence(
+      AnimationManager._liquidEl(vesselEl),
+      /* reverse */ false
+    );
+  }
+
+  /**
+   * Traffic light swirl (re-oxidation): yellow → amber → red → green → blue.
+   * Played when the user swirls a vessel containing leuco indigo carmine.
+   * @private
+   */
+  _animTrafficLightReverse(vesselEl, _params) {
+    return AnimationManager._trafficLightSequence(
+      AnimationManager._liquidEl(vesselEl),
+      /* reverse */ true
+    );
+  }
+
+  /**
+   * Shared step sequencer for both traffic-light directions.
+   * @param {HTMLElement|null} liquid
+   * @param {boolean} reverse  false = reduction (forward), true = re-oxidation (reverse)
+   * @private
+   */
+  static _trafficLightSequence(liquid, reverse) {
+    if (!liquid) return Promise.resolve();
+
+    // Each step lingers for STEP ms before the next colour kicks in.
+    // Deliberately slow — the real experiment takes ~5-10 s per sweep.
+    const STEP = 2800;
+
+    // Full reduction sequence (forward)
+    const FORWARD = [
+      { color: 'rgba(35,  152, 72, 0.72)',  dur: STEP * 0.70 },  // GREEN
+      { color: 'rgba(196, 38,  38, 0.68)',  dur: STEP * 0.75 },  // RED
+      { color: 'rgba(205, 115, 18, 0.62)',  dur: STEP * 0.80 },  // AMBER
+      { color: 'rgba(190, 170, 55, 0.40)',  dur: STEP * 0.90 },  // YELLOW (leuco)
+    ];
+
+    // Re-oxidation on swirling — reverse colour order, slightly faster
+    // (O₂ re-oxidation is quicker than glucose reduction)
+    const REVERSE = [
+      { color: 'rgba(205, 115, 18, 0.62)',  dur: STEP * 0.60 },  // AMBER
+      { color: 'rgba(196, 38,  38, 0.68)',  dur: STEP * 0.65 },  // RED
+      { color: 'rgba(35,  152, 72, 0.72)',  dur: STEP * 0.70 },  // GREEN
+      { color: 'rgba(18,  45,  195, 0.78)', dur: STEP * 0.80 },  // BLUE (fully re-oxidised)
+    ];
+
+    const steps = reverse ? REVERSE : FORWARD;
+    let t = 0;
+    for (const step of steps) {
+      const delay = t;
+      setTimeout(() => {
+        liquid.style.transition = `background ${step.dur}ms ease-in-out`;
+        liquid.style.background = step.color;
+      }, delay);
+      t += STEP;
+    }
+
+    const TOTAL = STEP * (steps.length - 1) + Math.round(steps[steps.length - 1].dur) + 400;
+    return new Promise(resolve => setTimeout(resolve, TOTAL));
   }
 }
 

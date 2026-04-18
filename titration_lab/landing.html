@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Titration Lab — InquisitiveChem</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,300&family=Inconsolata:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <style>
+    html, body { overflow: auto; height: auto; min-height: 100%; }
+    body { display: flex; flex-direction: column; align-items: center; padding-bottom: 72px; }
+
+    /* ── Hero ──────────────────────────────────── */
+    .hero {
+      width: 100%;
+      padding: 52px 24px 36px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 55% at 50% 0%, rgba(92,184,255,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 12px;
+    }
+    .hero h1 {
+      font-family: var(--font-heading); font-size: clamp(28px, 5vw, 46px);
+      font-weight: 400; line-height: 1.15; margin-bottom: 14px;
+    }
+    .hero h1 em { color: var(--accent); font-style: italic; }
+    .hero p { color: var(--muted); font-size: 14px; max-width: 480px; margin: 0 auto; line-height: 1.65; }
+
+    /* ── Content wrapper ───────────────────────── */
+    .content { width: 100%; max-width: 920px; padding: 0 24px; display: flex; flex-direction: column; gap: 40px; }
+
+    /* ── Section ───────────────────────────────── */
+    .section { display: flex; flex-direction: column; gap: 16px; }
+    .section.hidden { display: none; }
+
+    .section-label {
+      font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .section-label .step-num {
+      background: var(--surface2); border: 1px solid var(--border2); border-radius: 50%;
+      width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700; flex-shrink: 0; color: var(--accent);
+    }
+
+    /* ── Level cards ───────────────────────────── */
+    .level-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 560px) { .level-grid { grid-template-columns: 1fr; } }
+
+    .level-card {
+      background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius-lg);
+      padding: 26px 22px; cursor: pointer; position: relative; overflow: hidden;
+      transition: border-color .18s, background .18s, transform .12s;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .level-card::after {
+      content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity .2s; pointer-events: none;
+    }
+    .level-card.foundation::after { background: radial-gradient(ellipse 90% 70% at 50% 110%, rgba(92,184,255,0.13) 0%, transparent 70%); }
+    .level-card.advanced::after   { background: radial-gradient(ellipse 90% 70% at 50% 110%, rgba(212,92,255,0.13) 0%, transparent 70%); }
+    .level-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+    .level-card:hover::after { opacity: 1; }
+    .level-card.active { transform: none; }
+    .level-card.active.foundation { border-color: var(--accent);  background: rgba(92,184,255,0.05); }
+    .level-card.active.advanced   { border-color: var(--accent4); background: rgba(212,92,255,0.05); }
+    .level-card.active::after { opacity: 1; }
+
+    .level-header { display: flex; align-items: flex-start; gap: 14px; }
+    .level-name { font-family: var(--font-heading); font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .level-card.active.foundation .level-name { color: var(--accent); }
+    .level-card.active.advanced   .level-name { color: var(--accent4); }
+    .level-desc { font-size: 12px; color: var(--muted); line-height: 1.55; }
+    .level-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .level-tag {
+      font-size: 10px; padding: 3px 9px; border-radius: 20px;
+      border: 1px solid var(--border); color: var(--muted); background: var(--surface2);
+    }
+    .level-card.active.foundation .level-tag { border-color: rgba(92,184,255,0.4); color: var(--accent);  background: rgba(92,184,255,0.08); }
+    .level-card.active.advanced   .level-tag { border-color: rgba(212,92,255,0.4); color: var(--accent4); background: rgba(212,92,255,0.08); }
+
+    .check-ring {
+      position: absolute; top: 14px; right: 16px; width: 20px; height: 20px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 10px; opacity: 0; transform: scale(0.4); transition: opacity .18s, transform .18s;
+    }
+    .level-card.active.foundation .check-ring { background: var(--accent);  color: #06141e; opacity: 1; transform: scale(1); }
+    .level-card.active.advanced   .check-ring { background: var(--accent4); color: #160620; opacity: 1; transform: scale(1); }
+
+    /* ── Category grid ─────────────────────────── */
+    .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media (max-width: 640px) { .cat-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 400px) { .cat-grid { grid-template-columns: 1fr; } }
+
+    .cat-card {
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 18px 16px 14px; display: flex; flex-direction: column; gap: 10px;
+      transition: border-color .15s, background .15s, transform .1s;
+    }
+    .cat-card.available { cursor: pointer; }
+    .cat-card.available:hover { border-color: var(--border2); background: var(--surface2); transform: translateY(-1px); }
+    .cat-card.available.active { transform: none; }
+
+    .cat-card.soon { opacity: 0.55; cursor: default; }
+
+    .cat-icon { width: 32px; height: 32px; flex-shrink: 0; }
+
+    .cat-name { font-size: 13px; font-weight: 600; line-height: 1.25; }
+    .cat-card.available.active .cat-name { color: var(--accent3); }
+
+    .cat-sub { font-size: 11px; color: var(--muted); line-height: 1.45; }
+
+    .cat-examples {
+      font-size: 10px; color: var(--border2); line-height: 1.45;
+      border-top: 1px solid var(--border); padding-top: 8px;
+    }
+
+    .soon-badge {
+      display: inline-block; font-size: 9px; padding: 2px 7px; border-radius: 3px;
+      background: var(--surface2); border: 1px solid var(--border); color: var(--border2);
+      letter-spacing: 0.04em; width: fit-content;
+    }
+
+    /* active state per colour */
+    .cat-card[data-cat="acid_base"].active   { border-color: var(--accent3);  background: rgba(92,255,184,0.05);  }
+    .cat-card[data-cat="redox"].active       { border-color: var(--accent2);  background: rgba(255,159,92,0.05);  }
+    .cat-card[data-cat="iodometric"].active  { border-color: var(--accent4);  background: rgba(212,92,255,0.05);  }
+    .cat-card[data-cat="back"].active        { border-color: var(--accent);   background: rgba(92,184,255,0.05);  }
+    .cat-card[data-cat="edta"].active        { border-color: var(--warning);  background: rgba(255,212,92,0.05);  }
+    .cat-card[data-cat="precip"].active      { border-color: var(--danger);   background: rgba(255,92,122,0.05);  }
+
+    /* ── Sub-type grid (acid-base) ─────────────── */
+    .sub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+
+    .sub-card {
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 15px; cursor: pointer; display: flex; flex-direction: column; gap: 9px;
+      transition: border-color .15s, background .15s, transform .1s;
+    }
+    .sub-card:hover { border-color: var(--border2); background: var(--surface2); transform: translateY(-1px); }
+    .sub-card.active { border-color: var(--accent3); background: rgba(92,255,184,0.05); transform: none; }
+
+    .sub-type { font-size: 11px; font-weight: 600; }
+    .sub-card.active .sub-type { color: var(--accent3); }
+    .sub-example { font-size: 12px; color: var(--muted); }
+    .sub-example strong { color: var(--text); }
+    .sub-note { font-size: 10px; color: var(--border2); border-top: 1px solid var(--border); padding-top: 7px; line-height: 1.4; }
+    .sub-ind { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); }
+    .ind-bar { width: 22px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+    .ph-mini { display: block; width: 100%; height: 42px; }
+
+    /* ── Foundation preset ─────────────────────── */
+    .preset-card {
+      background: var(--surface); border: 1.5px solid var(--accent); border-radius: var(--radius);
+      padding: 20px 22px; display: flex; gap: 22px; align-items: center; flex-wrap: wrap;
+    }
+    .preset-body { flex: 1; min-width: 200px; }
+    .preset-body h3 { font-family: var(--font-heading); font-size: 16px; margin-bottom: 6px; }
+    .preset-body p  { font-size: 12px; color: var(--muted); line-height: 1.55; }
+    .preset-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .ptag {
+      font-size: 10px; padding: 2px 8px; border-radius: 20px;
+      background: rgba(92,184,255,0.1); border: 1px solid rgba(92,184,255,0.3); color: var(--accent);
+    }
+
+    /* ── Coming-soon callout ───────────────────── */
+    .coming-callout {
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 18px 20px; display: flex; align-items: flex-start; gap: 14px;
+    }
+    .coming-callout svg { flex-shrink: 0; margin-top: 2px; }
+    .coming-callout h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .coming-callout p  { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Action bar ────────────────────────────── */
+    .action-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    .btn-start {
+      padding: 14px 40px; font-family: var(--font-body); font-size: 14px; font-weight: 600;
+      border: none; border-radius: var(--radius); background: var(--accent3); color: #051a10;
+      cursor: pointer; transition: opacity .15s, transform .1s; letter-spacing: 0.03em;
+    }
+    .btn-start:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+    .btn-start:disabled { opacity: 0.28; cursor: not-allowed; transform: none; }
+
+    .btn-custom {
+      padding: 12px 20px; font-family: var(--font-body); font-size: 13px;
+      border: 1.5px solid var(--border2); border-radius: var(--radius);
+      background: transparent; color: var(--muted); cursor: pointer;
+      transition: border-color .15s, color .15s; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-custom:hover { border-color: var(--accent); color: var(--accent); }
+    .action-meta { font-size: 11px; color: var(--muted); margin-left: auto; line-height: 1.5; text-align: right; }
+  </style>
+</head>
+<body>
+
+<!-- ── Hero ──────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-eyebrow">InquisitiveChem</div>
+  <h1><em>Titration</em> Lab</h1>
+  <p>An interactive simulation covering acid-base, redox, iodometric, and complexometric titrations — from O-Level through IB and A-Level.</p>
+</div>
+
+<div class="content">
+
+  <!-- ════════════════════════════════════════
+       STEP 1 — Level
+  ════════════════════════════════════════ -->
+  <div class="section" id="sec-level">
+    <div class="section-label">
+      <span class="step-num">1</span>
+      Choose your level
+    </div>
+    <div class="level-grid">
+
+      <div class="level-card foundation" id="card-foundation">
+        <div class="check-ring">✓</div>
+        <div class="level-header">
+          <!-- Simple flask icon -->
+          <svg class="level-icon" width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <path d="M16 6 L16 18 L8 32 Q7 34 9 34 L31 34 Q33 34 32 32 L24 18 L24 6 Z"
+                  fill="rgba(92,184,255,0.12)" stroke="rgba(92,184,255,0.5)" stroke-width="1.2" stroke-linejoin="round"/>
+            <rect x="14" y="4" width="12" height="3" rx="1" fill="none" stroke="rgba(92,184,255,0.35)" stroke-width="1.2"/>
+            <path d="M10 28 Q20 24 30 28 L31 34 Q33 34 32 32 L8 32 Q7 34 9 34 Z" fill="rgba(92,184,255,0.35)"/>
+          </svg>
+          <div>
+            <div class="level-name">Foundation</div>
+            <div class="level-desc">Strong acid–strong base titration, concordance, and basic calculations.</div>
+          </div>
+        </div>
+        <div class="level-tags">
+          <span class="level-tag">O-Level</span>
+          <span class="level-tag">GCSE</span>
+          <span class="level-tag">Year 9–11</span>
+          <span class="level-tag">Grade 9–10</span>
+        </div>
+      </div>
+
+      <div class="level-card advanced" id="card-advanced">
+        <div class="check-ring">✓</div>
+        <div class="level-header">
+          <!-- Flask with S-curve -->
+          <svg class="level-icon" width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <path d="M16 6 L16 18 L8 32 Q7 34 9 34 L31 34 Q33 34 32 32 L24 18 L24 6 Z"
+                  fill="rgba(212,92,255,0.10)" stroke="rgba(212,92,255,0.5)" stroke-width="1.2" stroke-linejoin="round"/>
+            <rect x="14" y="4" width="12" height="3" rx="1" fill="none" stroke="rgba(212,92,255,0.35)" stroke-width="1.2"/>
+            <path d="M10 28 Q20 24 30 28 L31 34 Q33 34 32 32 L8 32 Q7 34 9 34 Z" fill="rgba(212,92,255,0.35)"/>
+            <path d="M10 16 C13 16 15 17 17 19 C19 21 20 23 20 25" stroke="rgba(212,92,255,0.8)" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          </svg>
+          <div>
+            <div class="level-name">Advanced</div>
+            <div class="level-desc">Full range of titration types: acid-base, redox, iodometric, and more.</div>
+          </div>
+        </div>
+        <div class="level-tags">
+          <span class="level-tag">A-Level</span>
+          <span class="level-tag">JC</span>
+          <span class="level-tag">IB</span>
+          <span class="level-tag">AP Chem</span>
+          <span class="level-tag">Year 12–13</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       STEP 2a — Foundation preset (no choice)
+  ════════════════════════════════════════ -->
+  <div class="section hidden" id="sec-foundation-preset">
+    <div class="section-label">
+      <span class="step-num">2</span>
+      Your experiment
+    </div>
+    <div class="preset-card">
+      <svg width="80" height="50" viewBox="0 0 80 50" fill="none">
+        <path d="M 5,45 C 20,44 32,42 40,39 C 42,34 43,26 45,16 C 47,8 55,4 75,3"
+              stroke="var(--accent)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <line x1="44" y1="2" x2="44" y2="48" stroke="var(--border2)" stroke-width="0.8" stroke-dasharray="3,3"/>
+        <circle cx="44" cy="24" r="3" fill="var(--accent3)" opacity="0.9"/>
+        <text x="3" y="7"  fill="var(--muted)" font-size="6" font-family="monospace">14</text>
+        <text x="3" y="47" fill="var(--muted)" font-size="6" font-family="monospace">0</text>
+      </svg>
+      <div class="preset-body">
+        <h3>Strong Acid + Strong Base</h3>
+        <p>Titrate <strong>NaOH</strong> into <strong>HCl</strong>. A clean S-shaped pH curve with a sharp equivalence point at pH 7 — the classic first titration.</p>
+        <div class="preset-tags">
+          <span class="ptag">NaOH → HCl</span>
+          <span class="ptag">Phenolphthalein</span>
+          <span class="ptag">EP at pH 7</span>
+          <span class="ptag">0.1 mol dm⁻³</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       STEP 2b — Advanced: category choice
+  ════════════════════════════════════════ -->
+  <div class="section hidden" id="sec-category">
+    <div class="section-label">
+      <span class="step-num">2</span>
+      Choose titration type
+    </div>
+    <div class="cat-grid">
+
+      <!-- Acid-Base ── available ── -->
+      <div class="cat-card available active" data-cat="acid_base">
+        <svg class="cat-icon" viewBox="0 0 32 32" fill="none">
+          <!-- Flask outline -->
+          <path d="M13 4 L13 14 L6 25 Q5 27 7 27 L25 27 Q27 27 26 25 L19 14 L19 4 Z"
+                fill="rgba(92,255,184,0.10)" stroke="rgba(92,255,184,0.55)" stroke-width="1.1" stroke-linejoin="round"/>
+          <rect x="11" y="3" width="10" height="2.5" rx="0.8" fill="none" stroke="rgba(92,255,184,0.4)" stroke-width="1"/>
+          <!-- H⁺ and OH⁻ labels -->
+          <text x="7.5" y="23" fill="rgba(92,255,184,0.85)" font-size="5.5" font-family="monospace" font-weight="700">H⁺</text>
+          <text x="16" y="23" fill="rgba(92,255,184,0.65)" font-size="4.5" font-family="monospace">OH⁻</text>
+        </svg>
+        <div class="cat-name">Acid-Base</div>
+        <div class="cat-sub">Neutralisation reactions between acids and bases. pH-curve analysis, indicator selection, equivalence point.</div>
+        <div class="cat-examples">SA+SB · WA+SB · SA+WB · Carbonate</div>
+      </div>
+
+      <!-- Redox ── coming soon ── -->
+      <div class="cat-card soon" data-cat="redox">
+        <svg class="cat-icon" viewBox="0 0 32 32" fill="none">
+          <!-- Electron transfer arrows -->
+          <circle cx="9" cy="16" r="6" fill="rgba(255,159,92,0.12)" stroke="rgba(255,159,92,0.45)" stroke-width="1"/>
+          <circle cx="23" cy="16" r="6" fill="rgba(255,159,92,0.08)" stroke="rgba(255,159,92,0.3)" stroke-width="1"/>
+          <path d="M15 13 L17 13 L16 11 L18 14 L16 17 L17 15 L15 15" stroke="rgba(255,159,92,0.7)" stroke-width="1" fill="none" stroke-linejoin="round"/>
+          <text x="6.5" y="19" fill="rgba(255,159,92,0.7)" font-size="5" font-family="monospace">Fe²⁺</text>
+          <text x="19.5" y="19" fill="rgba(255,159,92,0.5)" font-size="5" font-family="monospace">Fe³⁺</text>
+        </svg>
+        <div class="cat-name">Redox</div>
+        <div class="cat-sub">Electron-transfer titrations. Permanganate and dichromate as self-indicating or colour-change oxidants.</div>
+        <div class="cat-examples">KMnO₄ · K₂Cr₂O₇ · Ce⁴⁺</div>
+        <span class="soon-badge">Coming soon</span>
+      </div>
+
+      <!-- Iodometric ── coming soon ── -->
+      <div class="cat-card soon" data-cat="iodometric">
+        <svg class="cat-icon" viewBox="0 0 32 32" fill="none">
+          <!-- I₂ molecule hint -->
+          <circle cx="10" cy="16" r="5.5" fill="rgba(212,92,255,0.15)" stroke="rgba(212,92,255,0.5)" stroke-width="1.1"/>
+          <circle cx="22" cy="16" r="5.5" fill="rgba(212,92,255,0.10)" stroke="rgba(212,92,255,0.4)" stroke-width="1.1"/>
+          <line x1="15.5" y1="16" x2="16.5" y2="16" stroke="rgba(212,92,255,0.5)" stroke-width="1.5"/>
+          <text x="7.5" y="19" fill="rgba(212,92,255,0.8)" font-size="5.5" font-family="monospace" font-weight="700">I</text>
+          <text x="19.5" y="19" fill="rgba(212,92,255,0.8)" font-size="5.5" font-family="monospace" font-weight="700">I</text>
+        </svg>
+        <div class="cat-name">Iodometric</div>
+        <div class="cat-sub">Iodine-based titrations with starch indicator. Direct (iodimetric) and indirect (iodometric) methods.</div>
+        <div class="cat-examples">Na₂S₂O₃ + I₂ · Cu²⁺ · Vitamin C</div>
+        <span class="soon-badge">Coming soon</span>
+      </div>
+
+      <!-- Back Titration ── coming soon ── -->
+      <div class="cat-card soon" data-cat="back">
+        <svg class="cat-icon" viewBox="0 0 32 32" fill="none">
+          <!-- Forward + back arrows -->
+          <path d="M6 12 L20 12 L20 10 L26 14 L20 18 L20 16 L6 16 Z"
+                fill="rgba(92,184,255,0.12)" stroke="rgba(92,184,255,0.5)" stroke-width="0.8" stroke-linejoin="round"/>
+          <path d="M26 22 L12 22 L12 20 L6 24 L12 28 L12 26 L26 26 Z"
+                fill="rgba(92,184,255,0.08)" stroke="rgba(92,184,255,0.35)" stroke-width="0.8" stroke-linejoin="round"/>
+        </svg>
+        <div class="cat-name">Back Titration</div>
+        <div class="cat-sub">Excess reagent added to sample; unreacted excess back-titrated with a second standard solution.</div>
+        <div class="cat-examples">CaCO₃ purity · Aspirin content · Kjeldahl N</div>
+        <span class="soon-badge">Coming soon</span>
+      </div>
+
+      <!-- Complexometric / EDTA ── coming soon ── -->
+      <div class="cat-card soon" data-cat="edta">
+        <svg class="cat-icon" viewBox="0 0 32 32" fill="none">
+          <!-- Octahedral / EDTA hint: central metal + 6 coordinate bonds -->
+          <circle cx="16" cy="16" r="3.5" fill="rgba(255,212,92,0.3)" stroke="rgba(255,212,92,0.7)" stroke-width="1"/>
+          <line x1="16" y1="6"  x2="16" y2="12.5" stroke="rgba(255,212,92,0.5)" stroke-width="1"/>
+          <line x1="16" y1="19.5" x2="16" y2="26" stroke="rgba(255,212,92,0.5)" stroke-width="1"/>
+          <line x1="6"  y1="16" x2="12.5" y2="16" stroke="rgba(255,212,92,0.5)" stroke-width="1"/>
+          <line x1="19.5" y1="16" x2="26" y2="16"  stroke="rgba(255,212,92,0.5)" stroke-width="1"/>
+          <line x1="9" y1="9"  x2="13.5" y2="13.5" stroke="rgba(255,212,92,0.4)" stroke-width="0.8"/>
+          <line x1="18.5" y1="18.5" x2="23" y2="23" stroke="rgba(255,212,92,0.4)" stroke-width="0.8"/>
+          <text x="13" y="19" fill="rgba(255,212,92,0.8)" font-size="5" font-family="monospace" font-weight="700">M</text>
+        </svg>
+        <div class="cat-name">Complexometric</div>
+        <div class="cat-sub">EDTA forms 1:1 complexes with metal ions. Used for water hardness and metal-ion determination.</div>
+        <div class="cat-examples">Ca²⁺ / Mg²⁺ · Zn²⁺ · EBT indicator</div>
+        <span class="soon-badge">Coming soon</span>
+      </div>
+
+      <!-- Precipitation ── coming soon ── -->
+      <div class="cat-card soon" data-cat="precip">
+        <svg class="cat-icon" viewBox="0 0 32 32" fill="none">
+          <!-- Precipitate "cloud" at bottom of flask -->
+          <path d="M13 5 L13 15 L7 23 Q6 25 8 25 L24 25 Q26 25 25 23 L19 15 L19 5 Z"
+                fill="rgba(255,92,122,0.08)" stroke="rgba(255,92,122,0.4)" stroke-width="1" stroke-linejoin="round"/>
+          <ellipse cx="16" cy="22" rx="7" ry="2.5" fill="rgba(255,92,122,0.25)"/>
+          <text x="12" y="23" fill="rgba(255,92,122,0.8)" font-size="5" font-family="monospace">↓</text>
+          <!-- Ag+ label -->
+          <text x="10" y="14" fill="rgba(255,92,122,0.6)" font-size="4.5" font-family="monospace">Ag⁺</text>
+          <text x="18" y="14" fill="rgba(255,92,122,0.5)" font-size="4.5" font-family="monospace">Cl⁻</text>
+        </svg>
+        <div class="cat-name">Precipitation</div>
+        <div class="cat-sub">Argentometric titrations — analyte forms an insoluble precipitate with the titrant at the endpoint.</div>
+        <div class="cat-examples">AgNO₃ + Cl⁻ (Mohr) · Volhard method</div>
+        <span class="soon-badge">Coming soon</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       STEP 3 — Acid-Base sub-type (advanced)
+  ════════════════════════════════════════ -->
+  <div class="section hidden" id="sec-subtype">
+    <div class="section-label">
+      <span class="step-num">3</span>
+      Choose reaction system
+    </div>
+    <div class="sub-grid">
+
+      <!-- SA + SB -->
+      <div class="sub-card active" data-sub="SA_SB">
+        <div class="sub-type">Strong Acid + Strong Base</div>
+        <svg class="ph-mini" viewBox="0 0 80 42" fill="none">
+          <path d="M 5,39 C 20,38 32,36 39,33 C 41,28 42,20 44,11 C 46,4 54,2 75,1"
+                stroke="var(--accent3)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <line x1="43" y1="0" x2="43" y2="42" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3,2"/>
+          <circle cx="43" cy="20" r="2.5" fill="var(--accent3)" opacity="0.85"/>
+        </svg>
+        <div class="sub-example"><strong>NaOH</strong> into <strong>HCl</strong> or H₂SO₄</div>
+        <div class="sub-ind">
+          <div class="ind-bar" style="background:linear-gradient(90deg,rgba(180,200,255,0.18) 50%,#e060c0 50%)"></div>
+          Phenolphthalein · any indicator works
+        </div>
+        <div class="sub-note">Sharp S-curve. EP at pH 7. Largest jump of any system.</div>
+      </div>
+
+      <!-- WA + SB -->
+      <div class="sub-card" data-sub="WA_SB">
+        <div class="sub-type">Weak Acid + Strong Base</div>
+        <svg class="ph-mini" viewBox="0 0 80 42" fill="none">
+          <path d="M 5,36 C 16,32 28,26 37,21 C 40,17 42,12 44,9 C 46,5 54,3 75,2"
+                stroke="var(--accent4)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <line x1="43" y1="0" x2="43" y2="42" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3,2"/>
+          <circle cx="43" cy="9" r="2.5" fill="var(--accent4)" opacity="0.85"/>
+        </svg>
+        <div class="sub-example"><strong>NaOH</strong> into <strong>CH₃COOH</strong></div>
+        <div class="sub-ind">
+          <div class="ind-bar" style="background:linear-gradient(90deg,rgba(180,200,255,0.18) 50%,#e060c0 50%)"></div>
+          Phenolphthalein only — EP above pH 7
+        </div>
+        <div class="sub-note">Gradual rise. Buffer region at half-equivalence. EP ~pH 8.9.</div>
+      </div>
+
+      <!-- SA + WB -->
+      <div class="sub-card" data-sub="SA_WB">
+        <div class="sub-type">Strong Acid + Weak Base</div>
+        <svg class="ph-mini" viewBox="0 0 80 42" fill="none">
+          <path d="M 5,4 C 16,6 28,10 37,15 C 40,18 42,24 44,29 C 46,34 54,38 75,39"
+                stroke="var(--accent2)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <line x1="43" y1="0" x2="43" y2="42" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3,2"/>
+          <circle cx="43" cy="29" r="2.5" fill="var(--accent2)" opacity="0.85"/>
+        </svg>
+        <div class="sub-example"><strong>HCl</strong> into <strong>NH₃</strong> (ammonia)</div>
+        <div class="sub-ind">
+          <div class="ind-bar" style="background:linear-gradient(90deg,#e85040 50%,#f0c040 50%)"></div>
+          Methyl orange — EP below pH 7
+        </div>
+        <div class="sub-note">pH falls. Inverted S-curve. Buffer region midway. EP ~pH 5.3.</div>
+      </div>
+
+      <!-- Na₂CO₃ (two EPs) -->
+      <div class="sub-card" data-sub="Na2CO3_SA">
+        <div class="sub-type">Carbonate — Two Equivalence Points</div>
+        <svg class="ph-mini" viewBox="0 0 80 42" fill="none">
+          <path d="M 5,5 C 13,5 21,7 28,12 C 30,15 31,18 33,19 C 36,20 43,21 49,24 C 53,27 55,33 58,37 C 60,39 65,40 75,41"
+                stroke="var(--danger)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <line x1="32" y1="0" x2="32" y2="42" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3,2"/>
+          <line x1="56" y1="0" x2="56" y2="42" stroke="var(--border)" stroke-width="0.7" stroke-dasharray="3,2"/>
+          <circle cx="32" cy="18" r="2.2" fill="var(--danger)" opacity="0.7"/>
+          <circle cx="56" cy="37" r="2.2" fill="var(--danger)" opacity="0.9"/>
+        </svg>
+        <div class="sub-example"><strong>HCl</strong> into <strong>Na₂CO₃</strong></div>
+        <div class="sub-ind">
+          <div class="ind-bar" style="background:linear-gradient(90deg,#e85040 50%,#f0c040 50%)"></div>
+          Methyl orange — use EP2
+        </div>
+        <div class="sub-note">CO₃²⁻→HCO₃⁻ then HCO₃⁻→H₂CO₃. Two distinct EPs.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       Coming-soon callout (non acid-base)
+  ════════════════════════════════════════ -->
+  <div class="section hidden" id="sec-coming">
+    <div class="coming-callout">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="9" stroke="var(--warning)" stroke-width="1.2"/>
+        <line x1="10" y1="6" x2="10" y2="11" stroke="var(--warning)" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="10" cy="14" r="0.9" fill="var(--warning)"/>
+      </svg>
+      <div>
+        <h4 id="coming-title">This titration type is coming soon</h4>
+        <p id="coming-desc">We're building the simulation engine for this category. Check back later, or choose Acid-Base to start practising now.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       ACTION — Start / Custom Setup
+  ════════════════════════════════════════ -->
+  <div class="section hidden" id="sec-action">
+    <div class="section-label">
+      <span class="step-num" id="action-step-num">3</span>
+      Start
+    </div>
+    <div class="action-bar">
+      <button class="btn-start" id="btn-start" disabled>Start Lab →</button>
+      <a class="btn-custom" id="link-custom" href="index.html">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <path d="M1 6.5h11M7.5 3l4 3.5-4 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Custom Setup
+      </a>
+      <div class="action-meta" id="action-meta"></div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<script type="module">
+import { SessionConfig } from './js/SessionConfig.js';
+
+// ── Presets ────────────────────────────────────────────────────
+const PRESETS = {
+  foundation: { mode:'practice', level:'o_level', titrant:'naoh', analyte:'hcl',      indicator:'pp',  concTitrant:0.1, concAnalyte:0.1,   temperature:25, Kw:1e-14 },
+  SA_SB:      { mode:'practice', level:'jc',      titrant:'naoh', analyte:'hcl',      indicator:'pp',  concTitrant:0.1, concAnalyte:0.1,   temperature:25, Kw:1e-14 },
+  WA_SB:      { mode:'practice', level:'jc',      titrant:'naoh', analyte:'ethanoic', indicator:'pp',  concTitrant:0.1, concAnalyte:0.1,   temperature:25, Kw:1e-14 },
+  SA_WB:      { mode:'practice', level:'jc',      titrant:'hcl',  analyte:'nh3',      indicator:'mo',  concTitrant:0.1, concAnalyte:0.1,   temperature:25, Kw:1e-14 },
+  Na2CO3_SA:  { mode:'practice', level:'jc',      titrant:'hcl',  analyte:'na2co3',   indicator:'mo',  concTitrant:0.1, concAnalyte:0.053, temperature:25, Kw:1e-14 },
+};
+
+const COMING_SOON_INFO = {
+  redox:      { title:'Redox titrations — coming soon',        desc:'KMnO₄, K₂Cr₂O₇, and Ce⁴⁺ titrations with electron-transfer chemistry are in development.' },
+  iodometric: { title:'Iodometric titrations — coming soon',   desc:'Starch-endpoint iodine titrations (direct and indirect) are in development.' },
+  back:       { title:'Back titration — coming soon',          desc:'Two-step back-titration technique with CaCO₃ purity and aspirin content labs is in development.' },
+  edta:       { title:'Complexometric (EDTA) — coming soon',   desc:'EDTA metal-ion titrations with Eriochrome Black T indicator are in development.' },
+  precip:     { title:'Precipitation titrations — coming soon',desc:'Argentometric (AgNO₃) Mohr and Volhard methods are in development.' },
+};
+
+// ── State ──────────────────────────────────────────────────────
+let selLevel    = null;   // 'foundation' | 'advanced'
+let selCat      = 'acid_base';
+let selSub      = 'SA_SB';
+
+// ── DOM shortcuts ──────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function show(id) { $(id).classList.remove('hidden'); }
+function hide(id) { $(id).classList.add('hidden');    }
+
+// ── Active preset ──────────────────────────────────────────────
+function currentPreset() {
+  if (selLevel === 'foundation')                      return PRESETS.foundation;
+  if (selLevel === 'advanced' && selCat === 'acid_base') return PRESETS[selSub];
+  return null;
+}
+
+// ── Update action bar ──────────────────────────────────────────
+function refreshAction() {
+  const preset = currentPreset();
+  $('btn-start').disabled = !preset;
+
+  // Step number
+  const stepNum = selLevel === 'foundation' ? '3' :
+                  (selCat === 'acid_base'   ? '4' : '3');
+  $('action-step-num').textContent = stepNum;
+
+  // Meta text
+  if (preset) {
+    const lvlLabel = selLevel === 'foundation' ? 'O-Level / GCSE' : 'A-Level / JC / IB';
+    $('action-meta').innerHTML = `${lvlLabel} · practice mode<br>${(preset.concTitrant * 1000).toFixed(0)} mM titrant`;
+  } else {
+    $('action-meta').textContent = '';
+  }
+
+  // Seed custom setup link
+  if (preset) SessionConfig.save(preset);
+}
+
+// ── STEP 1: Level selection ────────────────────────────────────
+$('card-foundation').addEventListener('click', () => {
+  selLevel = 'foundation';
+  $('card-foundation').classList.add('active');
+  $('card-advanced').classList.remove('active');
+
+  show('sec-foundation-preset');
+  hide('sec-category');
+  hide('sec-subtype');
+  hide('sec-coming');
+  show('sec-action');
+  refreshAction();
+});
+
+$('card-advanced').addEventListener('click', () => {
+  selLevel = 'advanced';
+  $('card-advanced').classList.add('active');
+  $('card-foundation').classList.remove('active');
+
+  hide('sec-foundation-preset');
+  show('sec-category');
+
+  // Show the currently-selected category's downstream section
+  updateCategoryView();
+  show('sec-action');
+  refreshAction();
+});
+
+// ── STEP 2: Category selection (advanced) ─────────────────────
+document.querySelectorAll('.cat-card.available').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    selCat = card.dataset.cat;
+    updateCategoryView();
+    refreshAction();
+  });
+});
+
+function updateCategoryView() {
+  if (selCat === 'acid_base') {
+    show('sec-subtype');
+    hide('sec-coming');
+  } else {
+    hide('sec-subtype');
+    const info = COMING_SOON_INFO[selCat] ?? {};
+    $('coming-title').textContent = info.title ?? 'Coming soon';
+    $('coming-desc').textContent  = info.desc  ?? '';
+    show('sec-coming');
+  }
+}
+
+// ── STEP 3: Sub-type selection (acid-base) ────────────────────
+document.querySelectorAll('.sub-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.sub-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    selSub = card.dataset.sub;
+    refreshAction();
+  });
+});
+
+// ── Start Lab ─────────────────────────────────────────────────
+$('btn-start').addEventListener('click', () => {
+  const preset = currentPreset();
+  if (!preset) return;
+  SessionConfig.save(preset);
+  location.href = 'lab.html';
+});
+
+// ── Restore previous selection from sessionStorage ────────────
+(async () => {
+  const saved = await SessionConfig.load();
+  if (!saved?.level) return;
+
+  if (saved.level === 'o_level') {
+    $('card-foundation').click();
+  } else {
+    $('card-advanced').click();
+    // Guess category from saved analyte
+    const catMap = { hcl:'acid_base', h2so4_dil:'acid_base', ethanoic:'acid_base', nh3:'acid_base', na2co3:'acid_base', naoh:'acid_base' };
+    const cat = catMap[saved.analyte] ?? 'acid_base';
+    const catCard = document.querySelector(`.cat-card[data-cat="${cat}"]`);
+    if (catCard?.classList.contains('available')) catCard.click();
+
+    // Guess sub-type
+    const subMap = { hcl:'SA_SB', ethanoic:'WA_SB', nh3:'SA_WB', na2co3:'Na2CO3_SA', naoh:'SA_SB' };
+    const sub = subMap[saved.analyte] ?? 'SA_SB';
+    const subCard = document.querySelector(`.sub-card[data-sub="${sub}"]`);
+    if (subCard) subCard.click();
+  }
+})();
+</script>
+</body>
+</html>

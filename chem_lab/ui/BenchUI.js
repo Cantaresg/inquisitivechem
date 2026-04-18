@@ -427,6 +427,8 @@ export class BenchUI {
       this._setVesselHeat(vesselId, true);
     } else if (tool === 'cool') {
       this._setVesselHeat(vesselId, false);
+    } else if (tool === 'swirl') {
+      this._onSwirl(vesselId);
     } else if (tool === 'wash') {
       this._onWash(vesselId);
     }
@@ -572,6 +574,49 @@ export class BenchUI {
   }
 
   /**
+   * Swirl the vessel — simulates re-introducing dissolved O₂ by shaking.
+   * Only has a visible effect when the traffic light indicator is in its reduced
+   * (yellow/leuco) state; the IndigoCarmine ion is regenerated and the reverse
+   * colour sequence (yellow → amber → red → green → blue) is played.
+   * The cycle can be repeated indefinitely as long as glucose is still present.
+   * @private
+   */
+  _onSwirl(vesselId) {
+    const slot = this._slots.find(s => s?.vessel.id === vesselId);
+    if (!slot) return;
+
+    const sol = slot.vessel.solution;
+
+    // Only reacts if IndigoCarmine has been consumed (i.e. the indicator is
+    // in its reduced leuco / yellow state after the traffic light reaction).
+    const hasIndigoConsumed = (sol.ions['IndigoCarmine'] ?? 0) <= 0;
+    if (!hasIndigoConsumed) return;
+
+    // Restore IndigoCarmine (O₂ from air re-oxidises the leuco form)
+    sol.setIon('IndigoCarmine', 1);
+    // _colorOverride stays yellow until the animation overrides it;
+    // the REDOX rule will re-consume IndigoCarmine + glucose on the next drop.
+    // For swirl we don't run a full process() — we just drive the visual cycle.
+
+    const observation =
+      'The vessel was swirled, dissolving oxygen from the air. '
+      + 'The indicator was re-oxidised, cycling back through green, red, and amber '
+      + 'before returning to deep blue.';
+
+    this._obsLog.append({
+      id:          `swirl-${Date.now()}`,
+      type:        'redox',
+      observation,
+      equation:    'leuco-indigo carmine + O₂ → indigo carmine (blue)',
+      timestamp:   new Date(),
+    });
+
+    // Play reverse animation — blue is the final colorChange.to in the animation,
+    // so the liquid layer will end in the correct deep-blue state.
+    this._animManager.play('anim_traffic_light_reverse', slot.vesselUI.cardEl);
+  }
+
+  /**
    * Handle vessel wash (discard) requested by VesselUI.
    * Asks for confirmation before removing.
    * @private
@@ -700,6 +745,14 @@ export class BenchUI {
       if (sol.gases.length > 0) {
         sol.tickGasPressure(deltaSeconds);
         slot.vesselUI.updateGasOnly();
+      }
+
+      // Aerial oxidation: Fe²⁺ → Fe³⁺ on standing (pale green → reddish-brown)
+      // Also covers Fe(OH)₂ ppt (green → reddish-brown Fe(OH)₃).
+      if ((sol.ions['Fe2+'] ?? 0) > 0 || sol.ppts.some(p => p.id === 'fe_oh2')) {
+        if (sol.tickFe2Oxidation(deltaSeconds)) {
+          slot.vesselUI.updateLiquidOnly();
+        }
       }
 
       // Re-fire bubble animation periodically while gas remains

@@ -380,7 +380,19 @@ export const REAGENTS = [
     ions: { 'K+': 2, 'Cr2O7²-': 1 },
     dissolvedGas: null,
     isHot: false,
-  },  {
+  },
+  {
+    id: 'na2so3_aq',
+    label: 'Sodium sulfite (aq)',
+    category: 'liquid',
+    subcategory: 'aqueous_salt',
+    color: 'rgba(200,220,255,0.10)',
+    concentration: 1,
+    ions: { 'Na+': 2, 'SO3²-': 1 },
+    dissolvedGas: null,
+    isHot: false,
+  },
+  {
     id: 'k2cro4_aq',
     label: 'Potassium chromate (aq)',
     category: 'liquid',
@@ -429,6 +441,48 @@ export const REAGENTS = [
     isHot: false,
   },
 
+  // ── Special / Easter-egg reagents ─────────────────────────────────────────
+  // Grouped under subcategory 'special' so they appear in their own section
+  // in the Chemical Store. No engine changes are needed for new entries here.
+
+  {
+    id: 'luminol_aq',
+    label: 'Luminol solution',
+    category: 'liquid',
+    subcategory: 'special',
+    // Luminol in alkaline solution is nearly colourless
+    color: 'rgba(240, 240, 215, 0.12)',
+    concentration: 1,
+    // luminol tracked as a molecular species; OH⁻ pre-loaded (prepared in NaOH)
+    ions: { 'luminol': 1, 'OH-': 0.5 },
+    dissolvedGas: null,
+    isHot: false,
+  },
+  {
+    id: 'indigo_carmine_aq',
+    label: 'Indigo carmine (aq)',
+    category: 'liquid',
+    subcategory: 'special',
+    color: 'rgba(18, 45, 195, 0.78)',
+    concentration: 1,
+    // IndigoCarmine tracked as molecular species; ION_COLOUR_MAP gives the blue colour
+    ions: { 'IndigoCarmine': 1 },
+    dissolvedGas: null,
+    isHot: false,
+  },
+  {
+    id: 'glucose_aq',
+    label: 'Glucose solution',
+    category: 'liquid',
+    subcategory: 'special',
+    color: 'rgba(200, 220, 255, 0.10)',
+    concentration: 1,
+    // glucose tracked as a molecular species (reducing agent)
+    ions: { 'glucose': 1 },
+    dissolvedGas: null,
+    isHot: false,
+  },
+
   // ═══════════════════════════════════════════════════════════
   // SOLIDS
   // ═══════════════════════════════════════════════════════════
@@ -438,8 +492,17 @@ export const REAGENTS = [
 
   // ── Metals ───────────────────────────────────────────────
 
-  {
-    id: 'mg_s',
+  {    id: 'ca_s',
+    label: 'Calcium',
+    category: 'solid',
+    subcategory: 'metal',
+    color: '#d4d8c8',
+    ions: {},
+    solids: [{ id: 'ca_s', amount: 1.0 }],
+    dissolvedGas: null,
+    isHot: false,
+  },
+  {    id: 'mg_s',
     label: 'Magnesium',
     category: 'solid',
     subcategory: 'metal',
@@ -610,6 +673,17 @@ export const REAGENTS = [
     dissolvedGas: null,
     isHot: false,
   },
+  {
+    id: 'mno2_s',
+    label: 'Manganese(IV) oxide',
+    category: 'solid',
+    subcategory: 'oxide',
+    color: '#1a1a1a',
+    ions: {},
+    solids: [{ id: 'mno2_s', amount: 1.0 }],
+    dissolvedGas: null,
+    isHot: false,
+  },
 
   // ── Halide salts (flame-test solids) ─────────────────────────────────────
 
@@ -725,11 +799,17 @@ export const SYMBOL_MAP = {
   nh4_2so4_aq:   '(NH₄)₂SO₄ (aq)',
   k2cr2o7_aq:    'K₂Cr₂O₇ (aq)',
   k2cro4_aq:     'K₂CrO₄ (aq)',
+  na2so3_aq:     'Na₂SO₃ (aq)',
   // Redox reagents
   kmno4_aq:    'KMnO₄ (aq)',
   kmno4_acid:  'KMnO₄ / H₂SO₄ (aq)',
   h2o2_aq:     'H₂O₂ (aq)',
+  // Special / easter-egg reagents
+  luminol_aq:           'luminol (aq)',
+  indigo_carmine_aq:    'indigo carmine (aq)',
+  glucose_aq:           'glucose (aq)',
   // Metals
+  ca_s:        'Ca (s)',
   mg_s:        'Mg (s)',
   zn_s:        'Zn (s)',
   fe_s:        'Fe (s)',
@@ -747,6 +827,7 @@ export const SYMBOL_MAP = {
   cuo_s:       'CuO (s)',
   fe2o3_s:     'Fe₂O₃ (s)',
   zno_s:       'ZnO (s)',
+  mno2_s:      'MnO₂ (s)',
   // Halide salts
   nacl_s:      'NaCl (s)',
   kcl_s:       'KCl (s)',

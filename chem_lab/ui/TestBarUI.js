@@ -26,6 +26,8 @@ const FALLBACK_ICONS = {
   'test_limewater':            '🥛',
   'test_damp_red_litmus':      '📄',
   'test_damp_blue_litmus':     '📃',
+  'test_acidified_kmno4':      '🟣',
+  'test_acidified_k2cr2o7':   '🟠',
   'test_flame':                '🔦',
   'test_ph_paper':             '📏',
 };

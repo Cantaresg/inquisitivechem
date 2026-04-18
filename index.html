@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InquisitiveChemistry — Virtual Lab Suite</title>
+  <meta name="description" content="Interactive chemistry labs for A-Level and IGCSE students. Qualitative analysis, titrations, and more — experiment your way to understanding.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── RESET & ROOT ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #07090f;
+      --surface:   #0d1018;
+      --surface2:  #111520;
+      --border:    #1e2535;
+      --border2:   #263045;
+      --accent:    #4df0b0;
+      --accent2:   #38d49a;
+      --gold:      #ffd166;
+      --purple:    #c77dff;
+      --red:       #ff6b6b;
+      --blue:      #4d9fff;
+      --teal:      #5cffee;
+      --text:      #eef2ff;
+      --text-mid:  #a8b4d0;
+      --text-dim:  #5a6882;
+      --glow:      rgba(77,240,176,0.15);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 400;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── NAVBAR ──────────────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center;
+      padding: 0 48px; height: 60px;
+      background: rgba(7,9,15,0.88);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.2rem; color: var(--text);
+      text-decoration: none; letter-spacing: -0.01em;
+    }
+    .nav-logo span { color: var(--accent); }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 32px;
+      margin-left: auto; list-style: none;
+    }
+    .nav-links a {
+      font-size: 0.82rem; font-weight: 500;
+      color: var(--text-mid); text-decoration: none;
+      letter-spacing: 0.03em; transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-cta {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem !important; font-weight: 500;
+      padding: 6px 16px; border-radius: 6px;
+      border: 1px solid var(--accent);
+      color: var(--accent) !important;
+      letter-spacing: 0.06em;
+      transition: background 0.2s !important;
+    }
+    .nav-cta:hover { background: var(--glow) !important; }
+
+    @media (max-width: 600px) {
+      nav { padding: 0 20px; }
+      .nav-links { gap: 20px; }
+      .nav-links li:not(:last-child) { display: none; }
+    }
+
+    /* ── HERO ────────────────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 72vh;
+      display: flex; align-items: center;
+      padding: 120px 48px 80px;
+      overflow: hidden;
+    }
+
+    /* Animated particle field */
+    .particle-field {
+      position: absolute; inset: 0;
+      pointer-events: none; overflow: hidden;
+    }
+
+    /* Molecule nodes */
+    .mol-node {
+      position: absolute;
+      border-radius: 50%;
+    }
+    .mol-node::before {
+      content: '';
+      position: absolute; border-radius: 50%;
+      box-shadow: 0 0 18px currentColor, 0 0 50px currentColor;
+    }
+    .mn1 { top: 22%; right: 18%; color: rgba(77,240,176,0.4); }
+    .mn1::before { width: 10px; height: 10px; top: -5px; left: -5px; background: var(--accent); }
+    .mn2 { top: 55%; right: 28%; color: rgba(199,125,255,0.35); }
+    .mn2::before { width: 7px; height: 7px; top: -3.5px; left: -3.5px; background: var(--purple); }
+    .mn3 { top: 35%; right: 40%; color: rgba(255,209,102,0.3); }
+    .mn3::before { width: 6px; height: 6px; top: -3px; left: -3px; background: var(--gold); }
+    .mn4 { top: 65%; right: 12%; color: rgba(92,255,238,0.3); }
+    .mn4::before { width: 5px; height: 5px; top: -2.5px; left: -2.5px; background: var(--teal); }
+
+    /* Bond lines connecting nodes */
+    .bonds {
+      position: absolute; inset: 0; pointer-events: none;
+    }
+    .bonds line {
+      stroke: rgba(77,240,176,0.08);
+      stroke-width: 1;
+      stroke-dasharray: 4 6;
+      animation: dashMove 8s linear infinite;
+    }
+    @keyframes dashMove { to { stroke-dashoffset: -200; } }
+
+    /* Orbital ring */
+    .orbit-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(77,240,176,0.1);
+      animation: spin 12s linear infinite;
+    }
+    .orbit-ring::after {
+      content: '';
+      position: absolute;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+      top: -4px; left: 50%;
+      transform: translateX(-50%);
+    }
+    .or1 { width: 160px; height: 60px; top: 28%; right: 16%;
+      transform-origin: center; animation: spinOval 14s linear infinite; }
+    .or2 { width: 120px; height: 120px; top: 48%; right: 25%;
+      border-color: rgba(199,125,255,0.12); animation: spin 10s linear infinite reverse; }
+    .or2::after { background: var(--purple); box-shadow: 0 0 10px var(--purple); }
+
+    @keyframes spin     { to { transform: rotate(360deg); } }
+    @keyframes spinOval { to { transform: rotate(360deg) scaleY(0.38); } }
+
+    /* Grid overlay */
+    .grid-overlay {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 80% at 40% 50%, black 0%, transparent 100%);
+    }
+
+    /* Vignette */
+    .hero-vignette {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 55% 70% at 75% 50%,
+        transparent 0%, rgba(7,9,15,0.5) 50%, var(--bg) 100%);
+    }
+
+    /* Hero content */
+    .hero-content {
+      position: relative; z-index: 2;
+      max-width: 600px;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem; letter-spacing: 0.14em;
+      color: var(--accent); text-transform: uppercase;
+      margin-bottom: 24px;
+      opacity: 0; animation: fadeUp 0.8s ease 0.2s forwards;
+    }
+    .hero-eyebrow::before {
+      content: ''; display: block;
+      width: 28px; height: 1px; background: var(--accent);
+    }
+
+    .hero-title {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(2.6rem, 5vw, 4rem);
+      line-height: 1.1; letter-spacing: -0.02em;
+      color: var(--text); margin-bottom: 10px;
+      opacity: 0; animation: fadeUp 0.8s ease 0.4s forwards;
+    }
+    .hero-title em { font-style: italic; color: var(--accent); }
+
+    .hero-subtitle {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(1.3rem, 2.2vw, 1.75rem);
+      line-height: 1.2; letter-spacing: -0.01em;
+      color: var(--text-mid); margin-bottom: 24px;
+      opacity: 0; animation: fadeUp 0.8s ease 0.55s forwards;
+    }
+
+    .hero-body {
+      font-size: 0.97rem; line-height: 1.75;
+      color: var(--text-mid); max-width: 480px;
+      margin-bottom: 40px;
+      opacity: 0; animation: fadeUp 0.8s ease 0.7s forwards;
+    }
+    .hero-body strong { color: var(--text); font-weight: 600; }
+
+    .hero-actions {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      opacity: 0; animation: fadeUp 0.8s ease 0.85s forwards;
+    }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 600;
+      padding: 13px 26px; border-radius: 10px;
+      background: var(--accent); color: #050a0a;
+      text-decoration: none; border: none; cursor: pointer;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 0 0 0 rgba(77,240,176,0.4);
+    }
+    .btn-primary:hover {
+      background: var(--accent2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(77,240,176,0.22);
+    }
+
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 0.85rem; font-weight: 500;
+      padding: 13px 22px; border-radius: 10px;
+      border: 1.5px solid var(--border2);
+      color: var(--text-mid); text-decoration: none;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: var(--text-mid); color: var(--text);
+      background: rgba(255,255,255,0.03);
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── LABS SECTION ─────────────────────────────────────────────── */
+    .labs-section {
+      padding: 80px 48px 100px;
+      max-width: 1100px; margin: 0 auto;
+    }
+
+    .section-label {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem; letter-spacing: 0.14em;
+      color: var(--text-dim); text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .section-label::before {
+      content: ''; display: block;
+      width: 20px; height: 1px; background: var(--text-dim);
+    }
+
+    .section-heading {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 400; line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: var(--text); margin-bottom: 12px;
+    }
+
+    .section-sub {
+      font-size: 0.95rem; color: var(--text-mid);
+      max-width: 520px; line-height: 1.7; margin-bottom: 48px;
+    }
+
+    /* ── LAB CARDS GRID ───────────────────────────────────────────── */
+    .labs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 24px;
+    }
+
+    .lab-card {
+      position: relative;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 28px 28px;
+      display: flex; flex-direction: column; gap: 16px;
+      text-decoration: none; color: inherit;
+      overflow: hidden;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+    .lab-card::before {
+      content: '';
+      position: absolute; inset: 0; opacity: 0;
+      transition: opacity 0.3s; pointer-events: none;
+    }
+    .lab-card.live::before {
+      background: radial-gradient(ellipse 80% 60% at 50% 110%, rgba(77,240,176,0.1) 0%, transparent 70%);
+    }
+    .lab-card.beta::before {
+      background: radial-gradient(ellipse 80% 60% at 50% 110%, rgba(92,184,255,0.1) 0%, transparent 70%);
+    }
+    .lab-card:hover { transform: translateY(-3px); }
+    .lab-card.live:hover  { border-color: rgba(77,240,176,0.5);  box-shadow: 0 12px 40px rgba(77,240,176,0.08); }
+    .lab-card.beta:hover  { border-color: rgba(77,153,255,0.5);  box-shadow: 0 12px 40px rgba(77,153,255,0.08); }
+    .lab-card:hover::before { opacity: 1; }
+
+    /* Disabled / soon state */
+    .lab-card.soon {
+      opacity: 0.48; cursor: default; pointer-events: none;
+    }
+    .lab-card.soon:hover { transform: none; box-shadow: none; }
+
+    .card-header {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    }
+
+    .card-icon {
+      font-size: 2rem; line-height: 1;
+    }
+
+    .card-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem; letter-spacing: 0.1em; font-weight: 500;
+      padding: 4px 10px; border-radius: 4px; white-space: nowrap;
+    }
+    .badge-live {
+      background: rgba(77,240,176,0.12);
+      border: 1px solid rgba(77,240,176,0.35);
+      color: var(--accent);
+    }
+    .badge-beta {
+      background: rgba(77,153,255,0.1);
+      border: 1px solid rgba(77,153,255,0.35);
+      color: var(--blue);
+    }
+    .badge-soon {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    .card-title {
+      font-family: 'Instrument Serif', serif;
+      font-size: 1.55rem; font-weight: 400;
+      line-height: 1.15; letter-spacing: -0.01em;
+    }
+    .lab-card.live .card-title  { color: var(--text); }
+    .lab-card.beta .card-title  { color: var(--text); }
+
+    .card-desc {
+      font-size: 0.875rem; color: var(--text-mid);
+      line-height: 1.7; flex: 1;
+    }
+
+    .card-chips {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .chip {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem; padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+    .lab-card.live .chip {
+      border-color: rgba(77,240,176,0.2);
+      color: rgba(77,240,176,0.75);
+      background: rgba(77,240,176,0.06);
+    }
+    .lab-card.beta .chip {
+      border-color: rgba(77,153,255,0.25);
+      color: rgba(92,184,255,0.8);
+      background: rgba(77,153,255,0.06);
+    }
+
+    .card-arrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 0.82rem; font-weight: 500;
+      color: var(--text-dim);
+      transition: color 0.2s, gap 0.2s;
+    }
+    .lab-card.live:hover .card-arrow  { color: var(--accent); gap: 12px; }
+    .lab-card.beta:hover .card-arrow  { color: var(--blue);   gap: 12px; }
+
+    .card-arrow svg { transition: transform 0.2s; }
+    .lab-card:hover .card-arrow svg { transform: translateX(4px); }
+
+    /* ── COMING SOON NOTE ─────────────────────────────────────────── */
+    .coming-note {
+      margin-top: 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex; align-items: flex-start; gap: 14px;
+    }
+    .coming-note-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 2px; }
+    .coming-note-body { font-size: 0.85rem; color: var(--text-mid); line-height: 1.65; }
+    .coming-note-body strong { color: var(--text); font-weight: 600; }
+
+    /* ── FOOTER ──────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 36px 48px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+      font-size: 0.8rem; color: var(--text-dim);
+    }
+    .footer-logo {
+      font-family: 'Instrument Serif', serif; font-size: 1rem;
+      color: var(--text-mid); text-decoration: none;
+    }
+    .footer-logo span { color: var(--accent); }
+    footer a { color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
+    footer a:hover { color: var(--text-mid); }
+
+    @media (max-width: 640px) {
+      .hero { padding: 100px 24px 60px; }
+      .labs-section { padding: 60px 24px 80px; }
+      footer { padding: 28px 24px; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── NAV ────────────────────────────────────────────────────────────── -->
+  <nav>
+    <a class="nav-logo" href="../website/index.html">Inquisitive<span>Chemistry</span></a>
+    <ul class="nav-links">
+      <li><a href="#labs">Labs</a></li>
+      <li><a href="../website/index.html#teachers">For Teachers</a></li>
+      <li><a class="nav-cta" href="../website/index.html#feedback">FEEDBACK</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── HERO ───────────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <!-- Background effects -->
+    <div class="particle-field">
+      <div class="mol-node mn1"></div>
+      <div class="mol-node mn2"></div>
+      <div class="mol-node mn3"></div>
+      <div class="mol-node mn4"></div>
+      <div class="orbit-ring or1"></div>
+      <div class="orbit-ring or2"></div>
+      <svg class="bonds" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <line x1="75%" y1="22%" x2="62%" y2="35%" />
+        <line x1="62%" y1="35%" x2="72%" y2="55%" />
+        <line x1="72%" y1="55%" x2="88%" y2="65%" />
+        <line x1="62%" y1="35%" x2="40%" y2="35%" />
+      </svg>
+      <div class="grid-overlay"></div>
+      <div class="hero-vignette"></div>
+    </div>
+
+    <!-- Content -->
+    <div class="hero-content">
+      <div class="hero-eyebrow">Virtual Chemistry Labs</div>
+      <h1 class="hero-title">
+        Chemistry you can<br><em>actually do.</em>
+      </h1>
+      <p class="hero-subtitle">A-Level &amp; IGCSE — Singapore &amp; Cambridge</p>
+      <p class="hero-body">
+        Not videos. Not animations. <strong>Real experiments</strong> — run at your own pace, with real reagents, real reactions, and real observations. Form a hypothesis, add the chemicals, and explain what you see.
+      </p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="chem_lab/chem-lab.html">
+          Open QA Lab
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2 8h12M10 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+        <a class="btn-secondary" href="../website/index.html">
+          ← Back to InquisitivePhysics
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── LABS ───────────────────────────────────────────────────────────── -->
+  <div class="labs-section" id="labs">
+    <div class="section-label">Available Labs</div>
+    <h2 class="section-heading">Choose your experiment.</h2>
+    <p class="section-sub">
+      Each lab is a self-contained investigation. No logins, no installs — just open and start experimenting.
+    </p>
+
+    <div class="labs-grid">
+
+      <!-- QA LAB — LIVE -->
+      <a href="chem_lab/chem-lab.html" class="lab-card live">
+        <div class="card-header">
+          <div class="card-icon">⚗️</div>
+          <span class="card-badge badge-live">LIVE</span>
+        </div>
+        <div class="card-title">Qualitative Analysis Lab</div>
+        <p class="card-desc">
+          A fully-featured virtual chemistry lab for systematic unknown identification. Mix reagents, run confirmatory tests, apply heat, and record your observations — just like a real bench session.
+        </p>
+        <div class="card-chips">
+          <span class="chip">45 reagents</span>
+          <span class="chip">Precipitation</span>
+          <span class="chip">Gas tests</span>
+          <span class="chip">Redox</span>
+          <span class="chip">Flame tests</span>
+          <span class="chip">A-Level / IGCSE</span>
+        </div>
+        <div class="card-arrow">
+          Open lab
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </a>
+
+      <!-- TITRATION LAB — BETA -->
+      <a href="titration_lab/landing.html" class="lab-card beta">
+        <div class="card-header">
+          <div class="card-icon">🧪</div>
+          <span class="card-badge badge-beta">IN DEVELOPMENT</span>
+        </div>
+        <div class="card-title">Titration Lab</div>
+        <p class="card-desc">
+          Step-by-step acid-base titrations with animated burettes, live pH curves, and automatic endpoint detection. Foundation and advanced levels — from strong acid/base pairs to polyprotic systems.
+        </p>
+        <div class="card-chips">
+          <span class="chip">Acid-base</span>
+          <span class="chip">pH curves</span>
+          <span class="chip">Indicators</span>
+          <span class="chip">Foundation &amp; Advanced</span>
+        </div>
+        <div class="card-arrow">
+          Open lab
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </a>
+
+    </div>
+
+    <div class="coming-note">
+      <div class="coming-note-icon">🔭</div>
+      <div class="coming-note-body">
+        <strong>More labs on the way.</strong>
+        Organic chemistry, electrochemistry, and reaction kinetics are in the pipeline.
+        Have a topic request?
+        <a href="../website/index.html#feedback" style="color: var(--accent); text-decoration: none;">Let us know.</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ─────────────────────────────────────────────────────────── -->
+  <footer>
+    <a class="footer-logo" href="../website/index.html">Inquisitive<span>Chemistry</span></a>
+    <span>Built for Singapore &amp; Cambridge A-Level / IGCSE classrooms.</span>
+    <a href="../website/index.html#feedback">Feedback</a>
+  </footer>
+
+</body>
+</html>

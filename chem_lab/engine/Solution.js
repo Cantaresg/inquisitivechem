@@ -13,6 +13,7 @@
  * Deliberately module-scoped constant — not exported.
  */
 const ION_COLOUR_MAP = [
+  { ion: 'IndigoCarmine',  css: 'rgba(18, 45, 195, 0.78)' },     // indigo carmine — deep blue
   { ion: 'MnO4-',          css: 'rgba(80,0,90,0.80)' },        // permanganate — deep purple
   { ion: 'CrO4\u00b2-',   css: 'rgba(210,190,0,0.65)' },      // chromate — yellow
   { ion: 'Cr2O7\u00b2-',  css: 'rgba(255,140,0,0.60)' },      // dichromate — orange
@@ -31,6 +32,16 @@ const ION_COLOUR_MAP = [
 
 /** Pressure lost per second (linear decay). 0.80 → threshold (0.05) in ~12 s. */
 const GAS_DECAY_RATE = 0.067;
+
+/**
+ * Fraction of Fe²⁺ moles converted to Fe³⁺ per second under aerial oxidation
+ * (after the induction delay). 0.077/s → ~99 % converted in ~60 s.
+ * Acid (pH < 6) suppresses the rate; heat triples it.
+ */
+const FE2_OXIDATION_RATE = 0.077;
+
+/** Seconds of induction time before aerial oxidation of Fe²⁺ begins. */
+const FE2_INDUCTION_DELAY = 10;
 
 /** Threshold below which a gas is considered absent. See BUG-07. */
 export const GAS_PRESSURE_THRESHOLD = 0.05;
@@ -67,6 +78,14 @@ export class Solution {
      * @type {string|null}
      */
     this._colorOverride = null;
+
+    /**
+     * Countdown (seconds) before aerial Fe²⁺ oxidation begins.
+     * null = timer not yet started (Fe²⁺ not yet present).
+     * Counts down to 0, at which point tickFe2Oxidation() starts converting.
+     * @type {number|null}
+     */
+    this._fe2InductionTimer = null;
 
     /** Approximate pH — updated via recalculatePH(). */
     this.pH = 7;
@@ -224,6 +243,75 @@ export class Solution {
     this.gases = this.gases.filter(g => g.pressure > 0);
   }
 
+  /**
+   * Slowly oxidise Fe²⁺ → Fe³⁺, mimicking aerial oxidation by O₂.
+   * A 10 s induction delay runs first (timer starts on the first call where
+   * dissolved Fe²⁺ or the Fe(OH)₂ precipitate is present).
+   * After the delay:
+   *   • Dissolved Fe²⁺ is converted to Fe³⁺; ~99 % done after 60 s at neutral pH.
+   *   • Fe(OH)₂ ppt (green) colour-transitions to Fe(OH)₃ (reddish-brown) over
+   *     the same window, mirroring the classic bench-top observation.
+   * Rate is suppressed in acid and accelerated when hot.
+   * Called by BenchUI.tick() on each animation frame.
+   * @param {number} deltaSeconds  elapsed seconds since last tick
+   * @returns {boolean}  true if the liquid/ppt colour may have changed
+   */
+  tickFe2Oxidation(deltaSeconds) {
+    const fe2     = this.ions['Fe2+'] ?? 0;
+    const fe_oh2  = this.ppts.find(p => p.id === 'fe_oh2');
+    if (fe2 <= 0 && !fe_oh2) return false;
+
+    // Start the induction countdown the first time Fe²⁺ (or Fe(OH)₂) is present.
+    if (this._fe2InductionTimer === null) {
+      this._fe2InductionTimer = FE2_INDUCTION_DELAY;
+    }
+
+    // Tick down the delay; don't convert yet.
+    if (this._fe2InductionTimer > 0) {
+      this._fe2InductionTimer = Math.max(0, this._fe2InductionTimer - deltaSeconds);
+      return false;
+    }
+
+    let rate = FE2_OXIDATION_RATE;
+    if (this.pH < 4)      rate *= 0.15;  // strongly acidic — very slow
+    else if (this.pH < 6) rate *= 0.45;  // weakly acidic — slower
+    if (this.isHot)       rate *= 3;     // heat accelerates oxidation
+
+    let changed = false;
+
+    // ── Dissolved Fe²⁺ → Fe³⁺ ─────────────────────────────────────────────
+    if (fe2 > 0) {
+      const converted = fe2 * rate * deltaSeconds;
+      this.ions['Fe2+'] = fe2 - converted;
+      this.ions['Fe3+'] = (this.ions['Fe3+'] ?? 0) + converted;
+      if (this.ions['Fe2+'] < 1e-6) delete this.ions['Fe2+'];
+      changed = true;
+    }
+
+    // ── Fe(OH)₂ ppt (green) → Fe(OH)₃ (reddish-brown) ───────────────────
+    // Progress 0→1 at the same rate (linear, capped at 1).
+    // Color interpolates #8aac6a (green) → #a04000 (reddish-brown).
+    if (fe_oh2) {
+      if (fe_oh2._oxProgress === undefined) fe_oh2._oxProgress = 0;
+      fe_oh2._oxProgress = Math.min(1, fe_oh2._oxProgress + rate * deltaSeconds);
+      const t = fe_oh2._oxProgress;
+      const r = Math.round(138 + (160 - 138) * t);
+      const g = Math.round(172 + ( 64 - 172) * t);
+      const b = Math.round(106 + (  0 - 106) * t);
+      fe_oh2.color = `rgb(${r},${g},${b})`;
+      if (fe_oh2._oxProgress >= 0.99) {
+        fe_oh2.id      = 'fe_oh3';
+        fe_oh2.color   = '#a04000';
+        fe_oh2.formula = 'Fe(OH)₃';
+        fe_oh2.label   = 'reddish brown';
+        delete fe_oh2._oxProgress;
+      }
+      changed = true;
+    }
+
+    return changed;
+  }
+
   // ─── pH ───────────────────────────────────────────────────────────────────
 
   /**
@@ -286,11 +374,12 @@ export class Solution {
     c.solids         = this.solids.map(s => ({ ...s }));
     c.ppts           = this.ppts.map(p => ({ ...p }));
     c.gases          = this.gases.map(g => ({ ...g }));
-    c._colorOverride = this._colorOverride;
-    c.pH             = this.pH;
-    c.isHot          = this.isHot;
-    c.isFiltered     = this.isFiltered;
-    c.volumeL        = this.volumeL;
+    c._colorOverride      = this._colorOverride;
+    c._fe2InductionTimer  = this._fe2InductionTimer;
+    c.pH                  = this.pH;
+    c.isHot               = this.isHot;
+    c.isFiltered          = this.isFiltered;
+    c.volumeL             = this.volumeL;
     return c;
   }
 }

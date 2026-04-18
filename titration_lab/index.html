@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Titration Lab — Setup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,300&family=Inconsolata:wght@300;400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <style>
+    /* ── Page shell ───────────────────────────────────────────── */
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Hero ─────────────────────────────────────────────────── */
+    .hero {
+      width: 100%;
+      padding: 40px 24px 20px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #0c1020 0%, var(--bg) 100%);
+    }
+    .hero h1 {
+      font-family: var(--font-heading);
+      font-size: clamp(22px, 4vw, 36px);
+      font-weight: 400;
+      margin: 0 0 6px;
+      letter-spacing: 0.01em;
+    }
+    .hero p {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 0;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────── */
+    .menu-wrap {
+      width: 100%;
+      max-width: 860px;
+      padding: 32px 24px 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    /* ── Section ──────────────────────────────────────────────── */
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .section-title {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Card grid ────────────────────────────────────────────── */
+    .card-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, transform .1s;
+      user-select: none;
+      flex: 1 1 auto;
+      min-width: 130px;
+      max-width: 220px;
+    }
+    .card:hover  { border-color: var(--border2); background: var(--surface2); }
+    .card.active { border-color: var(--accent);  background: #0e2035; }
+    .card.disabled { opacity: 0.35; pointer-events: none; }
+
+    .card-label  { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .card-sub    { font-size: 11px; color: var(--muted); line-height: 1.4; }
+    .card-dot    { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+    .card-badge  {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .card.active .card-badge { background: #1a3050; color: var(--accent); border-color: var(--accent); }
+
+    /* ── Toggle (O-Level / JC) ────────────────────────────────── */
+    .toggle-row {
+      display: flex;
+      gap: 0;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      width: fit-content;
+    }
+    .toggle-btn {
+      padding: 8px 20px;
+      font-size: 12px;
+      font-family: var(--font-body);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      transition: background .15s, color .15s;
+    }
+    .toggle-btn.active { background: var(--accent); color: #0a1828; font-weight: 600; }
+
+    /* ── Concentration / parameter row ───────────────────────── */
+    .param-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .param-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1 1 160px;
+      max-width: 240px;
+    }
+    .param-label {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .param-input {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 13px;
+      padding: 8px 12px;
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+      transition: border-color .15s;
+    }
+    .param-input:focus { border-color: var(--accent); }
+
+    /* ── Pair validity badge ──────────────────────────────────── */
+    #pair-status {
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      display: none;
+    }
+    #pair-status.valid   { background:#0e2e1a; color: var(--accent3); border: 1px solid #1a5030; display:block; }
+    #pair-status.invalid { background:#2e0e14; color: var(--danger);  border: 1px solid #501828; display:block; }
+
+    /* ── Start button ─────────────────────────────────────────── */
+    .start-wrap {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    #start-btn {
+      padding: 14px 36px;
+      font-size: 14px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: #081420;
+      transition: opacity .15s, transform .1s;
+      letter-spacing: 0.03em;
+    }
+    #start-btn:hover:not(:disabled)  { opacity: 0.9; transform: translateY(-1px); }
+    #start-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    #start-hint { font-size: 11px; color: var(--muted); }
+
+    /* ── Session key strip ────────────────────────────────────── */
+    .session-strip {
+      width: 100%;
+      max-width: 860px;
+      padding: 0 24px 32px;
+    }
+    .session-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .session-row label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .session-row input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 12px;
+      outline: none;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      max-width: 140px;
+    }
+    .session-row input::placeholder { color: var(--border2); text-transform: none; letter-spacing: 0; }
+    .session-row small { color: var(--muted); font-size: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <h1><em>Acid–Base</em> Titration Lab</h1>
+  <p>Configure your experiment, then start the lab.</p>
+</div>
+
+<div class="menu-wrap" id="menu">
+
+  <!-- ── Step 1: Mode ──────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">1 · Mode</div>
+    <div class="card-grid" id="mode-grid">
+      <div class="card active" data-mode="practice">
+        <div class="card-label">Practice</div>
+        <div class="card-sub">You choose your own chemicals and indicator.</div>
+        <div class="card-badge">O-Level / A-Level</div>
+      </div>
+      <div class="card" data-mode="guided">
+        <div class="card-label">Guided</div>
+        <div class="card-sub">Teacher-assigned experiment with standard solution stage.</div>
+        <div class="card-badge">JC / IB</div>
+      </div>
+      <div class="card" data-mode="openLab">
+        <div class="card-label">Open Lab</div>
+        <div class="card-sub">Unknown analyte concentration — calculate from your titration.</div>
+        <div class="card-badge">Investigation</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+      <span style="font-size:11px;color:var(--muted);">Level:</span>
+      <div class="toggle-row" id="level-toggle">
+        <button class="toggle-btn active" data-level="o_level">O-Level</button>
+        <button class="toggle-btn" data-level="jc">JC / IB</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Step 2: Chemicals ─────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">2 · Chemicals</div>
+
+    <div style="font-size:11px;color:var(--muted);">Titrant <span style="color:var(--border2);">(burette)</span></div>
+    <div class="card-grid" id="titrant-grid"></div>
+
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;">Analyte <span style="color:var(--border2);">(flask)</span></div>
+    <div class="card-grid" id="analyte-grid"></div>
+
+    <div id="pair-status"></div>
+
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;">Indicator</div>
+    <div class="card-grid" id="indicator-grid"></div>
+  </div>
+
+  <!-- ── Step 3: Parameters ────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">3 · Parameters</div>
+    <div class="param-grid">
+      <div class="param-group">
+        <label class="param-label" for="inp-titrant-conc">Titrant concentration (mol dm⁻³)</label>
+        <input class="param-input" id="inp-titrant-conc" type="number" min="0.001" max="2" step="0.001" value="0.100" />
+      </div>
+      <div class="param-group" id="analyte-conc-group">
+        <label class="param-label" for="inp-analyte-conc">Analyte concentration (mol dm⁻³)</label>
+        <input class="param-input" id="inp-analyte-conc" type="number" min="0.001" max="2" step="0.001" value="0.100" />
+      </div>
+      <div class="param-group" id="temp-group" style="display:none;">
+        <label class="param-label" for="inp-temp">Temperature (°C) <span style="color:var(--border2);">5–40</span></label>
+        <input class="param-input" id="inp-temp" type="number" min="5" max="40" step="1" value="25" />
+      </div>
+      <div class="param-group" id="kw-group" style="display:none;">
+        <label class="param-label" for="inp-kw">K<sub>w</sub> override <span style="color:var(--border2);">(leave blank = auto)</span></label>
+        <input class="param-input" id="inp-kw" type="text" placeholder="e.g. 1e-14" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Start ─────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">4 · Launch</div>
+    <div class="start-wrap">
+      <button id="start-btn" disabled>Start Lab →</button>
+      <span id="start-hint">Select a valid titrant + analyte + indicator pair to continue.</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Session key strip (future: teacher assigns) -->
+<div class="session-strip">
+  <div class="session-row">
+    <label for="inp-key">Session key</label>
+    <input id="inp-key" type="text" maxlength="10" placeholder="ABC123 (optional)" />
+    <small>Leave blank for a self-directed session.</small>
+  </div>
+</div>
+
+<script type="module">
+import { ChemicalDB }  from './js/data/ChemicalDB.js';
+import { IndicatorDB } from './js/data/IndicatorDB.js';
+import { SessionConfig } from './js/SessionConfig.js';
+
+// ── State ────────────────────────────────────────────────────
+const state = {
+  mode:        'practice',
+  level:       'o_level',
+  titrantId:   null,
+  analyteId:   null,
+  indicatorId: null,
+  concTitrant: 0.100,
+  concAnalyte: 0.100,
+  temperature: 25,
+  Kw:          null,
+};
+
+// ── Restore previous config from sessionStorage ──────────────
+(async () => {
+  const saved = await SessionConfig.load();
+  if (saved && saved.titrant) {
+    state.mode        = saved.mode        ?? 'practice';
+    state.level       = saved.level       ?? 'o_level';
+    state.titrantId   = saved.titrant     ?? null;
+    state.analyteId   = saved.analyte     ?? null;
+    state.indicatorId = saved.indicator   ?? null;
+    state.concTitrant = saved.concTitrant ?? 0.100;
+    state.concAnalyte = saved.concAnalyte ?? 0.100;
+    state.temperature = saved.temperature ?? 25;
+    state.Kw          = saved.Kw          ?? null;
+  }
+  render();
+})();
+
+// ── Chemical data ────────────────────────────────────────────
+// Derive titrant candidates: chemicals that appear as titrant in a valid pair
+const validPairs  = ChemicalDB.validPairs();
+const titrantIds  = [...new Set(validPairs.map(p => p.titrant))];
+const allChem     = ChemicalDB.all();
+
+// ── Render helpers ───────────────────────────────────────────
+function makeChemCard(chem, activeId, onClick) {
+  const card = document.createElement('div');
+  card.className = 'card' + (chem.id === activeId ? ' active' : '');
+  card.innerHTML = `
+    <div class="card-label">
+      <span class="card-dot" style="background:${chem.dot}"></span>${chem.formula}
+    </div>
+    <div class="card-sub">${chem.name}</div>`;
+  card.addEventListener('click', () => onClick(chem.id));
+  return card;
+}
+
+function makeIndCard(ind, activeId, disabled, onClick) {
+  const swatch = `background:linear-gradient(90deg,${ind.acidCol} 50%,${ind.alkCol} 50%)`;
+  const card = document.createElement('div');
+  card.className = 'card' + (ind.id === activeId ? ' active' : '') + (disabled ? ' disabled' : '');
+  card.innerHTML = `
+    <div class="card-label">
+      <span class="card-dot" style="${swatch};border-radius:2px;width:18px;height:9px;display:inline-block;vertical-align:middle;margin-right:6px;"></span>${ind.name}
+    </div>
+    <div class="card-sub">${ind.desc}</div>
+    <div class="card-badge">pH ${ind.range[0]}–${ind.range[1]}</div>`;
+  if (!disabled) card.addEventListener('click', () => onClick(ind.id));
+  return card;
+}
+
+// ── Main render ───────────────────────────────────────────────
+function render() {
+  renderMode();
+  renderLevel();
+  renderTitrants();
+  renderAnalytes();
+  renderPairStatus();
+  renderIndicators();
+  renderParams();
+  renderStartBtn();
+}
+
+function renderMode() {
+  document.querySelectorAll('#mode-grid .card').forEach(c => {
+    c.classList.toggle('active', c.dataset.mode === state.mode);
+  });
+}
+
+function renderLevel() {
+  document.querySelectorAll('#level-toggle .toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.level === state.level);
+  });
+}
+
+function renderTitrants() {
+  const grid = document.getElementById('titrant-grid');
+  grid.innerHTML = '';
+  titrantIds.map(id => ChemicalDB.get(id)).forEach(chem => {
+    grid.appendChild(makeChemCard(chem, state.titrantId, id => {
+      state.titrantId   = id;
+      // Clear downstream if they become invalid
+      if (state.analyteId && !validPairs.some(p => p.titrant === id && p.analyte === state.analyteId)) {
+        state.analyteId   = null;
+        state.indicatorId = null;
+      }
+      render();
+    }));
+  });
+}
+
+function renderAnalytes() {
+  const grid = document.getElementById('analyte-grid');
+  grid.innerHTML = '';
+  if (!state.titrantId) {
+    grid.innerHTML = '<div style="font-size:11px;color:var(--muted);">Choose a titrant first.</div>';
+    return;
+  }
+  const pairs     = validPairs.filter(p => p.titrant === state.titrantId);
+  const analyteIds = pairs.map(p => p.analyte);
+  analyteIds.map(id => ChemicalDB.get(id)).forEach(chem => {
+    grid.appendChild(makeChemCard(chem, state.analyteId, id => {
+      state.analyteId   = id;
+      state.indicatorId = null;
+      render();
+    }));
+  });
+}
+
+function renderPairStatus() {
+  const el = document.getElementById('pair-status');
+  if (!state.titrantId || !state.analyteId) { el.className = ''; return; }
+  const desc = ChemicalDB.describe(state.titrantId, state.analyteId);
+  if (desc) {
+    el.className = 'valid';
+    el.textContent = `✓ ${desc.label} — ${desc.type.replace('_', ' / ')}${desc.hasSecondEP ? ' (two equivalence points)' : ''}`;
+  } else {
+    el.className = 'invalid';
+    el.textContent = '✗ This pair is not supported in the simulator.';
+  }
+}
+
+function renderIndicators() {
+  const grid = document.getElementById('indicator-grid');
+  grid.innerHTML = '';
+  if (!state.titrantId || !state.analyteId) {
+    grid.innerHTML = '<div style="font-size:11px;color:var(--muted);">Choose titrant and analyte first.</div>';
+    return;
+  }
+  const valid = IndicatorDB.validFor(state.titrantId, state.analyteId);
+  const all   = IndicatorDB.all();
+  all.forEach(ind => {
+    const ok = valid.some(v => v.id === ind.id);
+    grid.appendChild(makeIndCard(ind, state.indicatorId, !ok, id => {
+      state.indicatorId = id;
+      render();
+    }));
+  });
+}
+
+function renderParams() {
+  const isOpenLab = state.mode === 'openLab';
+  const isJC      = state.level === 'jc';
+
+  document.getElementById('analyte-conc-group').style.display = isOpenLab ? 'none' : '';
+  document.getElementById('temp-group').style.display         = isJC ? ''     : 'none';
+  document.getElementById('kw-group').style.display           = isJC ? ''     : 'none';
+
+  document.getElementById('inp-titrant-conc').value = state.concTitrant.toFixed(3);
+  document.getElementById('inp-analyte-conc').value = state.concAnalyte.toFixed(3);
+  document.getElementById('inp-temp').value         = state.temperature;
+  document.getElementById('inp-kw').value           = state.Kw ? state.Kw.toExponential(2) : '';
+}
+
+function renderStartBtn() {
+  const btn  = document.getElementById('start-btn');
+  const hint = document.getElementById('start-hint');
+  const ok   = state.titrantId && state.analyteId && state.indicatorId &&
+               !!ChemicalDB.describe(state.titrantId, state.analyteId);
+  btn.disabled = !ok;
+  hint.textContent = ok
+    ? `Ready — ${ChemicalDB.get(state.titrantId).formula} into ${ChemicalDB.get(state.analyteId).formula} with ${IndicatorDB.get(state.indicatorId).name}`
+    : 'Select a valid titrant + analyte + indicator pair to continue.';
+}
+
+// ── Wire mode cards ──────────────────────────────────────────
+document.querySelectorAll('#mode-grid .card').forEach(c => {
+  c.addEventListener('click', () => {
+    state.mode = c.dataset.mode;
+    render();
+  });
+});
+
+// ── Wire level toggle ────────────────────────────────────────
+document.querySelectorAll('#level-toggle .toggle-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    state.level = b.dataset.level;
+    render();
+  });
+});
+
+// ── Wire parameter inputs ────────────────────────────────────
+document.getElementById('inp-titrant-conc').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  if (!isNaN(v) && v > 0) state.concTitrant = v;
+});
+document.getElementById('inp-analyte-conc').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  if (!isNaN(v) && v > 0) state.concAnalyte = v;
+});
+document.getElementById('inp-temp').addEventListener('input', e => {
+  const v = parseInt(e.target.value, 10);
+  if (!isNaN(v) && v >= 5 && v <= 40) state.temperature = v;
+});
+document.getElementById('inp-kw').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  state.Kw = !isNaN(v) && v > 0 ? v : null;
+});
+
+// ── Start Lab ────────────────────────────────────────────────
+document.getElementById('start-btn').addEventListener('click', () => {
+  const concAnalyte = state.mode === 'openLab'
+    ? +(0.05 + Math.random() * 0.15).toFixed(4)  // hidden true conc for open lab
+    : state.concAnalyte;
+
+  const config = {
+    mode:        state.mode,
+    level:       state.level,
+    titrant:     state.titrantId,
+    analyte:     state.analyteId,
+    indicator:   state.indicatorId,
+    concTitrant: state.concTitrant,
+    concAnalyte: concAnalyte,
+    temperature: state.temperature,
+    Kw:          state.Kw ?? 1e-14,
+    sessionKey:  document.getElementById('inp-key').value.trim() || null,
+  };
+
+  SessionConfig.save(config);
+  location.href = 'lab.html';
+});
+</script>
+</body>
+</html>

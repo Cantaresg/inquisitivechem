@@ -9,17 +9,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/chem-lab.css">
   <link rel="stylesheet" href="css/animations.css">
-  <link rel="stylesheet" href="css/debug-log.css">
 </head>
 <body>
 
   <!-- ── Nav ──────────────────────────────────────────────────────────────── -->
   <nav>
-    <a class="nav-logo" href="../website/index.html">Inquisitive<span>Chemistry</span></a>
+    <a class="nav-logo" href="../../website/index.html">Inquisitive<span>Chemistry</span></a>
     <ul class="nav-links">
-      <li><a href="../website/index.html#simulations">Simulations</a></li>
-      <li><a href="../website/index.html#teachers">For Teachers</a></li>
-      <li><a class="nav-cta" href="../website/index.html#feedback">FEEDBACK</a></li>
+      <li><a href="../../website/index.html#simulations">Simulations</a></li>
+      <li><a href="../../website/index.html#teachers">For Teachers</a></li>
+      <li><a class="nav-cta" href="../../website/index.html#feedback">FEEDBACK</a></li>
       <li><button id="debug-log-nav-btn" type="button" hidden
                   aria-expanded="false" aria-controls="debug-log-panel"
                   title="Toggle reaction debug log">🔬 Debug Log</button></li>
@@ -52,9 +51,10 @@
     <!-- ── Lab action tools ──────────────────────────────────────────────────── -->
     <div id="lab-tools" role="toolbar" aria-label="Lab tools">
       <span class="lab-tools-hint">Select a tool, then click a vessel:</span>
-      <button class="tool-btn" data-tool="heat" type="button" title="Heat the vessel">🔥 Heat</button>
-      <button class="tool-btn" data-tool="cool" type="button" title="Cool the vessel">❄️ Cool</button>
-      <button class="tool-btn" data-tool="wash" type="button" title="Wash and discard vessel">✕ Wash</button>
+      <button class="tool-btn" data-tool="heat"  type="button" title="Heat the vessel">🔥 Heat</button>
+      <button class="tool-btn" data-tool="cool"  type="button" title="Cool the vessel">❄️ Cool</button>
+      <button class="tool-btn" data-tool="swirl" type="button" title="Swirl the vessel (re-oxidises traffic light indicator)">🌀 Swirl</button>
+      <button class="tool-btn" data-tool="wash"  type="button" title="Wash and discard vessel">✕ Wash</button>
     </div>
     <!-- ── Right: observation log ────────────────────────────────────────── -->
     <aside id="obs-panel" aria-label="Observation log">
@@ -110,7 +110,6 @@
 
   <!-- ── Entry point ───────────────────────────────────────────────────────── -->
   <script type="module" src="ui/main.js"></script>
-  <script type="module" src="ui/debug-main.js"></script>
 
 </body>
 </html>

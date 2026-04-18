@@ -109,6 +109,36 @@ export const CONFIRMATORY_TESTS = [
   },
 
   {
+    id: 'test_acidified_kmno4',
+    label: 'Acidified KMnO₄ tube',
+    icon: 'kmno4-tube.svg',
+    detects: { gas: 'SO2' },
+    positiveAnimId: 'anim_kmno4_tube_decolour',
+    negativeAnimId: 'anim_kmno4_tube_negative',
+    positiveObservation:
+      'The purple/violet acidified potassium manganate(VII) solution was decolourised, '
+      + 'turning colourless. This confirms the gas is a reducing agent.',
+    negativeObservation:
+      'The acidified potassium manganate(VII) solution remained purple. '
+      + 'No reducing gas was detected.',
+  },
+
+  {
+    id: 'test_acidified_k2cr2o7',
+    label: 'Acidified K₂Cr₂O₇ tube',
+    icon: 'k2cr2o7-tube.svg',
+    detects: { gas: 'SO2' },
+    positiveAnimId: 'anim_k2cr2o7_tube_green',
+    negativeAnimId: 'anim_k2cr2o7_tube_negative',
+    positiveObservation:
+      'The orange acidified potassium dichromate(VI) solution turned green '
+      + 'as the dichromate was reduced to chromium(III) ions.',
+    negativeObservation:
+      'The acidified potassium dichromate(VI) solution remained orange. '
+      + 'No reducing gas was detected.',
+  },
+
+  {
     id: 'test_dual_litmus',
     label: 'Both litmus strips',
     icon: 'litmus-both.svg',
