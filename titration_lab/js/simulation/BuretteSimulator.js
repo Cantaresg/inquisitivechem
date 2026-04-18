@@ -75,10 +75,13 @@ export class BuretteSimulator {
    * @param {object} chemical      Chemical object from ChemicalDB
    * @param {number} concentration mol dm⁻³
    */
-  fill(chemical, concentration) {
+  fill(chemical, concentration, volumeML = null) {
     this.#chemical      = chemical;
     this.#concentration = concentration;
-    this.#level         = this.#capacity;
+    // Allow up to capacity + 5 mL so the tube can be filled above the 0 mark
+    this.#level         = volumeML !== null
+                          ? Math.min(volumeML, this.#capacity + 5)
+                          : this.#capacity;
     this.#hasFunnel     = true;
     this.#hasBubble     = Math.random() < 0.60;
     this.#isTapOpen     = false;
@@ -91,6 +94,16 @@ export class BuretteSimulator {
    * Remove the funnel from the top of the burette.
    * Students must do this before titrating (forgotten funnel = systematic error).
    */
+  /**
+   * Add liquid to an already-filled burette (top-up after running off some).
+   * Does NOT reset funnel, bubble, or reading snapshots.
+   * @param {number} volumeML
+   */
+  addVolume(volumeML) {
+    this.#level = Math.min(this.#level + volumeML, this.#capacity + 5);
+    this.#bus.emit('levelChanged', { level: this.#level });
+  }
+
   removeFunnel() {
     this.#hasFunnel = false;
   }

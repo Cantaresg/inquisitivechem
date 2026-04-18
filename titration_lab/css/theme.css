@@ -493,6 +493,21 @@ strong { color: var(--text); font-weight: 700; }
   pointer-events: none;
 }
 
+/* ── Funnel interactive hint ────────────────────────────────── */
+.funnel-remove {
+  cursor: pointer;
+  animation: funnelPulse 2.4s ease-in-out infinite;
+  display: inline-block;
+}
+.funnel-remove:hover {
+  animation: none;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+@keyframes funnelPulse {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(92,184,255,0.25)); }
+  50%       { filter: drop-shadow(0 0 7px rgba(92,184,255,0.65)); }
+}
+
 /* ── Keyframes ──────────────────────────────────────────────── */
 @keyframes dropFall {
   0%   { transform: translateY(0);              opacity: 1; }

@@ -496,6 +496,9 @@ export class UIRenderer {
       this.#bus.on('phUpdated', () => {
         this._renderLeftInfo();
       }),
+      this.#bus.on('stageAreaUpdated', () => {
+        this._renderControls();
+      }),
     );
   }
 

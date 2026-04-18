@@ -226,11 +226,11 @@ export class BuretteRenderer {
 
   _subscribe() {
     this.#unsubs.push(
-      this.#bus.on('levelChanged', ({ volumeRemaining }) => {
-        this.setLevel(volumeRemaining);
+      this.#bus.on('levelChanged', ({ level }) => {
+        this.setLevel(level);
       }),
-      this.#bus.on('dropAdded', ({ volumeRemaining }) => {
-        this.setLevel(volumeRemaining);
+      this.#bus.on('dropAdded', ({ level }) => {
+        this.setLevel(level);
       }),
       this.#bus.on('tapOpened', () => {
         this.#tapEl?.classList.add('open');
