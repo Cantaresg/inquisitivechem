@@ -37,14 +37,15 @@
 
       <div class="panel-divider" aria-hidden="true"></div>
 
-      <!-- Power supply (informational — battery is pre-placed on canvas) -->
+      <!-- Power supply toggle -->
       <div class="comp-group">
         <div class="comp-group-label" aria-hidden="true">Power Supply</div>
-        <div class="comp-card comp-card--static" aria-label="DC Battery (pre-placed on canvas)">
+        <button id="battery-toggle" class="comp-card battery-toggle-card" aria-pressed="true"
+                type="button" title="Toggle DC battery (off = galvanic cell / electrochemical cell)">
           <span class="comp-symbol" style="color:#4df0b0">⚡</span>
           <span class="comp-name">DC Battery</span>
-          <span class="comp-badge badge-fixed">Fixed</span>
-        </div>
+          <span class="comp-badge badge-fixed" id="battery-badge">Included</span>
+        </button>
       </div>
 
       <div class="panel-divider" aria-hidden="true"></div>
@@ -70,10 +71,7 @@
         Press <kbd>Delete</kbd> on a selected electrode to remove it.
       </p>
 
-      <!-- EC Cell mode toggle -->
-      <div class="panel-divider" aria-hidden="true" id="eccell-mode-divider"></div>
-      <button id="eccell-mode-btn" class="eccell-mode-btn"
-              type="button" aria-pressed="false">EC Cell Mode</button>
+
 
     </aside>
 
@@ -84,9 +82,16 @@
       <div id="circuit-wrap" role="main" aria-label="Circuit canvas — drag components here">
 
         <!-- Status bar -->
-        <div id="circuit-status" class="circuit-status status-hint"
-             aria-live="polite" aria-atomic="true">
-          Assemble the circuit to run the simulation.
+        <div id="circuit-status-row" class="circuit-status-row">
+          <div id="circuit-status" class="circuit-status status-hint"
+               aria-live="polite" aria-atomic="true">
+            Assemble the circuit to run the simulation.
+          </div>
+          <button id="polarity-toggle" class="polarity-toggle-btn"
+                  type="button" aria-pressed="false"
+                  title="Show/hide anode and cathode labels">
+            Show labels
+          </button>
         </div>
 
         <!-- SVG circuit board -->
@@ -150,14 +155,7 @@
             <!-- Rendered by ElectrolytePanel.js -->
           </div>
         </div>
-      </div>
-
-      <!-- Bottom: EC Cell half-cell selection (A-Level EC Cell mode) -->
-      <div id="eccell-panel-wrap" hidden>
-        <div id="eccell-panel-container" aria-label="Galvanic cell half-cells">
-          <!-- Rendered by ECCellPanel.js -->
-        </div>
-      </div>
+      </div><!-- /#electrolysis-panel-wrap -->
 
     </div><!-- /#center-area -->
 

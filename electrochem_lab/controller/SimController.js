@@ -9,7 +9,7 @@
  *   4. Push results to TestPanel, ObsPanel, and AnimationLayer.
  *   5. Expose setElectrolyte() and setLevel() for UI callbacks.
  *   6. Forward canvas:toast events to the toast system.
- *   7. (Phase 6) Delegate to ECCellController when in 'eccell' mode.
+ *   7. Handle galvanic-cell mode when battery is toggled off.
  *
  * De-duplication: the obs log only appends when the combination of
  * {electrolyteId, concentration, anodeId, cathodeId, level} changes,
@@ -30,9 +30,8 @@ export class SimController {
    * @param {import('../ui/AnimationLayer.js').AnimationLayer}             opts.animLayer
    * @param {Function} opts.setStatus    — setStatus(msg: string, cssClass: string) → void
    * @param {Function} opts.showToast    — showToast(msg: string) → void
-   * @param {import('./ECCellController.js').ECCellController} [opts.ecCellController]
    */
-  constructor({ canvas, svg, testPanel, obsPanel, animLayer, setStatus, showToast, ecCellController = null }) {
+  constructor({ canvas, svg, testPanel, obsPanel, animLayer, setStatus, showToast }) {
     this._canvas         = canvas;
     this._svg            = svg;
     this._testPanel      = testPanel;
@@ -40,14 +39,12 @@ export class SimController {
     this._animLayer      = animLayer;
     this._setStatus      = setStatus;
     this._showToast      = showToast;
-    this._ecCellCtrl     = ecCellController;
 
     this._config      = CurriculumConfig.O_LEVEL();
     this._electrolyte = null;
     this._lastResult  = null;
     this._anodeNode   = null;
     this._cathodeNode = null;
-    this._mode        = 'electrolysis';   // 'electrolysis' | 'eccell'
 
     this._lastLoggedKey = null;
 
@@ -67,17 +64,6 @@ export class SimController {
     this._run();
   }
 
-  /**
-   * Switch between simulation modes.
-   * @param {'electrolysis'|'eccell'} mode
-   */
-  setMode(mode) {
-    if (mode === this._mode) return;
-    this._mode = mode;
-    if (this._ecCellCtrl) this._ecCellCtrl.setConfig(this._config);
-    this._lastLoggedKey = null;
-    this._run();
-  }
 
   /**
    * Called by ElectrolytePanel when a card is selected or the slider moves.
@@ -110,11 +96,12 @@ export class SimController {
 
   _onTopologyChanged() {
     const validity = CircuitValidator.validate({
-      battery:     this._canvas.batteryNode,
-      nodes:       this._canvas.nodes,
-      wires:       this._canvas.wires,
-      beaker:      this._canvas.beakerNode,
-      electrolyte: this._electrolyte,
+      battery:        this._canvas.batteryNode,
+      nodes:          this._canvas.nodes,
+      wires:          this._canvas.wires,
+      beaker:         this._canvas.beakerNode,
+      electrolyte:    this._electrolyte,
+      batteryEnabled: this._canvas.batteryEnabled,
     });
 
     this._canvas.setLive(validity.isValid);
@@ -152,6 +139,26 @@ export class SimController {
       return;
     }
 
+    // ── Galvanic cell (no battery) — display EMF only, no animation ──────
+    if (!this._canvas.batteryEnabled) {
+      this._animLayer.stop();
+      this._testPanel.disable();
+
+      const eAnode   = this._anodeNode.data?.standardPotential   ?? 0;
+      const eCathode = this._cathodeNode.data?.standardPotential ?? 0;
+      const emf      = Math.abs(eCathode - eAnode).toFixed(2);
+
+      const anodeName   = this._anodeNode.data.name;
+      const cathodeName = this._cathodeNode.data.name;
+
+      this._setStatus(
+        `Galvanic cell · ${anodeName} (−) / ${cathodeName} (+) · EMF = ${emf} V`,
+        'status-ok',
+      );
+      return;
+    }
+
+    // ── Electrolysis (battery on) ─────────────────────────────────────────
     let result;
     try {
       result = ElectrolysisEngine.run(

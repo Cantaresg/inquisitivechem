@@ -15,9 +15,9 @@ import { ComponentNode } from './ComponentNode.js';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** Half-height of the battery body (px). Terminal pads sit just outside this. */
-const BODY_H = 38;
+const BODY_H = 49;
 /** Terminal y offset from centre (places the pad slightly outside the body). */
-const TERM_Y = BODY_H + 6;   // 44 px
+const TERM_Y = BODY_H + 6;   // 55 px
 
 export class BatteryNode extends ComponentNode {
   /**
@@ -47,7 +47,7 @@ export class BatteryNode extends ComponentNode {
   // ── SVG drawing ───────────────────────────────────────────────────────
 
   static _buildSVG(g, termY) {
-    const W = 36, H = BODY_H * 2;
+    const W = 47, H = BODY_H * 2;
 
     // Body outline
     const body = document.createElementNS(SVG_NS, 'rect');
@@ -55,17 +55,17 @@ export class BatteryNode extends ComponentNode {
     body.setAttribute('y',  -BODY_H);
     body.setAttribute('width',  W);
     body.setAttribute('height', H);
-    body.setAttribute('rx', 4);
+    body.setAttribute('rx', 5);
     body.classList.add('battery-body');
     g.appendChild(body);
 
     // IEC battery lines (alternating long/short), centred on x=0
     const lines = [
-      { y: -16, half: 14, cls: 'battery-line-long'  },
-      { y:  -8, half:  8, cls: 'battery-line-short' },
-      { y:   0, half: 14, cls: 'battery-line-long'  },
-      { y:  +8, half:  8, cls: 'battery-line-short' },
-      { y: +16, half: 14, cls: 'battery-line-long'  },
+      { y: -21, half: 18, cls: 'battery-line-long'  },
+      { y: -11, half: 10, cls: 'battery-line-short' },
+      { y:   0, half: 18, cls: 'battery-line-long'  },
+      { y: +11, half: 10, cls: 'battery-line-short' },
+      { y: +21, half: 18, cls: 'battery-line-long'  },
     ];
     for (const { y, half, cls } of lines) {
       const ln = document.createElementNS(SVG_NS, 'line');
@@ -109,7 +109,7 @@ export class BatteryNode extends ComponentNode {
       const pad = document.createElementNS(SVG_NS, 'circle');
       pad.setAttribute('cx', 0);
       pad.setAttribute('cy', sign * termY);
-      pad.setAttribute('r',  7);
+      pad.setAttribute('r',  9);
       pad.setAttribute('data-terminal', termId);
       pad.classList.add('terminal-dot');
       g.appendChild(pad);

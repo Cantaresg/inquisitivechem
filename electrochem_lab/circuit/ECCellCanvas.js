@@ -24,8 +24,8 @@ import { ELECTRODE_DB }   from '../data/electrodes.js';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Rod geometry (matches ElectrodeNode constants for visual consistency)
-const ROD_W      = 12;
-const ROD_LENGTH = 120;
+const ROD_W      = 16;   // (12 × 1.3)
+const ROD_LENGTH = 156;  // (120 × 1.3)
 
 export class ECCellCanvas {
   /**

@@ -13,8 +13,8 @@
 import { ComponentNode } from './ComponentNode.js';
 
 const SVG_NS    = 'http://www.w3.org/2000/svg';
-const ROD_W     = 12;   // rod width (px)
-const ROD_LENGTH = 120; // local distance from rod_top to rod_bottom
+const ROD_W     = 16;   // rod width (px)  (12 × 1.3)
+const ROD_LENGTH = 156; // local distance from rod_top to rod_bottom  (120 × 1.3)
 
 export { ROD_LENGTH };
 
@@ -58,12 +58,6 @@ export class ElectrodeNode extends ComponentNode {
   setSubmerged(value) {
     this.isSubmerged = value;
     this.svgGroup.classList.toggle('electrode-submerged', value);
-    this._updateBottomIndicator(value);
-  }
-
-  _updateBottomIndicator(submerged) {
-    const ind = this.svgGroup.querySelector('.rod-bottom-indicator');
-    if (ind) ind.classList.toggle('rod-bottom-submerged', submerged);
   }
 
   // ── Polarity label (set by CircuitValidator / SimController) ──────────
@@ -84,9 +78,9 @@ export class ElectrodeNode extends ComponentNode {
     // Rod body (below the top terminal)
     const rod = document.createElementNS(SVG_NS, 'rect');
     rod.setAttribute('x',      -half);
-    rod.setAttribute('y',      8);
+    rod.setAttribute('y',      10);
     rod.setAttribute('width',  rodW);
-    rod.setAttribute('height', rodLength - 10);
+    rod.setAttribute('height', rodLength - 14);
     rod.setAttribute('rx',     2);
     rod.setAttribute('fill',   data.colour);
     rod.classList.add('electrode-rod');
@@ -95,9 +89,9 @@ export class ElectrodeNode extends ComponentNode {
     // Bottom tip highlight
     const tip = document.createElementNS(SVG_NS, 'rect');
     tip.setAttribute('x',      -half);
-    tip.setAttribute('y',      rodLength - 10);
+    tip.setAttribute('y',      rodLength - 14);
     tip.setAttribute('width',  rodW);
-    tip.setAttribute('height', 12);
+    tip.setAttribute('height', 16);
     tip.setAttribute('rx',     2);
     tip.setAttribute('fill',   data.colour);
     tip.setAttribute('opacity', '0.7');
@@ -107,18 +101,10 @@ export class ElectrodeNode extends ComponentNode {
     const topDot = document.createElementNS(SVG_NS, 'circle');
     topDot.setAttribute('cx', 0);
     topDot.setAttribute('cy', 0);
-    topDot.setAttribute('r',  7);
+    topDot.setAttribute('r',  9);
     topDot.setAttribute('data-terminal', 'rod_top');
     topDot.classList.add('terminal-dot');
     g.appendChild(topDot);
-
-    // rod_bottom proximity indicator (dashed, shows when not snapped)
-    const botInd = document.createElementNS(SVG_NS, 'circle');
-    botInd.setAttribute('cx', 0);
-    botInd.setAttribute('cy', rodLength);
-    botInd.setAttribute('r',  7);
-    botInd.classList.add('rod-bottom-indicator');
-    g.appendChild(botInd);
 
     // Element symbol label (to the right of rod)
     const symLabel = document.createElementNS(SVG_NS, 'text');

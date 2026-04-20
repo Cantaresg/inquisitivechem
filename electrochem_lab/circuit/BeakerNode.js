@@ -11,17 +11,17 @@
 import { ComponentNode } from './ComponentNode.js';
 
 const SVG_NS      = 'http://www.w3.org/2000/svg';
-const BW          = 260;   // beaker internal width
-const BH          = 170;   // beaker internal height
+const BW          = 338;   // beaker internal width  (260 × 1.3)
+const BH          = 221;   // beaker internal height (170 × 1.3)
 const WALL        = 4;     // glass wall thickness
-const SLOT_OFFSET = 70;    // kept for backwards-compat export only
+const SLOT_OFFSET = 91;    // kept for backwards-compat export only  (70 × 1.3)
 const SNAP_RADIUS  = 40;   // no longer used for snap, kept for import compat
-const SLOT_DEPTH   = 100;  // px below beaker opening that electrode tip sits
+const SLOT_DEPTH   = 130;  // kept for compat export  (100 × 1.3)
 
 // Liquid interior bounds in local (beaker-origin) coordinates
-const LIQ_Y_TOP    = 20;   // px below beaker opening where liquid starts
+const LIQ_Y_TOP    = 52;   // matches liquid fill rect y (see _buildSVG)
 const LIQ_Y_BOTTOM = BH;   // beaker interior bottom
-const LIQ_HALF_W   = BW / 2 - WALL;  // 126 px either side of centre
+const LIQ_HALF_W   = BW / 2 - WALL;  // 165 px either side of centre
 
 export { SNAP_RADIUS, SLOT_OFFSET };
 
@@ -130,9 +130,9 @@ export class BeakerNode extends ComponentNode {
 
     const liquidFill = document.createElementNS(SVG_NS, 'rect');
     liquidFill.setAttribute('x',      -halfW + 2);
-    liquidFill.setAttribute('y',      40);          // fill starts 40 px down from top
+    liquidFill.setAttribute('y',      52);          // fill starts 52 px down from top
     liquidFill.setAttribute('width',  bw - 4);
-    liquidFill.setAttribute('height', bh - 42);
+    liquidFill.setAttribute('height', bh - 54);
     liquidFill.setAttribute('fill',   'transparent');
     liquidFill.setAttribute('opacity', '0');
     liquidFill.setAttribute('clip-path', `url(#${clipId})`);
@@ -142,7 +142,7 @@ export class BeakerNode extends ComponentNode {
     // ── Electrolyte label inside beaker ──────────────────────────────
     const eLabel = document.createElementNS(SVG_NS, 'text');
     eLabel.setAttribute('x', 0);
-    eLabel.setAttribute('y', bh - 16);
+    eLabel.setAttribute('y', bh - 20);
     eLabel.classList.add('beaker-electrolyte-label');
     eLabel.textContent = '';
     g.appendChild(eLabel);
@@ -150,7 +150,7 @@ export class BeakerNode extends ComponentNode {
     // ── Beaker label at top ───────────────────────────────────────────
     const label = document.createElementNS(SVG_NS, 'text');
     label.setAttribute('x', 0);
-    label.setAttribute('y', bh + 22);
+    label.setAttribute('y', bh + 28);
     label.classList.add('node-label');
     label.textContent = 'Electrolytic cell';
     g.appendChild(label);

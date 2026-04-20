@@ -128,6 +128,26 @@ export class CircuitCanvas {
     }
   }
 
+  /**
+   * Show or hide the battery node (and any wires connected to it).
+   * When hidden, the circuit operates in galvanic-cell mode.
+   * @param {boolean} on
+   */
+  setBatteryVisible(on) {
+    this._batteryEnabled = on;
+    this.batteryNode.svgGroup.style.display = on ? '' : 'none';
+    // Hide wires that attach to the battery so they don't float orphaned
+    for (const wire of this.wires.values()) {
+      if (wire.from.nodeId === 'battery' || wire.to.nodeId === 'battery') {
+        wire.svgPath.style.display = on ? '' : 'none';
+      }
+    }
+    this._emitTopologyChange();
+  }
+
+  /** Whether the battery is currently visible/enabled. */
+  get batteryEnabled() { return this._batteryEnabled !== false; }
+
   // ── Layout initialisation ─────────────────────────────────────────────
 
   _initLayout() {
@@ -135,9 +155,9 @@ export class CircuitCanvas {
     const W    = rect.width  || 800;
     const H    = rect.height || 480;
 
-    // Beaker: top-centre at ~50% width, ~40% height
+    // Beaker: top-centre at ~50% width, ~44% height
     const bkrX = Math.round(W * 0.52);
-    const bkrY = Math.round(H * 0.40);
+    const bkrY = Math.round(H * 0.44);
 
     // Battery: centred horizontally above the beaker
     const batX = bkrX;

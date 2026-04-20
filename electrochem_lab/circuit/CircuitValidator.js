@@ -1,8 +1,9 @@
 /**
  * circuit/CircuitValidator.js
- * BFS graph traversal to determine whether the electrolysis circuit is complete.
+ * BFS graph traversal to determine whether the electrolysis circuit is complete,
+ * OR (when batteryEnabled is false) whether the galvanic cell is valid.
  *
- * A valid circuit requires:
+ * A valid electrolysis circuit requires:
  *   1. Battery is present (always true — it is pre-placed).
  *   2. Exactly two electrode nodes placed.
  *   3. Both electrodes are submerged in the beaker liquid.
@@ -10,22 +11,36 @@
  *   5. bat_neg is connected by wires to the other electrode's rod_top (→ cathode).
  *   6. An electrolyte is selected.
  *
- * Polarity rule:
+ * A valid galvanic cell (battery removed) requires:
+ *   1. Exactly two electrodes placed and submerged.
+ *   2. An electrolyte is selected.
+ *   3. Both electrodes have known standard reduction potentials.
+ *   Polarity: higher E° → cathode (reduction), lower E° → anode (oxidation).
+ *
+ * Polarity rule (electrolysis):
  *   Electrode reached from bat_pos = anode (oxidation, conventional current enters).
  *   Electrode reached from bat_neg = cathode (reduction, conventional current exits).
  */
 export class CircuitValidator {
   /**
    * @param {object} params
-   * @param {ComponentNode}           params.battery     — the BatteryNode
-   * @param {Map<string,ElectrodeNode>} params.nodes     — electrode nodes only
-   * @param {Map<string,WireSegment>} params.wires
-   * @param {BeakerNode}              params.beaker
-   * @param {object|null}             params.electrolyte — ELECTROLYTE_DB record or null
+   * @param {ComponentNode}             params.battery       — the BatteryNode
+   * @param {Map<string,ElectrodeNode>} params.nodes         — electrode nodes only
+   * @param {Map<string,WireSegment>}   params.wires
+   * @param {BeakerNode}                params.beaker
+   * @param {object|null}               params.electrolyte   — ELECTROLYTE_DB record or null
+   * @param {boolean}                   [params.batteryEnabled=true]
    * @returns {{ isValid: boolean, errors: string[],
-   *             anode: ElectrodeNode|null, cathode: ElectrodeNode|null }}
+   *             anode: ElectrodeNode|null, cathode: ElectrodeNode|null,
+   *             isGalvanic: boolean }}
    */
-  static validate({ battery, nodes, wires, beaker, electrolyte }) {
+  static validate({ battery, nodes, wires, beaker, electrolyte, batteryEnabled = true }) {
+    // ── Galvanic-cell path (battery toggled off) ───────────────────────
+    if (!batteryEnabled) {
+      return CircuitValidator._validateGalvanic({ nodes, electrolyte });
+    }
+
+    // ── Electrolysis path (battery on) ────────────────────────────────
     const errors  = [];
     const electrodes = [...nodes.values()];
 
@@ -97,7 +112,63 @@ export class CircuitValidator {
       anodeNode !== cathodeNode &&
       !!electrolyte;
 
-    return { isValid, errors, anode: anodeNode, cathode: cathodeNode };
+    return { isValid, errors, anode: anodeNode, cathode: cathodeNode, isGalvanic: false };
+  }
+
+  // ── Galvanic-cell validation ───────────────────────────────────────────
+
+  static _validateGalvanic({ nodes, electrolyte }) {
+    const errors     = [];
+    const electrodes = [...nodes.values()];
+
+    if (electrodes.length < 2) {
+      errors.push(
+        electrodes.length === 0
+          ? 'Drag two electrodes onto the beaker.'
+          : 'Add a second electrode to the beaker.'
+      );
+    }
+    if (electrodes.length > 2) {
+      errors.push('Only two electrodes can be used at once.');
+    }
+
+    const submergedCount = electrodes.filter(e => e.isSubmerged).length;
+    if (electrodes.length === 2 && submergedCount < 2) {
+      errors.push('Dip both electrodes into the electrolyte solution.');
+    }
+
+    if (!electrolyte) {
+      errors.push('Select an electrolyte from the bottom panel.');
+    }
+
+    let anodeNode   = null;
+    let cathodeNode = null;
+
+    if (electrodes.length === 2 && submergedCount === 2 && electrolyte) {
+      const [a, b] = electrodes;
+      const eA = a.data?.standardPotential;
+      const eB = b.data?.standardPotential;
+
+      if (eA == null || eB == null) {
+        errors.push('Both electrodes need known reduction potentials for a galvanic cell.');
+      } else if (Math.abs(eA - eB) < 1e-9) {
+        errors.push('Electrodes have identical potentials — no EMF will be generated.');
+      } else {
+        // Higher reduction potential = cathode (reduced), lower = anode (oxidised)
+        cathodeNode = eA > eB ? a : b;
+        anodeNode   = eA > eB ? b : a;
+      }
+    }
+
+    const isValid =
+      errors.length === 0 &&
+      electrodes.length === 2 &&
+      submergedCount === 2 &&
+      anodeNode !== null &&
+      cathodeNode !== null &&
+      !!electrolyte;
+
+    return { isValid, errors, anode: anodeNode, cathode: cathodeNode, isGalvanic: true };
   }
 
   /** BFS — returns Set of all terminal keys reachable from startKey. */

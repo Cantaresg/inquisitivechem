@@ -1,27 +1,24 @@
 /**
  * js/main.js
- * Phase 4–6 entry point.
+ * Entry point for the Electrochemistry Lab.
  *
  * Responsibilities:
- *   • Render left-panel electrode cards and battery static card.
+ *   • Render left-panel electrode cards.
  *   • Handle drag-from-panel → drop-on-canvas to spawn ElectrodeNodes.
  *   • Instantiate ElectrolytePanel, TestPanel, ObsPanel, AnimationLayer.
  *   • Instantiate SimController (owns topology listener + engine).
- *   • Phase 6: Instantiate ECCellCanvas, ECCellPanel, ECCellController.
  *   • Level toggle propagates to ElectrolytePanel + SimController.
+ *   • Battery toggle switches between electrolysis and galvanic-cell mode.
  *   • Toast system (showToast exported for use by SimController).
  */
 
 import { CircuitCanvas }       from '../circuit/CircuitCanvas.js';
-import { ECCellCanvas }        from '../circuit/ECCellCanvas.js';
 import { getElectrodesForLevel } from '../data/electrodes.js';
 import { ElectrolytePanel }    from '../ui/ElectrolytePanel.js';
-import { ECCellPanel }         from '../ui/ECCellPanel.js';
 import { TestPanel }           from '../ui/TestPanel.js';
 import { ObsPanel }            from '../ui/ObsPanel.js';
 import { AnimationLayer }      from '../ui/AnimationLayer.js';
 import { SimController }       from '../controller/SimController.js';
-import { ECCellController }    from '../controller/ECCellController.js';
 
 // ── Debug: surface any JS error visibly on the page ──────────────────────
 window.addEventListener('error', ev => {
@@ -64,18 +61,10 @@ const exportDocxBtn    = document.getElementById('export-docx');
 const obsToggleBtn     = document.getElementById('obs-toggle');
 const obsPanelEl       = document.getElementById('obs-panel');
 
-// EC Cell mode DOM refs
-const eccellModeBtn    = document.getElementById('eccell-mode-btn');
-const eccellPanelEl    = document.getElementById('eccell-panel-container');
-
 // ── State ─────────────────────────────────────────────────────────────────
 let currentLevel = 'O_LEVEL';
-let simMode      = 'electrolysis';  // 'electrolysis' | 'eccell'
 let canvas;           // CircuitCanvas
-let ecCellCanvas;     // ECCellCanvas
 let electrolytePanel;
-let ecCellPanel;      // ECCellPanel
-let ecCellController; // ECCellController
 let simController;
 
 /** Info for the electrode card currently being dragged from the left panel. */
@@ -103,14 +92,10 @@ try {
   _step(1, 'CircuitCanvas');
   canvas = new CircuitCanvas(svg);
 
-  // ─ EC Cell mode canvas (A-Level only, hidden until mode switch)
-  _step(2, 'ECCellCanvas');
-  ecCellCanvas = new ECCellCanvas(svg);
-
-  _step(3, 'AnimationLayer');
+  _step(2, 'AnimationLayer');
   const animLayer = new AnimationLayer(circuitWrap);
 
-  _step(4, 'ElectrolytePanel');
+  _step(3, 'ElectrolytePanel');
   electrolytePanel = new ElectrolytePanel({
     cardsContainer:        electrolyteCards,
     slider:                concSlider,
@@ -119,24 +104,13 @@ try {
     onConcentrationChange: record => simController?.setElectrolyte(record),
   });
 
-  // EC Cell panel (shown when switching to EC Cell mode in A-Level)
-  _step(5, 'ECCellPanel');
-  if (eccellPanelEl) {
-    ecCellPanel = new ECCellPanel({
-      container:     eccellPanelEl,
-      onLeftChange:  hc => ecCellController?.setLeftHalfCell(hc),
-      onRightChange: hc => ecCellController?.setRightHalfCell(hc),
-    });
-    ecCellPanel.setVisible(false);   // hidden initially
-  }
-
-  _step(6, 'TestPanel');
+  _step(4, 'TestPanel');
   const testPanel = new TestPanel(
     testControlsEl,
     testResult => simController?.onTestResult(testResult),
   );
 
-  _step(7, 'ObsPanel');
+  _step(5, 'ObsPanel');
   const obsPanel = new ObsPanel({
     tabsEl:    obsTabsEl,
     obsEl:     obsObsEl,
@@ -148,17 +122,7 @@ try {
     config:    { level: currentLevel },
   });
 
-  _step(8, 'ECCellController');
-  ecCellController = new ECCellController({
-    voltmeter:   ecCellCanvas.voltmeter,
-    ecCellCanvas,
-    obsPanel,
-    config:      { level: 'A_LEVEL' },  // EC Cell is always A-Level
-    setStatus,
-    showToast,
-  });
-
-  _step(9, 'SimController');
+  _step(6, 'SimController');
   simController = new SimController({
     canvas,
     svg,
@@ -167,15 +131,16 @@ try {
     animLayer,
     setStatus,
     showToast,
-    ecCellController,
   });
 
-  _step(10, 'renderComponentPanel');
+  _step(7, 'renderComponentPanel');
   renderComponentPanel(currentLevel);
-  _step(11, 'bindLevelToggle');
+  _step(8, 'bindLevelToggle');
   bindLevelToggle();
-  _step(12, 'bindECCellModeBtn');
-  bindECCellModeBtn();
+  _step(9, 'bindBatteryToggle');
+  bindBatteryToggle();
+  _step(10, 'bindPolarityToggle');
+  bindPolarityToggle();
   _done();
 } catch (err) {
   _dbg.style.color = '#ff6b6b';
@@ -196,49 +161,35 @@ function bindLevelToggle() {
       renderComponentPanel(currentLevel);
       electrolytePanel?.renderForLevel(currentLevel);
       simController?.setLevel(currentLevel);
-
-      // Update EC Cell canvas level (salt bridge visibility)
-      ecCellCanvas?.setLevel(currentLevel);
     });
   }
 }
 
-// ── EC Cell mode toggle ──────────────────────────────────────────────
-function bindECCellModeBtn() {
-  if (!eccellModeBtn) return;
-  eccellModeBtn.style.display = '';   // always visible
-  eccellModeBtn.addEventListener('click', () => {
-    _setSimMode(simMode === 'eccell' ? 'electrolysis' : 'eccell');
+// ── Battery toggle ───────────────────────────────────────────────────────
+function bindBatteryToggle() {
+  const btn   = document.getElementById('battery-toggle');
+  const badge = document.getElementById('battery-badge');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const nowOn = btn.getAttribute('aria-pressed') !== 'true';
+    btn.setAttribute('aria-pressed', String(nowOn));
+    badge.textContent = nowOn ? 'Included' : 'Removed';
+    canvas?.setBatteryVisible(nowOn);
   });
 }
 
-function _setSimMode(mode) {
-  simMode = mode;
-  const isECCell = mode === 'eccell';
-
-  // Swap canvas layers: hide/show CircuitCanvas layers
-  for (const id of ['beaker-layer', 'wires-layer', 'components-layer']) {
-    const el = svg.getElementById?.(id) ?? svg.querySelector(`#${id}`);
-    if (el) el.style.display = isECCell ? 'none' : '';
-  }
-  // Battery node is in #components-layer (already hidden above), but we also
-  // hide battery's own group if it was moved
-  if (isECCell) ecCellCanvas.show(); else ecCellCanvas.hide();
-
-  // Swap bottom panel content
-  const elysisPanel  = document.getElementById('electrolysis-panel-wrap');
-  const eccellWrap   = document.getElementById('eccell-panel-wrap');
-  if (elysisPanel) elysisPanel.hidden  = isECCell;
-  if (eccellWrap)  eccellWrap.hidden   = !isECCell;
-  ecCellPanel?.setVisible(isECCell);
-
-  // Update toggle button label
-  if (eccellModeBtn) {
-    eccellModeBtn.textContent = isECCell ? 'Electrolysis Mode' : 'EC Cell Mode';
-    eccellModeBtn.classList.toggle('active', isECCell);
-  }
-
-  simController?.setMode(mode);
+// ── Polarity label toggle ─────────────────────────────────────────────────
+function bindPolarityToggle() {
+  const btn = document.getElementById('polarity-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const nowOn = btn.getAttribute('aria-pressed') !== 'true';
+    btn.setAttribute('aria-pressed', String(nowOn));
+    btn.textContent = nowOn ? 'Hide labels' : 'Show labels';
+    svg.classList.toggle('show-polarity', nowOn);
+  });
+}
+  });
 }
 
 // ── Component panel rendering ─────────────────────────────────────────────

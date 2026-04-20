@@ -87,8 +87,8 @@ export const ELECTRODE_DB = {
     dissolutionIonCharge:     +1,
     dissolutionElectronCount: 1,    // Ag → Ag⁺ + e⁻
     colour:                   '#c0c0c0',
-    level:                    'A_LEVEL',
-    description:              'Reactive silver electrode — dissolves as anode, producing Ag⁺ ions. (A-Level)',
+    level:                    'O_LEVEL',
+    description:              'Reactive silver electrode — dissolves as anode, producing Ag⁺ ions.',
   },
 
   iron: {
@@ -101,20 +101,95 @@ export const ELECTRODE_DB = {
     dissolutionIonCharge:     +2,
     dissolutionElectronCount: 2,    // Fe → Fe²⁺ + 2e⁻
     colour:                   '#6e6e6e',
-    level:                    'A_LEVEL',
-    description:              'Reactive iron electrode — dissolves as anode, producing Fe²⁺ ions. (A-Level)',
+    level:                    'O_LEVEL',
+    description:              'Reactive iron electrode — dissolves as anode, producing Fe²⁺ ions.',
+  },
+
+  nickel: {
+    id:                       'nickel',
+    name:                     'Nickel',
+    symbol:                   'Ni',
+    isInert:                  false,
+    standardPotential:        -0.25,
+    oxidationProductId:       'Ni2+',
+    dissolutionIonCharge:     +2,
+    dissolutionElectronCount: 2,    // Ni → Ni²⁺ + 2e⁻
+    colour:                   '#72944a',
+    level:                    'O_LEVEL',
+    description:              'Reactive nickel electrode — dissolves as anode, producing Ni²⁺ ions.',
+  },
+
+  tin: {
+    id:                       'tin',
+    name:                     'Tin',
+    symbol:                   'Sn',
+    isInert:                  false,
+    standardPotential:        -0.14,
+    oxidationProductId:       'Sn2+',
+    dissolutionIonCharge:     +2,
+    dissolutionElectronCount: 2,    // Sn → Sn²⁺ + 2e⁻
+    colour:                   '#8a9eb0',
+    level:                    'O_LEVEL',
+    description:              'Reactive tin electrode — dissolves as anode, producing Sn²⁺ ions.',
+  },
+
+  lead: {
+    id:                       'lead',
+    name:                     'Lead',
+    symbol:                   'Pb',
+    isInert:                  false,
+    standardPotential:        -0.13,
+    oxidationProductId:       'Pb2+',
+    dissolutionIonCharge:     +2,
+    dissolutionElectronCount: 2,    // Pb → Pb²⁺ + 2e⁻
+    colour:                   '#5a5a6a',
+    level:                    'O_LEVEL',
+    description:              'Reactive lead electrode — dissolves as anode, producing Pb²⁺ ions.',
+  },
+
+  magnesium: {
+    id:                       'magnesium',
+    name:                     'Magnesium',
+    symbol:                   'Mg',
+    isInert:                  false,
+    standardPotential:        -2.37,
+    oxidationProductId:       'Mg2+',
+    dissolutionIonCharge:     +2,
+    dissolutionElectronCount: 2,    // Mg → Mg²⁺ + 2e⁻
+    colour:                   '#b8d0c8',
+    level:                    'O_LEVEL',
+    description:              'Highly reactive magnesium electrode — vigorous oxidation as anode.',
+  },
+
+  aluminium: {
+    id:                       'aluminium',
+    name:                     'Aluminium',
+    symbol:                   'Al',
+    isInert:                  false,
+    standardPotential:        -1.66,
+    oxidationProductId:       'Al3+',
+    dissolutionIonCharge:     +3,
+    dissolutionElectronCount: 3,    // Al → Al³⁺ + 3e⁻
+    colour:                   '#c8d8e8',
+    level:                    'O_LEVEL',
+    description:              'Reactive aluminium electrode — dissolves as anode, producing Al³⁺ ions.',
   },
 
 };
 
-/** Ordered for the left component panel (O-Level first, then A-Level extras) */
+/** Ordered for the left component panel — reactivity series order (most reactive first) */
 export const ELECTRODE_ORDER = [
   'carbon',
   'platinum',
-  'copper',
+  'magnesium',
+  'aluminium',
   'zinc',
-  'silver',
   'iron',
+  'nickel',
+  'tin',
+  'lead',
+  'copper',
+  'silver',
 ];
 
 /** Returns all electrode records visible at the given curriculum level */
