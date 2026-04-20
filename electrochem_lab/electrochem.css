@@ -1,0 +1,1289 @@
+/**
+ * electrochem.css
+ * Layout and design tokens for the Electrochemistry Lab.
+ * Matches the InquisitiveChemistry design system (chem-lab.css palette).
+ *
+ * Layout zones (flex row):
+ *   [component-panel 220px] [center-area flex:1] [test-panel 180px] [obs-panel 0→320px]
+ *
+ * center-area is a flex column:
+ *   [circuit-wrap flex:1] [electrolyte-panel 120px]
+ */
+
+/* ── Reset ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Design tokens ────────────────────────────────────────────────────────── */
+:root {
+  --nav-h:          52px;
+
+  /* Palette — identical to chem-lab */
+  --bg:             #07090f;
+  --surface:        #0d1018;
+  --surface2:       #111520;
+  --panel-border:   #1e2535;
+  --border2:        #263045;
+  --text:           #eef2ff;
+  --text-mid:       #a8b4d0;
+  --text-dim:       #5a6882;
+  --accent:         #4df0b0;
+  --accent2:        #38d49a;
+  --glow:           rgba(77,240,176,0.15);
+  --glow-strong:    rgba(77,240,176,0.35);
+  --danger:         #ff6b6b;
+  --btn-hover:      rgba(77,240,176,0.07);
+
+  /* Circuit-specific */
+  --wire-dead:      #3a4a66;
+  --wire-live:      #4df0b0;
+  --wire-preview:   rgba(77,240,176,0.55);
+  --wire-selected:  #ffdd55;
+  --terminal-idle:  #4a5a7a;
+  --terminal-hover: #4df0b0;
+  --terminal-conn:  #38d49a;
+  --slot-empty:     rgba(136,153,187,0.30);
+  --slot-filled:    rgba(77,240,176,0.25);
+  --beaker-glass:   rgba(160,200,255,0.22);
+  --beaker-live:    rgba(77,240,176,0.12);
+  --electrode-live: rgba(77,240,176,0.20);
+
+  /* Panel widths */
+  --comp-panel-w:   220px;
+  --test-panel-w:   180px;
+  --obs-panel-w:    320px;
+  --electrolyte-h:  116px;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+html, body {
+  height: 100%;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* ── Nav bar ──────────────────────────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  display: flex; align-items: center;
+  padding: 0 24px; height: var(--nav-h);
+  background: rgba(7,9,15,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--panel-border);
+}
+.nav-logo {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.1rem; color: var(--text);
+  text-decoration: none; letter-spacing: -0.01em;
+}
+.nav-logo span { color: var(--accent); }
+.nav-links {
+  display: flex; align-items: center; gap: 24px;
+  margin-left: auto; list-style: none;
+}
+.nav-links a {
+  font-size: 0.78rem; font-weight: 500;
+  color: var(--text-mid); text-decoration: none;
+  letter-spacing: 0.03em; transition: color 0.18s;
+}
+.nav-links a:hover { color: var(--text); }
+.nav-cta {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem; font-weight: 500;
+  padding: 5px 14px; border-radius: 6px;
+  border: 1px solid var(--accent);
+  color: var(--accent) !important;
+  letter-spacing: 0.06em;
+  transition: background 0.18s !important;
+}
+.nav-cta:hover { background: var(--glow) !important; }
+
+/* ── App shell ────────────────────────────────────────────────────────────── */
+#echem-app {
+  display: flex;
+  height: calc(100vh - var(--nav-h));
+  margin-top: var(--nav-h);
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEFT PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+#component-panel {
+  width: var(--comp-panel-w);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--panel-border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 16px;
+}
+
+/* Level toggle */
+#level-toggle {
+  display: flex;
+  padding: 10px 12px 8px;
+  gap: 6px;
+}
+.level-btn {
+  flex: 1;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.level-btn.active,
+.level-btn[aria-pressed="true"] {
+  background: rgba(77,240,176,0.10);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.level-btn:hover:not(.active) {
+  background: var(--btn-hover);
+  color: var(--text-mid);
+}
+
+/* Panel sections */
+.panel-divider {
+  height: 1px;
+  background: var(--panel-border);
+  margin: 4px 0;
+}
+.comp-group {
+  padding: 8px 12px 4px;
+}
+.comp-group-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+/* Component cards */
+.comp-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface2);
+  margin-bottom: 6px;
+  cursor: grab;
+  user-select: none;
+  transition: border-color 0.18s, background 0.18s;
+}
+.comp-card:hover {
+  border-color: var(--accent);
+  background: rgba(77,240,176,0.04);
+}
+.comp-card:active { cursor: grabbing; }
+.comp-card--static {
+  cursor: default;
+  opacity: 0.6;
+}
+.comp-symbol {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.2rem;
+  font-weight: 500;
+  line-height: 1;
+  min-width: 28px;
+  text-align: center;
+}
+.comp-name {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--text-mid);
+  line-height: 1.3;
+}
+.comp-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.badge-inert    { background: rgba(136,153,187,0.15); color: var(--text-dim); border: 1px solid var(--panel-border); }
+.badge-reactive { background: rgba(77,240,176,0.08);  color: var(--accent);   border: 1px solid rgba(77,240,176,0.25); }
+.badge-fixed    { background: transparent; color: var(--text-dim); border: 1px solid var(--panel-border); }
+
+/* Hint text */
+.panel-hint {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  padding: 6px 12px;
+}
+.hint-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+  margin: 0 2px;
+}
+kbd {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface2);
+  color: var(--text-mid);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CENTRE AREA
+   ═══════════════════════════════════════════════════════════════════════════ */
+#center-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Circuit canvas ───────────────────────────────────────────────────────── */
+#circuit-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(77,240,176,0.025) 0%, transparent 70%),
+    var(--bg);
+  /* Subtle dot grid */
+  background-image:
+    radial-gradient(circle, rgba(77,240,176,0.04) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(77,240,176,0.025) 0%, transparent 70%);
+  background-size: 28px 28px, 100% 100%;
+}
+
+#circuit-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+/* Status bar (floats inside circuit wrap) */
+.circuit-status {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  padding: 5px 16px;
+  border-radius: 20px;
+  pointer-events: none;
+  z-index: 10;
+  transition: all 0.25s;
+  white-space: nowrap;
+}
+.status-hint {
+  background: rgba(7,9,15,0.80);
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+}
+.status-ok {
+  background: rgba(77,240,176,0.12);
+  border: 1px solid rgba(77,240,176,0.40);
+  color: var(--accent);
+}
+
+/* Drop hint overlay */
+#drop-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  border: 2px dashed rgba(77,240,176,0.35);
+  background: rgba(7,9,15,0.55);
+  pointer-events: none;
+  z-index: 20;
+}
+#drop-hint[hidden] { display: none; }
+
+/* ── Electrolyte panel ───────────────────────────────────────────────────── */
+#electrolyte-panel {
+  height: var(--electrolyte-h);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#electrolyte-cards {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+}
+.placeholder-text {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 8px 4px;
+}
+
+/* Panel header bar (shared) */
+.panel-header-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.panel-header-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.60rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.panel-header-hint {
+  font-size: 0.70rem;
+  color: var(--text-dim);
+  margin-left: auto;
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEST PANEL (right)
+   ═══════════════════════════════════════════════════════════════════════════ */
+#test-panel {
+  width: var(--test-panel-w);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--panel-border);
+  position: relative;  /* for obs-toggle positioning */
+}
+#test-controls {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+/* Obs toggle tab — stuck to right edge of test panel */
+#obs-toggle {
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 52px;
+  background: var(--surface2);
+  border: 1px solid var(--panel-border);
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.18s, background 0.18s;
+}
+#obs-toggle:hover {
+  color: var(--accent);
+  background: rgba(77,240,176,0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OBS PANEL (far right, collapsible)
+   ═══════════════════════════════════════════════════════════════════════════ */
+#obs-panel {
+  width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.25s ease;
+  background: var(--surface);
+  border-left: 1px solid var(--panel-border);
+}
+#obs-panel.open {
+  width: var(--obs-panel-w);
+}
+#obs-panel-inner {
+  width: var(--obs-panel-w);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Obs tabs */
+#obs-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.obs-tab {
+  flex: 1;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  padding: 8px 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.18s, border-color 0.18s;
+}
+.obs-tab.active,
+.obs-tab[aria-selected="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.obs-tab:hover:not(.active) { color: var(--text-mid); }
+
+/* Obs tabpanels */
+#obs-observations,
+#obs-equations {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* Export buttons */
+#obs-export {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--panel-border);
+}
+.export-btn {
+  flex: 1;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.export-btn:not(:disabled):hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(77,240,176,0.05);
+}
+.export-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SVG CIRCUIT ELEMENTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Battery ─────────────────────────────────────────────────────────────── */
+.battery-body {
+  fill: var(--surface2);
+  stroke: var(--border2);
+  stroke-width: 1.5;
+}
+.battery-line-long {
+  stroke: var(--text-mid);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.battery-line-short {
+  stroke: var(--text-dim);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.battery-lead {
+  stroke: var(--text-dim);
+  stroke-width: 1.5;
+}
+.battery-dc-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  fill: var(--text-dim);
+  text-anchor: middle;
+  letter-spacing: 0.06em;
+}
+.battery-pole-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+.pole-pos { fill: var(--accent); }
+.pole-neg { fill: var(--danger); }
+
+/* ── Electrode ───────────────────────────────────────────────────────────── */
+.electrode-rod {
+  /* fill set inline from electrodeData.colour */
+  stroke: rgba(255,255,255,0.12);
+  stroke-width: 1;
+}
+.electrode-symbol-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 16px;
+  font-weight: 500;
+  fill: var(--text);
+}
+.electrode-name-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  fill: var(--text-dim);
+}
+.polarity-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  fill: var(--accent);
+}
+.electrode-drag-handle {
+  cursor: grab;
+}
+.electrode-drag-handle:active { cursor: grabbing; }
+
+/* rod_bottom indicator (shows when not submerged) */
+.rod-bottom-indicator {
+  fill: none;
+  stroke: var(--text-dim);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0.6;
+}
+.rod-bottom-indicator.rod-bottom-submerged {
+  stroke: var(--accent);
+  stroke-dasharray: none;
+  opacity: 1;
+}
+.electrode-node.electrode-submerged .electrode-rod {
+  filter: drop-shadow(0 0 4px var(--accent));
+}
+
+/* ── Beaker ──────────────────────────────────────────────────────────────── */
+.beaker-glass-wall {
+  stroke: var(--beaker-glass);
+  stroke-width: 4;
+}
+.beaker-electrolyte-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  fill: rgba(255,255,255,0.55);
+  text-anchor: middle;
+}
+.beaker-node.beaker-live .beaker-glass-wall {
+  stroke: rgba(77,240,176,0.35);
+  filter: url(#glow-filter);
+}
+
+/* ── Shared node styles ──────────────────────────────────────────────────── */
+.node-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  fill: var(--text-dim);
+  text-anchor: middle;
+  letter-spacing: 0.06em;
+}
+
+/* Terminal dots */
+.terminal-dot {
+  fill: var(--terminal-idle);
+  stroke: var(--bg);
+  stroke-width: 2;
+  cursor: crosshair;
+  transition: fill 0.15s;
+}
+.terminal-dot:hover { fill: var(--terminal-hover); }
+.terminal-dot.terminal-connected { fill: var(--terminal-conn); }
+
+/* Node highlight (while wire draw is hovering) */
+.circuit-node.node-highlight .terminal-dot { fill: var(--accent); }
+
+/* Live state (circuit closed) */
+.circuit-node.node-live .battery-body {
+  stroke: rgba(77,240,176,0.45);
+  filter: url(#glow-filter);
+}
+.electrode-node.node-live .electrode-rod {
+  filter: url(#glow-filter);
+}
+.electrode-node.polarity-anode  .polarity-label { fill: var(--danger); }
+.electrode-node.polarity-cathode .polarity-label { fill: var(--accent); }
+
+/* ── Wires ───────────────────────────────────────────────────────────────── */
+.wire-dead {
+  stroke: var(--wire-dead);
+}
+.wire-live {
+  stroke: var(--wire-live);
+  filter: url(#glow-filter);
+}
+.wire-selected {
+  stroke: var(--wire-selected);
+}
+.wire-preview {
+  stroke: var(--wire-preview);
+  stroke-dasharray: 8 5;
+  animation: wire-march 0.6s linear infinite;
+}
+@keyframes wire-march {
+  to { stroke-dashoffset: -13; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DRAG GHOST
+   ═══════════════════════════════════════════════════════════════════════════ */
+.drag-ghost {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: rgba(7,9,15,0.88);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  box-shadow: 0 0 12px var(--glow-strong);
+  transform: translate(-2px, -2px);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOASTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 500;
+  pointer-events: none;
+}
+.toast {
+  font-size: 0.78rem;
+  padding: 8px 20px;
+  border-radius: 20px;
+  background: rgba(5,7,12,0.95);
+  border: 1px solid var(--panel-border);
+  color: var(--text-mid);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.22s, transform 0.22s;
+  max-width: 380px;
+  text-align: center;
+}
+.toast.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 4 — ELECTROLYTE PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Concentration slider row in panel-header-bar */
+.conc-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.conc-label strong { color: var(--text-mid); font-weight: 500; }
+
+.conc-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--panel-border);
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.conc-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--glow-strong);
+}
+.conc-slider::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  cursor: pointer;
+}
+.conc-slider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* Electrolyte cards */
+.elec-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 100px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface2);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  transition: border-color 0.18s, background 0.18s;
+}
+.elec-card:hover {
+  border-color: var(--border2);
+  background: rgba(77,240,176,0.03);
+}
+.elec-card--selected {
+  border-color: var(--accent);
+  background: rgba(77,240,176,0.07);
+  box-shadow: 0 0 0 1px rgba(77,240,176,0.25);
+}
+.elec-colour-dot {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+.elec-formula {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.70rem;
+  color: var(--text-mid);
+  text-align: center;
+  white-space: nowrap;
+}
+.elec-name {
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 4 — TEST PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#test-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+/* Target selector */
+.test-target-group {
+  display: flex;
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.target-btn {
+  flex: 1;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  padding: 7px 4px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+.target-btn:last-child { border-right: none; }
+.target-btn.active {
+  background: rgba(77,240,176,0.10);
+  color: var(--accent);
+}
+.target-btn:hover:not(.active) { background: var(--btn-hover); color: var(--text-mid); }
+
+/* Section label inside test panel */
+.test-section-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 2px 0;
+}
+
+/* Test buttons */
+.test-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.test-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface2);
+  color: var(--text-mid);
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, color 0.18s;
+  text-align: left;
+}
+.test-btn:not(:disabled):hover {
+  border-color: var(--accent);
+  background: rgba(77,240,176,0.04);
+  color: var(--text);
+}
+.test-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.test-btn-symbol {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Result card */
+.test-result {
+  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface2);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+}
+.test-result--hidden { display: none; }
+.test-result--positive {
+  border-color: rgba(77,240,176,0.45);
+  background: rgba(77,240,176,0.05);
+}
+.test-result--negative {
+  border-color: rgba(136,153,187,0.35);
+}
+.test-result--na {
+  border-color: rgba(136,153,187,0.20);
+  opacity: 0.7;
+}
+.result-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.result-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+.test-result--positive .result-dot { background: var(--accent); }
+.test-result--negative .result-dot { background: var(--text-dim); }
+.result-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.60rem;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.result-observation {
+  color: var(--text-mid);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 4 — OBSERVATION LOG
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#obs-observations,
+#obs-equations {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Run block */
+.obs-run-block { padding: 6px 0 8px; }
+.obs-run-divider {
+  height: 1px;
+  background: var(--panel-border);
+  margin: 8px 0;
+}
+.obs-run-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+.obs-run-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.60rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.obs-run-ctx {
+  font-size: 0.70rem;
+  color: var(--text-mid);
+  line-height: 1.3;
+}
+
+/* Observation list */
+.obs-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.obs-item {
+  font-size: 0.76rem;
+  color: var(--text-mid);
+  line-height: 1.4;
+  padding-left: 10px;
+  position: relative;
+}
+.obs-item::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+
+/* Test result entries */
+.obs-test-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px 0 5px 10px;
+  border-left: 2px solid var(--panel-border);
+  margin: 4px 0;
+}
+.obs-test--positive { border-left-color: var(--accent); }
+.obs-test--negative { border-left-color: var(--text-dim); }
+.obs-test-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.60rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+.obs-test-text {
+  font-size: 0.74rem;
+  color: var(--text-mid);
+  line-height: 1.4;
+}
+
+/* Equation rows */
+.eq-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.eq-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.60rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.eq-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.76rem;
+  color: var(--text-mid);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 5 — EXPORT ENHANCEMENTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Second export button (Word) — same base style as CSV btn, inherited from
+   .export-btn in Phase 4 section above. Only need gap here.              */
+#obs-export {
+  display: flex;
+  gap: 8px;
+}
+
+.eq-overall {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--panel-border);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 6 — EC CELL MODE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── EC Cell mode toggle button (left panel) ──────────────────────────── */
+.eccell-mode-btn {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 0 12px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--accent);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.eccell-mode-btn:hover   { background: rgba(77,240,176,0.10); }
+.eccell-mode-btn.active  { background: var(--accent); color: #07090f; }
+
+/* ── ECCellPanel — two-column half-cell selector ─────────────────────── */
+.eccell-panel {
+  display: flex;
+  gap: 12px;
+  padding: 10px 14px;
+  overflow-x: auto;
+}
+
+.eccell-half {
+  flex: 1 1 180px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eccell-half-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.eccell-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 200px;
+}
+
+/* Half-cell pair card */
+.eccell-pair-card {
+  display: grid;
+  grid-template-areas:
+    "badge label"
+    "badge formula";
+  grid-template-columns: 52px 1fr;
+  gap: 2px 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--panel-border);
+  border-left: 3px solid var(--pair-colour, var(--accent));
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+.eccell-pair-card:hover {
+  background: rgba(77,240,176,0.05);
+  border-color: rgba(77,240,176,0.30);
+}
+.eccell-pair-card--selected {
+  border-color: var(--accent);
+  background: rgba(77,240,176,0.08);
+}
+
+.eccell-e0-badge {
+  grid-area: badge;
+  align-self: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.70rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-align: center;
+  background: rgba(77,240,176,0.08);
+  border: 1px solid rgba(77,240,176,0.20);
+  border-radius: 4px;
+  padding: 3px 4px;
+}
+.eccell-pair-label {
+  grid-area: label;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+.eccell-pair-formula {
+  grid-area: formula;
+  font-size: 0.67rem;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+
+/* Concentration row inside each half-cell column */
+.eccell-conc-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.eccell-conc-label { font-family: 'DM Mono', monospace; font-size: 0.70rem; color: var(--text-dim); }
+.eccell-slider { flex: 1; accent-color: var(--accent); }
+.eccell-conc-value { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: var(--accent); }
+.eccell-conc-unit  { font-size: 0.68rem; color: var(--text-dim); }
+
+/* ── EC Cell SVG canvas elements ──────────────────────────────────────── */
+
+/* Voltmeter */
+.voltmeter-body {
+  fill: var(--surface);
+  stroke: #4df0b0;
+  stroke-width: 2;
+}
+.voltmeter-symbol {
+  font-family: 'Instrument Serif', serif;
+  font-size: 18px;
+  fill: var(--accent);
+  font-style: italic;
+}
+.voltmeter-emf {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  fill: var(--text-mid);
+}
+.voltmeter-lead  { stroke: var(--accent); stroke-width: 2; }
+.voltmeter-polarity { font-family: 'DM Mono', monospace; font-size: 9px; fill: var(--text-dim); }
+.voltmeter-node.voltmeter-live .voltmeter-body { filter: url(#glow-filter); }
+.voltmeter-node.voltmeter-live .voltmeter-emf  { fill: var(--accent); }
+
+/* Salt bridge */
+.salt-bridge-outer { fill: #2a3040; stroke: #4a5568; stroke-width: 1.5; }
+.salt-bridge-inner { fill: rgba(200,220,255,0.08); }
+.salt-bridge-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  fill: var(--text-dim);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* EC Cell electrode rods (static, driven by selection) */
+.eccell-rod-rect {
+  stroke: rgba(255,255,255,0.15);
+  stroke-width: 1;
+  rx: 3;
+}
+.eccell-rod-symbol {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  fill: rgba(255,255,255,0.75);
+  pointer-events: none;
+}
+.eccell-rod-polarity {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  fill: var(--text-dim);
+  pointer-events: none;
+}
+.eccell-rod--anode   .eccell-rod-polarity { fill: #ff7f7f; }
+.eccell-rod--cathode .eccell-rod-polarity { fill: var(--accent); }
+
+/* EC Cell wire connections */
+.eccell-wire {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  opacity: 0.7;
+}
+
+/* ── ECCellCanvas panel wrap ──────────────────────────────────────────── */
+#eccell-panel-wrap {
+  /* matches #electrolysis-panel-wrap / #electrolyte-panel dimensions */
+  overflow: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY
+   ═══════════════════════════════════════════════════════════════════════════ */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* Focus rings */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.comp-card:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(77,240,176,0.30);
+}
+#circuit-svg:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(77,240,176,0.20);
+}
