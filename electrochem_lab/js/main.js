@@ -189,8 +189,6 @@ function bindPolarityToggle() {
     svg.classList.toggle('show-polarity', nowOn);
   });
 }
-  });
-}
 
 // ── Component panel rendering ─────────────────────────────────────────────
 function renderComponentPanel(level) {
