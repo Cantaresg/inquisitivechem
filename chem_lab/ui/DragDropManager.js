@@ -79,6 +79,19 @@ export class DragDropManager {
   }
 
   /**
+   * Update the display label of an already-registered draggable.
+   * Used when a vessel is renamed after construction (e.g. unknown mode).
+   * @param {HTMLElement} el
+   * @param {string} newLabel
+   */
+  updateDraggableLabel(el, newLabel) {
+    const data = this._draggables.get(el);
+    if (!data) return;
+    data.label = newLabel;
+    el.setAttribute('aria-label', `Drag ${newLabel}`);
+  }
+
+  /**
    * Register a DOM element as a valid drop zone.
    * @param {HTMLElement} el  — should have data-vessel-id if it represents a vessel
    */

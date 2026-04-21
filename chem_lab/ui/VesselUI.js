@@ -117,8 +117,9 @@ export class VesselUI {
       }
     });
 
-    this.el     = container;
-    this.cardEl = card;
+    this.el         = container;
+    this.cardEl     = card;
+    this._captionEl = caption;
   }
 
   // ─── Render (BUG-18) ─────────────────────────────────────────────────────
@@ -143,6 +144,9 @@ export class VesselUI {
     const caption = this.el.querySelector('.vessel-caption');
     if (caption) caption.textContent = this.vessel.name;
     this.el.setAttribute('aria-label', this.vessel.name);
+    // Keep DragDropManager ghost labels in sync with the vessel name.
+    this._dm.updateDraggableLabel(this._captionEl, this.vessel.name);
+    this._dm.updateDraggableLabel(this.cardEl,     this.vessel.name);
   }
 
   /** @private */

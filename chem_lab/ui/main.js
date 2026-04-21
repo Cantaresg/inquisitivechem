@@ -21,6 +21,7 @@ import { ObservationLog }   from './ObservationLog.js';
 import { BenchUI }          from './BenchUI.js';
 import { ChemStoreUI }      from './ChemStoreUI.js';
 import { TestBarUI }        from './TestBarUI.js';
+import { UnknownModeUI }    from './UnknownModeUI.js';
 
 // ─── Toast helper ────────────────────────────────────────────────────────────
 
@@ -98,7 +99,11 @@ new TestBarUI(
 
 benchUI.setToolButtons(document.querySelectorAll('.tool-btn'));
 
-// ─── 8. Gas pressure decay loop ─────────────────────────────────────────────
+// ─── 8. Unknown Mode ─────────────────────────────────────────────────────────
+
+new UnknownModeUI(benchUI, showToast, dragDropManager);
+
+// ─── 9. Gas pressure decay loop ─────────────────────────────────────────────
 // Drives tickGasPressure so dissolved gases slowly dissipate over ~27 s.
 
 let _lastRafTime = null;

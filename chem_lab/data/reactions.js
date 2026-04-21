@@ -52,6 +52,7 @@ export const PRECIPITATION_TABLE = {
     'I-':    { id: 'pbi2',    color: '#f5d800', label: 'golden yellow', formula: 'PbI₂',    equation: 'Pb²⁺(aq) + 2I⁻(aq) → PbI₂(s)',
                easterEgg: 'golden_rain' },
     'SO4²-': { id: 'pbso4',   color: '#f0f0ee', label: 'white',        formula: 'PbSO₄',   equation: 'Pb²⁺(aq) + SO₄²⁻(aq) → PbSO₄(s)' },
+    'SO3²-': { id: 'pbso3',   color: '#f5f5f5', label: 'white',        formula: 'PbSO₃',   equation: 'Pb²⁺(aq) + SO₃²⁻(aq) → PbSO₃(s)' },
     'CO3²-': { id: 'pbco3',   color: '#f5f5f5', label: 'white',        formula: 'PbCO₃',   equation: 'Pb²⁺(aq) + CO₃²⁻(aq) → PbCO₃(s)' },
     'S²-':   { id: 'pbs',     color: '#0d0d0d', label: 'black',        formula: 'PbS',     equation: 'Pb²⁺(aq) + S²⁻(aq) → PbS(s)' },
     'OH-':   { id: 'pb_oh2',  color: '#f0f0f0', label: 'white',        formula: 'Pb(OH)₂', equation: 'Pb²⁺(aq) + 2OH⁻(aq) → Pb(OH)₂(s)' },
@@ -64,7 +65,7 @@ export const PRECIPITATION_TABLE = {
                note: 'slightly_soluble' },
     'Cl-':   null,
     'NO3-':  null,
-    'OH-':   null,   // Ca(OH)₂ slightly soluble but no visible ppt at school concentrations
+    'OH-':   { id: 'ca_oh2', color: '#f8f8f8', label: 'white', formula: 'Ca(OH)₂', equation: 'Ca²⁺(aq) + 2OH⁻(aq) → Ca(OH)₂(s)' },
   },
 
   'Cu2+': {
@@ -159,6 +160,20 @@ export const GAS_RULES = [
     // Per-solid animation override (Al uses delayed-bubble animation)
     animIdMap: {
       al_s: 'anim_bubbles_al',
+    },
+    // Ca + H₂SO₄: the Ca²⁺ released immediately precipitates as insoluble CaSO₄,
+    // coating the metal surface and stopping further reaction — same mechanism as CaCO₃.
+    blockedByAnions: {
+      ca_s: ['SO4²-'],
+    },
+    coatMarkerIons: {
+      ca_s: 'caso4_coat_ca',
+    },
+    blockedFirstContactObs: {
+      ca_s: 'obs_h2_ca_caso4_brief',
+    },
+    blockedObservationMap: {
+      ca_s: 'obs_ca_caso4_passivation',
     },
     gas: 'H2',
     pressure: 0.85,
@@ -821,12 +836,15 @@ export const COMPLEXATION_RULES = [
   },
   {
     id: 'pb_oh_excess_naoh',
-    // Pb(OH)₂ dissolves in excess NaOH → colourless plumbate
+    // Pb(OH)₂ dissolves in excess NaOH → colourless plumbate.
+    // excludesIons: NH3 must be absent — Pb²⁺ forms no ammine complex and NH₃
+    // is too weak a base to drive the amphoteric dissolution.
     requires: {
       ppt: 'pb_oh2',
       ions: ['OH-'],
       excessOH: true,
     },
+    excludesIons: ['NH3'],
     removesPpt: 'pb_oh2',
     consumesIon: 'OH-',
     producesIon: { 'Pb(OH)4_2-': 0.001 },
@@ -1188,6 +1206,15 @@ export const OBSERVATIONS = {
   obs_h2_ca_acid:
     'Vigorous effervescence was observed immediately. Colourless gas was produced rapidly '
     + 'as the solid reacted with the acid.',
+
+  obs_h2_ca_caso4_brief:
+    'A brief burst of vigorous effervescence was observed before the reaction rapidly stopped. '
+    + 'An insoluble white layer of calcium sulphate formed immediately on the metal surface, '
+    + 'sealing it from further contact with the acid.',
+
+  obs_ca_caso4_passivation:
+    'No further reaction — the insoluble calcium sulphate coating on the metal surface '
+    + 'prevents the acid from reaching the calcium beneath.',
 
   obs_ca_water_reaction:
     'Vigorous effervescence was observed. The solid moved around the surface '

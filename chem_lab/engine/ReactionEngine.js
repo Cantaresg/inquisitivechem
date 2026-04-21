@@ -650,6 +650,9 @@ export class ReactionEngine {
         if (!req.ions.every(ion => (sol.ions[ion] ?? 0) > 0)) continue;
       }
 
+      // Excluded ions — if any are present the rule must not fire
+      if (rule.excludesIons?.some(ion => (sol.ions[ion] ?? 0) > 0)) continue;
+
       // Build ionChanges: absolute values (pre-existing + delta) so SET semantics stay correct.
       // Also consume H⁺ stoichiometrically when carbonate ppts dissolve in acid (hConsumption).
       const ionChanges = {};

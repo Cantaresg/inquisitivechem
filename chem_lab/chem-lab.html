@@ -42,7 +42,12 @@
     </aside>
 
     <!-- ── Top centre: confirmatory test bar ─────────────────────────────── -->
-    <div id="test-bar" role="toolbar" aria-label="Confirmatory tests — drag to a vessel"></div>
+    <div id="test-bar" role="toolbar" aria-label="Confirmatory tests — drag to a vessel">
+      <button id="unknown-mode-btn" type="button" title="Unknown Salt Mode — generate a mystery salt to identify">
+        <span class="unknown-btn-icon" aria-hidden="true">?</span>
+        <span class="unknown-btn-label">Unknown</span>
+      </button>
+    </div>
 
     <!-- ── Centre: lab bench ─────────────────────────────────────────────── -->
     <main id="bench-area" aria-label="Lab bench — drop reagents here to create vessels">
@@ -58,6 +63,19 @@
     </div>
     <!-- ── Right: observation log ────────────────────────────────────────── -->
     <aside id="obs-panel" aria-label="Observation log">
+
+      <!-- Unknown stock — visible only while unknown mode is active -->
+      <div id="unknown-stock" hidden aria-label="Unknown stock — click to add a fresh vessel to the bench">
+        <div id="unknown-stock-header">Unknown Stock</div>
+        <div id="unknown-stock-subheader">Click or drag to add a fresh vessel to the bench</div>
+        <div id="unknown-stock-items"></div>
+      </div>
+
+      <!-- Unknown guess panel — visible only while unknown mode is active -->
+      <div id="unknown-guess-panel" hidden aria-label="Enter your guess for each unknown">
+        <div id="unknown-guess-panel-header">Your Guess</div>
+        <div id="unknown-guess-panel-body"></div>
+      </div>
 
       <div id="obs-panel-header" role="button" tabindex="0" aria-expanded="false"
            aria-controls="obs-tabs obs-list obs-equations obs-export-btn">
@@ -101,6 +119,63 @@
     </div>
     <div id="debug-log-list"></div>
   </aside>
+
+  <!-- ── Unknown mode modal ───────────────────────────────────────────────── -->
+  <div id="unknown-modal-overlay" hidden></div>
+  <div id="unknown-modal" hidden role="dialog" aria-modal="true"
+       aria-labelledby="unknown-modal-title">
+
+    <div id="unknown-modal-header">
+      <span id="unknown-modal-title">Unknown Salt Mode</span>
+      <button id="unknown-modal-close" type="button" aria-label="Close">✕</button>
+    </div>
+
+    <!-- ── Setup section ──────────────────────────────────────── -->
+    <div id="unknown-setup-section">
+      <p class="unknown-hint">
+        Generate an unknown salt to identify using the reagents and tests in the lab.
+      </p>
+      <div id="unknown-mode-radios" role="radiogroup" aria-label="Unknown mode">
+        <label class="unknown-radio-label">
+          <input type="radio" name="unknown-mode" value="1" checked>
+          <span class="unknown-radio-content">
+            <span class="unknown-radio-title">1 Unknown</span>
+            <span class="unknown-radio-desc">One unknown aqueous salt on the bench</span>
+          </span>
+        </label>
+        <label class="unknown-radio-label">
+          <input type="radio" name="unknown-mode" value="2">
+          <span class="unknown-radio-content">
+            <span class="unknown-radio-title">2 Unknowns</span>
+            <span class="unknown-radio-desc">Two separate unknown salts to identify</span>
+          </span>
+        </label>
+        <label class="unknown-radio-label">
+          <input type="radio" name="unknown-mode" value="mixed">
+          <span class="unknown-radio-content">
+            <span class="unknown-radio-title">Mixed Salts</span>
+            <span class="unknown-radio-desc">Two compatible salts dissolved in one vessel</span>
+          </span>
+        </label>
+      </div>
+      <button id="unknown-generate-btn" type="button">Generate Unknown</button>
+    </div>
+
+    <!-- ── Active section (shown after generation) ────────────── -->
+    <div id="unknown-active-section" hidden>
+      <p class="unknown-hint">
+        Unknowns are active on the bench. Use the reagents and tests to identify them.
+      </p>
+      <div id="unknown-vessels-list"></div>
+      <div id="unknown-guess-section"></div>
+      <div class="unknown-action-row">
+        <button id="unknown-reveal-btn" type="button">Reveal Answer</button>
+        <button id="unknown-reset-btn"  type="button">New Unknown</button>
+      </div>
+      <div id="unknown-answer-display" hidden></div>
+    </div>
+
+  </div>
 
   <!-- ── Toast container ───────────────────────────────────────────────────── -->
   <div id="toast-container" aria-live="polite" aria-atomic="false"></div>

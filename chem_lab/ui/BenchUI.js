@@ -164,8 +164,8 @@ export class BenchUI {
       return;
     }
 
-    // Test tools are handled by TestBarUI at document level — ignore here
-    if (dragDetail.type === 'test') return;
+    // Test tools and unknown stock are handled at document level — ignore here
+    if (dragDetail.type === 'test' || dragDetail.type === 'unknown') return;
 
     const reagent = REAGENTS.find(r => r.id === dragDetail.id);
     if (!reagent) {
@@ -384,6 +384,56 @@ export class BenchUI {
     const idx = this._slots.findIndex(s => s === null);
     this._slots[idx] = { vessel, vesselUI };
     this._containerEl.appendChild(vesselUI.el);
+  }
+
+  /**
+   * Add a vessel to the bench with a custom label (for unknown mode).
+   * Creates the vessel normally then renames it to hide its true identity.
+   * @param {Object} reagent  — entry from REAGENTS
+   * @param {string} label    — display name, e.g. 'Unknown A'
+   * @returns {VesselUI|null}
+   */
+  addUnknownVessel(reagent, label) {
+    const vesselUI = this.addVessel(reagent);
+    if (!vesselUI) return null;
+    const slot = this._slots.find(s => s?.vesselUI === vesselUI);
+    if (slot) {
+      slot.vessel.name = label;
+      vesselUI.render();
+    }
+    return vesselUI;
+  }
+
+  /**
+   * Add a vessel containing two compatible salts dissolved together.
+   * Caller must confirm no precipitation between the pair before calling.
+   * @param {Object} reagentA
+   * @param {Object} reagentB
+   * @param {string} label
+   * @returns {VesselUI|null}
+   */
+  addMixedUnknownVessel(reagentA, reagentB, label) {
+    const vesselUI = this.addVessel(reagentA);
+    if (!vesselUI) return null;
+    const slot = this._slots.find(s => s?.vesselUI === vesselUI);
+    if (!slot) return null;
+    const molFactor = (reagentB.concentration ?? 1) * 0.001;
+    const scaledB = {
+      ...reagentB,
+      ions:   Object.fromEntries(
+                Object.entries(reagentB.ions ?? {}).map(([k, v]) => [k, v * molFactor])
+              ),
+      // For solid reagentB, scale its solids the same way addVessel does.
+      // For liquid reagentB, solids stay empty (ions carry all the chemistry).
+      solids: reagentB.category === 'solid'
+        ? (reagentB.solids ?? []).map(s => ({ ...s, amount: 0.001 }))
+        : [],
+    };
+    this._populateSolution(slot.vessel.solution, scaledB);
+    slot.vessel.solution.recalculatePH();
+    slot.vessel.name = label;
+    vesselUI.render();
+    return vesselUI;
   }
 
   // ─── Public tool API ─────────────────────────────────────────────────────

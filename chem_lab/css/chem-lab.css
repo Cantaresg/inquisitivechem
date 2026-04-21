@@ -976,6 +976,414 @@ nav {
 ::-webkit-scrollbar-thumb { background: rgba(77,240,176,0.18); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(77,240,176,0.35); }
 
+/* ── Unknown mode button (test bar, far right) ───────────────────────────── */
+#unknown-mode-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px 0 10px;
+  height: 40px;
+  cursor: pointer;
+  border-radius: 20px;
+  border: 1px solid rgba(220, 60, 60, 0.55);
+  background: rgba(220, 60, 60, 0.10);
+  color: #ff7070;
+  transition: background 0.14s, border-color 0.14s, transform 0.1s, box-shadow 0.14s;
+  user-select: none;
+  flex-shrink: 0;
+  order: 99;
+  margin-left: auto;
+  box-shadow: 0 2px 8px rgba(220, 60, 60, 0.14);
+  white-space: nowrap;
+}
+#unknown-mode-btn:hover {
+  background: rgba(220, 60, 60, 0.18);
+  border-color: rgba(220, 60, 60, 0.85);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(220, 60, 60, 0.28);
+}
+#unknown-mode-btn.active {
+  background: rgba(220, 60, 60, 0.20);
+  border-color: rgba(220, 60, 60, 0.85);
+  box-shadow: 0 0 14px rgba(220, 60, 60, 0.32);
+}
+.unknown-btn-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(220, 60, 60, 0.18);
+  border: 1px solid rgba(220, 60, 60, 0.40);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ff7070;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.unknown-btn-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: #ff7070;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* ── Unknown modal overlay ───────────────────────────────────────────────── */
+#unknown-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.52);
+  z-index: 300;
+  backdrop-filter: blur(3px);
+}
+
+/* ── Unknown modal panel ─────────────────────────────────────────────────── */
+#unknown-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 301;
+  width: 364px;
+  background: var(--surface);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.62);
+  overflow: hidden;
+}
+
+#unknown-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--panel-border);
+}
+#unknown-modal-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--accent);
+}
+#unknown-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.88rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  transition: color 0.14s, background 0.14s;
+}
+#unknown-modal-close:hover { color: var(--text); background: var(--btn-hover); }
+
+#unknown-setup-section,
+#unknown-active-section {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.unknown-hint {
+  font-size: 0.78rem;
+  color: var(--text-mid);
+  line-height: 1.52;
+}
+
+/* Radio option rows */
+#unknown-mode-radios {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.unknown-radio-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s;
+}
+.unknown-radio-label:hover {
+  border-color: rgba(77,240,176,0.35);
+  background: rgba(77,240,176,0.04);
+}
+.unknown-radio-label input[type="radio"] {
+  margin-top: 2px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.unknown-radio-label:has(input:checked) {
+  border-color: rgba(77,240,176,0.52);
+  background: rgba(77,240,176,0.07);
+}
+.unknown-radio-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.unknown-radio-title {
+  font-size: 0.80rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.unknown-radio-desc {
+  font-size: 0.71rem;
+  color: var(--text-dim);
+}
+
+#unknown-generate-btn {
+  padding: 9px 0;
+  width: 100%;
+  background: rgba(77,240,176,0.10);
+  border: 1px solid rgba(77,240,176,0.38);
+  border-radius: 8px;
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+}
+#unknown-generate-btn:hover {
+  background: rgba(77,240,176,0.20);
+  border-color: var(--accent);
+}
+
+/* Active section */
+#unknown-vessels-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.unknown-vessel-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.67rem;
+  padding: 3px 11px;
+  border-radius: 20px;
+  background: rgba(77,240,176,0.08);
+  border: 1px solid rgba(77,240,176,0.28);
+  color: var(--accent);
+}
+
+/* ── Unknown guess panel (inside obs-panel, below stock) ────────────────── */
+#unknown-guess-panel {
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+#unknown-guess-panel-header {
+  padding: 8px 14px 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.56rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  opacity: 0.75;
+  user-select: none;
+}
+#unknown-guess-panel-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px 10px;
+  gap: 6px;
+}
+
+/* Guess section (modal — kept for reference) */
+#unknown-guess-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.unknown-guess-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.unknown-guess-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-mid);
+  white-space: nowrap;
+  min-width: 82px;
+}
+.unknown-guess-select {
+  flex: 1;
+  padding: 5px 8px;
+  background: var(--surface2);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.14s;
+  min-width: 0;
+}
+.unknown-guess-select:focus { outline: none; border-color: var(--accent); }
+.unknown-guess-result {
+  font-size: 0.82rem;
+  font-weight: 600;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.unknown-guess-result.correct { color: #4df0b0; }
+.unknown-guess-result.wrong   { color: #ff6b6b; }
+.unknown-check-btn {
+  padding: 8px 0;
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--text-mid);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.70rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.18s, color 0.18s, background 0.18s;
+}
+.unknown-check-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(77,240,176,0.05);
+}
+
+.unknown-action-row {
+  display: flex;
+  gap: 8px;
+}
+#unknown-reveal-btn {
+  flex: 1;
+  padding: 8px 0;
+  background: rgba(77,240,176,0.10);
+  border: 1px solid rgba(77,240,176,0.38);
+  border-radius: 8px;
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.70rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+#unknown-reveal-btn:hover { background: rgba(77,240,176,0.20); }
+
+#unknown-reset-btn {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.70rem;
+  cursor: pointer;
+  transition: color 0.18s, border-color 0.18s;
+}
+#unknown-reset-btn:hover { color: var(--text); border-color: var(--text-mid); }
+
+#unknown-answer-display {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.74rem;
+  color: var(--text);
+  background: rgba(77,240,176,0.06);
+  border: 1px solid rgba(77,240,176,0.20);
+  border-radius: 8px;
+  padding: 10px 13px;
+  white-space: pre-line;
+  line-height: 1.75;
+}
+
+/* ── Unknown stock panel (inside obs-panel, top) ────────────────────────── */
+#unknown-stock {
+  border-bottom: 1px solid var(--panel-border);
+  border-left: 3px solid rgba(200,155,40,0.65);
+  background: rgba(200,155,40,0.06);
+  flex-shrink: 0;
+}
+
+#unknown-stock-header {
+  padding: 8px 14px 4px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(210,165,50,0.95);
+  user-select: none;
+}
+
+#unknown-stock-subheader {
+  padding: 0 14px 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+#unknown-stock-items {
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px 8px;
+  gap: 4px;
+}
+
+.unknown-stock-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-mid);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.77rem;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  user-select: none;
+}
+.unknown-stock-item:hover {
+  border-color: rgba(77,240,176,0.40);
+  background: rgba(77,240,176,0.05);
+  color: var(--text);
+}
+.unknown-stock-item:active { opacity: 0.75; }
+
+.unknown-stock-icon {
+  font-size: 1.0rem;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.unknown-stock-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.unknown-stock-hint {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 /* ── Utility ─────────────────────────────────────────────────────────────── */
 .sr-only {
   position: absolute; clip: rect(0 0 0 0);
