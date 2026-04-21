@@ -45,8 +45,12 @@ export class SimController {
     this._lastResult  = null;
     this._anodeNode   = null;
     this._cathodeNode = null;
+    this._isGalvanic  = false;
+    this._reactionMode = 'v1';
 
     this._lastLoggedKey = null;
+
+    this._animLayer.setDebugListener(snapshot => this._testPanel.setPhaseDebug(snapshot));
 
     this._bindEvents();
   }
@@ -85,6 +89,17 @@ export class SimController {
     this._obsPanel.appendTestResult(testResult);
   }
 
+  /** Select how electrode-position persistence should behave during reactions. */
+  setReactionMode(mode) {
+    this._reactionMode = mode === 'v3' ? 'v3' : 'v1';
+    this._applyReactionLock();
+  }
+
+  /** Download the current phase-one debug trace. */
+  exportPhaseDebugTrace() {
+    return this._animLayer.downloadDebugTrace();
+  }
+
   // ── Event binding ───────────────────────────────────────────────────────
 
   _bindEvents() {
@@ -110,12 +125,15 @@ export class SimController {
       this._canvas.setPolarity(validity.anode.id, validity.cathode.id);
       this._anodeNode   = validity.anode;
       this._cathodeNode = validity.cathode;
+      this._isGalvanic  = validity.isGalvanic;
       this._run();
     } else {
       this._anodeNode   = null;
       this._cathodeNode = null;
+      this._isGalvanic  = false;
       this._lastResult  = null;
       this._canvas.setPolarity(null, null);
+      this._applyReactionLock();
       this._testPanel.disable();
       this._animLayer.stop();
       const hint = validity.errors.find(Boolean) ?? '';
@@ -133,32 +151,14 @@ export class SimController {
     if (!this._anodeNode || !this._cathodeNode) return;
 
     if (!this._electrolyte) {
+      this._applyReactionLock();
       this._testPanel.disable();
       this._animLayer.stop();
       this._setStatus('Select an electrolyte below to start the simulation.', 'status-hint');
       return;
     }
 
-    // ── Galvanic cell (no battery) — display EMF only, no animation ──────
-    if (!this._canvas.batteryEnabled) {
-      this._animLayer.stop();
-      this._testPanel.disable();
-
-      const eAnode   = this._anodeNode.data?.standardPotential   ?? 0;
-      const eCathode = this._cathodeNode.data?.standardPotential ?? 0;
-      const emf      = Math.abs(eCathode - eAnode).toFixed(2);
-
-      const anodeName   = this._anodeNode.data.name;
-      const cathodeName = this._cathodeNode.data.name;
-
-      this._setStatus(
-        `Galvanic cell · ${anodeName} (−) / ${cathodeName} (+) · EMF = ${emf} V`,
-        'status-ok',
-      );
-      return;
-    }
-
-    // ── Electrolysis (battery on) ─────────────────────────────────────────
+    // ── Run engine (reactions occur in both galvanic and electrolytic cells) ─
     let result;
     try {
       result = ElectrolysisEngine.run(
@@ -188,21 +188,54 @@ export class SimController {
 
     if (logKey !== this._lastLoggedKey) {
       this._lastLoggedKey = logKey;
-      this._obsPanel.appendRun({
-        electrolyte: this._electrolyte.formula,
-        anodeName:   this._anodeNode.data.name,
-        cathodeName: this._cathodeNode.data.name,
-        observations: result.getObservations(),
-        equations:    result.getEquations(this._config),
-      });
+      let equations     = { cathode: '—', anode: '—' };
+      let halfEquations = { cathode: '—', anode: '—' };
+      try {
+        equations     = result.getEquations(this._config);
+        halfEquations = result.getEquations({ showHalfEquations: true });
+      } catch (err) {
+        console.error('[SimController] getEquations error:', err);
+      }
+      try {
+        this._obsPanel.appendRun({
+          electrolyte:  this._electrolyte.formula,
+          anodeName:    this._anodeNode.data.name,
+          cathodeName:  this._cathodeNode.data.name,
+          observations: result.getObservations(),
+          equations,
+          halfEquations,
+        });
+      } catch (err) {
+        console.error('[SimController] appendRun error:', err);
+      }
     }
 
-    this._setStatus(
-      `Running · ${this._anodeNode.data.name} (+) / ${this._cathodeNode.data.name} (−) · ${this._electrolyte.formula}`,
-      'status-ok',
-    );
+    // Status bar differs for galvanic vs electrolysis mode
+    if (!this._canvas.batteryEnabled || this._isGalvanic) {
+      const eAnode   = this._anodeNode.data?.standardPotential ?? 0;
+      const eCathode = this._cathodeNode.data?.standardPotential ?? 0;
+      const emf      = Math.abs(eCathode - eAnode).toFixed(2);
+      this._setStatus(
+        `Galvanic cell · ${this._anodeNode.data.name} (−) / ${this._cathodeNode.data.name} (+) · EMF = ${emf} V`,
+        'status-ok',
+      );
+    } else {
+      this._setStatus(
+        `Running · ${this._anodeNode.data.name} (+) / ${this._cathodeNode.data.name} (−) · ${this._electrolyte.formula}`,
+        'status-ok',
+      );
+    }
 
+    this._applyReactionLock();
     this._startAnimation(result);
+  }
+
+  _applyReactionLock() {
+    const shouldLock = this._reactionMode === 'v3'
+      && Boolean(this._anodeNode)
+      && Boolean(this._cathodeNode)
+      && Boolean(this._electrolyte);
+    this._canvas.setReactionLock(shouldLock);
   }
 
   // ── Animation ───────────────────────────────────────────────────────────
@@ -211,7 +244,15 @@ export class SimController {
     // Resolve ElectrodeNode instances from the canvas nodes map
     const anodeNode   = this._canvas.nodes.get(this._anodeNode.id);
     const cathodeNode = this._canvas.nodes.get(this._cathodeNode.id);
-    if (!anodeNode || !cathodeNode) return;
+    const beakerNode  = this._canvas.beakerNode;
+    if (!anodeNode || !cathodeNode || !beakerNode) {
+      console.warn('[SimController] Animation skipped: missing node or beaker.', {
+        hasAnodeNode: Boolean(anodeNode),
+        hasCathodeNode: Boolean(cathodeNode),
+        hasBeakerNode: Boolean(beakerNode),
+      });
+      return;
+    }
 
     // terminalPositions is a Map<id, {x, y, ...}> in SVG viewport coords.
     // Since SVG fills #circuit-wrap without a viewBox, viewport coords
@@ -221,13 +262,22 @@ export class SimController {
 
     const anodeBot   = anodeTerms.get('rod_bottom');
     const cathodeBot = cathodeTerms.get('rod_bottom');
-    if (!anodeBot || !cathodeBot) return;
+    if (!anodeBot || !cathodeBot) {
+      console.warn('[SimController] Animation skipped: missing rod_bottom terminal.', {
+        hasAnodeBottom: Boolean(anodeBot),
+        hasCathodeBottom: Boolean(cathodeBot),
+      });
+      return;
+    }
 
     this._animLayer.start({
-      anodeProduct:   result.anodeProduct,
-      cathodeProduct: result.cathodeProduct,
+      result,
+      electrolyte: this._electrolyte,
+      anodeElectrode: this._anodeNode.data,
+      cathodeElectrode: this._cathodeNode.data,
       anodePos:   { x: anodeBot.x,   y: anodeBot.y   },
       cathodePos: { x: cathodeBot.x, y: cathodeBot.y },
+      beakerBounds: beakerNode.getLiquidBoundsWorld(),
     });
   }
 }

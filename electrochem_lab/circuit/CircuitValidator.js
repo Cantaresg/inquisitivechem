@@ -91,6 +91,14 @@ export class CircuitValidator {
 
     if (electrodes.length === 2) {
       if (!anodeNode || !cathodeNode) {
+        // Neither electrode is reached from the battery terminals.
+        // Check if the two electrodes are wired directly to each other —
+        // that topology is a galvanic cell even when the battery toggle is on.
+        const [a, b] = electrodes;
+        const reachA = CircuitValidator._bfs(adj, `${a.id}:rod_top`);
+        if (reachA.has(`${b.id}:rod_top`)) {
+          return CircuitValidator._validateGalvanic({ nodes, electrolyte });
+        }
         errors.push('Connect both electrodes to the battery to run the simulation.');
       } else if (anodeNode === cathodeNode) {
         errors.push('Each electrode must connect to a different battery terminal.');

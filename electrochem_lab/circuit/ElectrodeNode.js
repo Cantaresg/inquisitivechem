@@ -15,8 +15,10 @@ import { ComponentNode } from './ComponentNode.js';
 const SVG_NS    = 'http://www.w3.org/2000/svg';
 const ROD_W     = 16;   // rod width (px)  (12 × 1.3)
 const ROD_LENGTH = 156; // local distance from rod_top to rod_bottom  (120 × 1.3)
+const ROD_VISUAL_TOP = 10;
+const ROD_VISUAL_BOTTOM = ROD_LENGTH + 2;
 
-export { ROD_LENGTH };
+export { ROD_LENGTH, ROD_W, ROD_VISUAL_TOP, ROD_VISUAL_BOTTOM };
 
 export class ElectrodeNode extends ComponentNode {
   /**
@@ -78,7 +80,7 @@ export class ElectrodeNode extends ComponentNode {
     // Rod body (below the top terminal)
     const rod = document.createElementNS(SVG_NS, 'rect');
     rod.setAttribute('x',      -half);
-    rod.setAttribute('y',      10);
+    rod.setAttribute('y',      ROD_VISUAL_TOP);
     rod.setAttribute('width',  rodW);
     rod.setAttribute('height', rodLength - 14);
     rod.setAttribute('rx',     2);
@@ -133,7 +135,7 @@ export class ElectrodeNode extends ComponentNode {
     // Drag handle — transparent large hit area on the rod body
     const handle = document.createElementNS(SVG_NS, 'rect');
     handle.setAttribute('x',      -(half + 8));
-    handle.setAttribute('y',      10);
+    handle.setAttribute('y',      ROD_VISUAL_TOP);
     handle.setAttribute('width',  rodW + 16);
     handle.setAttribute('height', rodLength - 12);
     handle.setAttribute('fill',   'transparent');

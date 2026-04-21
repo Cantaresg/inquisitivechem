@@ -120,6 +120,23 @@ export class BuretteSimulator {
     this.#bus.emit('levelChanged', { level: this.#level });
   }
 
+  /**
+   * Silently expel a small tip bubble (0.05–0.20 mL) during the start of
+   * titration.  Called by TitrateStage after recordInitial() so the level
+   * drops after the snapshot — the student's recorded reading is unaffected
+   * but the actual level is lower, inflating the apparent titre.
+   *
+   * @returns {number} Volume expelled (0 if no bubble)
+   */
+  expelTipBubble() {
+    if (!this.#hasBubble) return 0;
+    const vol       = +(0.05 + Math.random() * 0.15).toFixed(2);
+    this.#level     = Math.max(0, this.#level - vol);
+    this.#hasBubble = false;
+    this.#bus.emit('levelChanged', { level: this.#level });
+    return vol;
+  }
+
   /** Open the tap (cosmetic state — actual dispensing is via addDrop). */
   openTap()  { this.#isTapOpen = true;  }
 

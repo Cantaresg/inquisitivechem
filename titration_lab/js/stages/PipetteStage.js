@@ -49,6 +49,14 @@ export class PipetteStage extends Stage {
   enter() { this._cleanupBus(); }
   exit()  { this._cleanupBus(); }
 
+  /** Reset to initial state so student must re-pipette for a new run. */
+  resetForNewRun() {
+    this.#filled        = false;
+    this.#indicatorAdded = false;
+    this.#animating     = false;
+    this._resetComplete();
+  }
+
   // ── Phase 4: UI rendering ─────────────────────────────────────────────────
 
   renderArea(el) {
@@ -70,7 +78,7 @@ export class PipetteStage extends Stage {
 
         <!-- ── Volumetric pipette ── -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-          <svg id="pip-svg" width="44" height="268" viewBox="0 0 44 268"
+          <svg id="pip-svg" width="75" height="456" viewBox="0 0 44 268"
                style="overflow:visible;">
             <defs>
               <!--
@@ -137,14 +145,14 @@ export class PipetteStage extends Stage {
 
         <!-- Stream between tip and flask mouth (animated height) -->
         <div id="pip-stream"
-             style="width:3px;height:0;
+             style="width:5px;height:0;
                     background:${liqCol};
                     border-radius:1.5px;opacity:0.85;
                     margin:0 auto;flex-shrink:0;"></div>
 
         <!-- ── Conical flask ── -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:4px;">
-          <svg id="pip-flask-svg" width="100" height="130" viewBox="0 0 100 130">
+          <svg id="pip-flask-svg" width="170" height="221" viewBox="0 0 100 130">
             <defs>
               <clipPath id="pip-flask-clip">
                 <path d="M42,10 L42,52 L10,98 Q4,115 14,118 L86,118 Q96,115 90,98 L58,52 L58,10 Z"/>
@@ -165,6 +173,34 @@ export class PipetteStage extends Stage {
         </div>
 
       </div>`;
+
+    if (!this.#indicatorAdded) {
+      el.style.position = 'relative';
+      const indEl = document.createElement('div');
+      indEl.id = 'ind-bottle';
+      indEl.style.cssText = [
+        'position:absolute', 'right:20px', 'bottom:20px',
+        'cursor:grab', 'user-select:none',
+        'display:flex', 'flex-direction:column', 'align-items:center', 'gap:4px',
+        'animation:funnelPulse 2s ease-in-out infinite',
+      ].join(';');
+      indEl.innerHTML = `
+        <svg width="32" height="58" viewBox="0 0 32 58">
+          <rect x="13" y="2" width="6" height="10" rx="2"
+            fill="rgba(180,220,255,0.08)" stroke="rgba(180,220,255,0.35)" stroke-width="1"/>
+          <path d="M6,12 L6,46 Q6,54 16,54 Q26,54 26,46 L26,12 Z"
+            fill="rgba(180,220,255,0.06)" stroke="rgba(180,220,255,0.28)" stroke-width="1.2"/>
+          <path d="M7,22 L7,46 Q7,53 16,53 Q25,53 25,46 L25,22 Z"
+            fill="${indCol}" opacity="0.45"/>
+          <rect x="8" y="26" width="16" height="10" rx="1"
+            fill="rgba(255,255,255,0.03)" stroke="rgba(180,220,255,0.18)" stroke-width="0.8"/>
+        </svg>
+        <div style="font-size:8px;color:var(--muted);text-align:center;max-width:48px;">
+          ${s.indicator?.name ?? 'indicator'}
+        </div>`;
+      el.appendChild(indEl);
+      this._bindDragIndicator(el);
+    }
   }
 
   renderControls(el) {
@@ -179,21 +215,84 @@ export class PipetteStage extends Stage {
       btn.addEventListener('click', () => this._runPipetteAnimation(el));
       el.appendChild(btn);
     } else if (!this.#indicatorAdded) {
-      const btn = document.createElement('button');
-      btn.className = 'btn primary';
-      btn.textContent = `💧 Add indicator (${this._state.indicator?.name ?? 'indicator'})`;
-      btn.addEventListener('click', () => {
-        this.addIndicator();
-        this._bus.emit('logAction', { action: 'Indicator', detail: `3 drops of ${this._state.indicator?.name} added` });
-        const animContent = el.closest('#app')?.querySelector('#anim-content') ?? el;
-        this.renderArea(animContent);
-        this.renderControls(el);
-        this._bus.emit('stageAreaUpdated', { stageId: this.id });
-      });
-      el.appendChild(btn);
+      // no hint — student discovers the indicator bottle on the scene
     } else {
-      el.innerHTML = `<div style="color:var(--accent3);font-size:12px;">✓ Flask ready — 25.00 mL ${this._state.analyte?.formula} + ${this._state.indicator?.name}</div>`;
+      el.innerHTML = `<div style="color:var(--accent3);font-size:12px;">✓ Flask ready — 25.00 mL ${this._state.analyte?.formula}${this.#indicatorAdded ? ` + ${this._state.indicator?.name}` : ''}</div>`;
     }
+  }
+
+  // ── Indicator drag ────────────────────────────────────────────────────────
+
+  _bindDragIndicator(sceneEl) {
+    const bottle = sceneEl.querySelector('#ind-bottle');
+    const flask  = sceneEl.querySelector('#pip-flask-svg');
+    if (!bottle || !flask) return;
+
+    let dragging = false;
+    let ghost    = null;
+
+    bottle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      bottle.setPointerCapture(e.pointerId);
+      bottle.style.opacity  = '0.35';
+      bottle.style.animation = 'none';
+      ghost = bottle.cloneNode(true);
+      ghost.style.cssText = [
+        'position:fixed', 'pointer-events:none', 'opacity:0.75',
+        'transform:translate(-50%,-50%)', 'z-index:9999',
+        `left:${e.clientX}px`, `top:${e.clientY}px`,
+      ].join(';');
+      document.body.appendChild(ghost);
+    });
+
+    bottle.addEventListener('pointermove', (e) => {
+      if (!dragging || !ghost) return;
+      ghost.style.left = e.clientX + 'px';
+      ghost.style.top  = e.clientY + 'px';
+      const fr   = flask.getBoundingClientRect();
+      const over = e.clientX >= fr.left && e.clientX <= fr.right &&
+                   e.clientY >= fr.top  && e.clientY <= fr.bottom;
+      flask.style.filter = over ? 'drop-shadow(0 0 8px var(--accent))' : '';
+    });
+
+    bottle.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      bottle.style.opacity = '';
+      if (ghost) { ghost.remove(); ghost = null; }
+      flask.style.filter = '';
+
+      const fr   = flask.getBoundingClientRect();
+      const over = e.clientX >= fr.left && e.clientX <= fr.right &&
+                   e.clientY >= fr.top  && e.clientY <= fr.bottom;
+      // Check what the drop landed on
+      const burette = document.getElementById('bur-liquid') ?? document.getElementById('bur-tap');
+      const onBurette = burette && (() => {
+        const br = burette.closest('svg')?.getBoundingClientRect();
+        return br && e.clientX >= br.left && e.clientX <= br.right &&
+                     e.clientY >= br.top  && e.clientY <= br.bottom;
+      })();
+
+      if (over) {
+        this.addIndicator();
+        this._bus.emit('logAction', {
+          action: 'Indicator added',
+          detail: `3 drops of ${this._state.indicator?.name ?? 'indicator'} added to flask`,
+        });
+        const animContent = document.getElementById('anim-content');
+        if (animContent) this.renderArea(animContent);
+        const ctrlEl = document.getElementById('stage-controls');
+        if (ctrlEl) this.renderControls(ctrlEl);
+        this._bus.emit('stageAreaUpdated', { stageId: this.id });
+      } else if (onBurette) {
+        this._bus.emit('logAction', {
+          action: '⚠ Indicator added to burette — error',
+          detail: `${this._state.indicator?.name ?? 'Indicator'} was added to the burette instead of the conical flask. This will contaminate the titrant.`,
+          level: 'warn',
+        });
+      }
+    });
   }
 
   // ── Animation ─────────────────────────────────────────────────────────────
@@ -232,7 +331,7 @@ export class PipetteStage extends Stage {
         if (readingLbl) readingLbl.setAttribute('opacity', '0');
 
         // Phase 3 — drain pipette + stream
-        const STREAM_PEAK = 18; // px
+        const STREAM_PEAK = 31; // px
         this._tween(74, 268, 1000, 'easeIn', (v, t) => {
           pipLiquid.setAttribute('y', v);
           // Stream: rises fast, stays, then shrinks in final 20 %
@@ -297,9 +396,6 @@ export class PipetteStage extends Stage {
   validate() {
     if (!this.#filled) {
       return { ok: false, reason: 'Use the pipette to transfer analyte into the flask.' };
-    }
-    if (!this.#indicatorAdded) {
-      return { ok: false, reason: 'Add a few drops of indicator to the flask.' };
     }
     this._markComplete();
     return { ok: true, reason: '' };

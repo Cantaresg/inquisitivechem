@@ -18,7 +18,7 @@
  */
 
 /** Burette SVG height in px (the tube only, not the tip) */
-const TUBE_H = 260;
+const TUBE_H = 442;
 /** Total burette volume in mL */
 const TOTAL_VOL = 50;
 
@@ -83,11 +83,6 @@ export class BuretteRenderer {
     this.#liquidEl.style.background = this.#colour;
     this.#liquidEl.style.height = '100%'; // full at start (50mL)
 
-    // Meniscus
-    const meniscus = document.createElement('div');
-    meniscus.className = 'burette-meniscus';
-    meniscus.style.background = this.#colour;
-
     // Markings SVG — 10 tick marks at 5mL intervals
     const markSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     markSvg.setAttribute('width', '26');
@@ -113,7 +108,6 @@ export class BuretteRenderer {
     }
 
     tube.appendChild(this.#liquidEl);
-    tube.appendChild(meniscus);
     tube.appendChild(markSvg);
     this.#root.appendChild(tube);
 

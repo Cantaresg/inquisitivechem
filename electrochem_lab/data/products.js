@@ -267,6 +267,91 @@ export const PRODUCT_DB = {
     },
   },
 
+  mg_dissolve: {
+    id:          'mg_dissolve',
+    name:        'Magnesium ions enter solution',
+    formula:     'Mg²⁺(aq)',
+    state:       'aqueous',
+    electrode:   'anode',
+    colour:      'rgba(200,220,255,0.10)', // colourless
+    observation: 'The magnesium anode decreases in mass. Mg²⁺ ions enter the solution.',
+    tests: {
+      litmus:         'no change',
+      glowingSplint:  null,
+      burningSplint:  null,
+      flameColour:    '#f5f5dc',          // bright white flame (Mg)
+      smell:          null,
+    },
+  },
+
+  al_dissolve: {
+    id:          'al_dissolve',
+    name:        'Aluminium ions enter solution',
+    formula:     'Al³⁺(aq)',
+    state:       'aqueous',
+    electrode:   'anode',
+    colour:      'rgba(200,220,255,0.10)', // colourless
+    observation: 'The aluminium anode decreases in mass. Al³⁺ ions enter the solution.',
+    tests: {
+      litmus:         'no change',
+      glowingSplint:  null,
+      burningSplint:  null,
+      flameColour:    null,
+      smell:          null,
+    },
+  },
+
+  ni_dissolve: {
+    id:          'ni_dissolve',
+    name:        'Nickel(II) ions enter solution',
+    formula:     'Ni²⁺(aq)',
+    state:       'aqueous',
+    electrode:   'anode',
+    colour:      '#a8d8a0',               // pale green
+    observation: 'The nickel anode decreases in mass. The solution turns pale green as Ni²⁺ ions form.',
+    tests: {
+      litmus:         'no change',
+      glowingSplint:  null,
+      burningSplint:  null,
+      flameColour:    null,
+      smell:          null,
+    },
+  },
+
+  sn_dissolve: {
+    id:          'sn_dissolve',
+    name:        'Tin(II) ions enter solution',
+    formula:     'Sn²⁺(aq)',
+    state:       'aqueous',
+    electrode:   'anode',
+    colour:      'rgba(200,220,255,0.10)', // colourless
+    observation: 'The tin anode decreases in mass. Sn²⁺ ions enter the solution.',
+    tests: {
+      litmus:         'no change',
+      glowingSplint:  null,
+      burningSplint:  null,
+      flameColour:    null,
+      smell:          null,
+    },
+  },
+
+  pb_dissolve: {
+    id:          'pb_dissolve',
+    name:        'Lead(II) ions enter solution',
+    formula:     'Pb²⁺(aq)',
+    state:       'aqueous',
+    electrode:   'anode',
+    colour:      'rgba(200,220,255,0.10)', // colourless
+    observation: 'The lead anode decreases in mass. Pb²⁺ ions enter the solution.',
+    tests: {
+      litmus:         'no change',
+      glowingSplint:  null,
+      burningSplint:  null,
+      flameColour:    null,
+      smell:          null,
+    },
+  },
+
 };
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -313,10 +398,15 @@ export const ANODE_PRODUCT_BY_ION = {
  * Only relevant when anode.isInert === false.
  */
 export const ANODE_DISSOLVE_BY_ELECTRODE = {
-  'copper':   'cu_dissolve',
-  'zinc':     'zn_dissolve',
-  'silver':   'ag_dissolve',
-  'iron':     'fe_dissolve',
+  'copper':    'cu_dissolve',
+  'zinc':      'zn_dissolve',
+  'silver':    'ag_dissolve',
+  'iron':      'fe_dissolve',
+  'magnesium': 'mg_dissolve',
+  'aluminium': 'al_dissolve',
+  'nickel':    'ni_dissolve',
+  'tin':       'sn_dissolve',
+  'lead':      'pb_dissolve',
 };
 
 /**
@@ -342,4 +432,9 @@ export const PRODUCT_EQUATIONS = {
   zn_dissolve: { reduction: 'Zn²⁺(aq) + 2e⁻ → Zn(s)',                             oxidation: 'Zn(s) → Zn²⁺(aq) + 2e⁻',                     n: 2 },
   ag_dissolve: { reduction: 'Ag⁺(aq) + e⁻ → Ag(s)',                               oxidation: 'Ag(s) → Ag⁺(aq) + e⁻',                        n: 1 },
   fe_dissolve: { reduction: 'Fe²⁺(aq) + 2e⁻ → Fe(s)',                             oxidation: 'Fe(s) → Fe²⁺(aq) + 2e⁻',                     n: 2 },
+  mg_dissolve: { reduction: 'Mg²⁺(aq) + 2e⁻ → Mg(s)',                             oxidation: 'Mg(s) → Mg²⁺(aq) + 2e⁻',                     n: 2 },
+  al_dissolve: { reduction: 'Al³⁺(aq) + 3e⁻ → Al(s)',                             oxidation: 'Al(s) → Al³⁺(aq) + 3e⁻',                     n: 3 },
+  ni_dissolve: { reduction: 'Ni²⁺(aq) + 2e⁻ → Ni(s)',                             oxidation: 'Ni(s) → Ni²⁺(aq) + 2e⁻',                     n: 2 },
+  sn_dissolve: { reduction: 'Sn²⁺(aq) + 2e⁻ → Sn(s)',                             oxidation: 'Sn(s) → Sn²⁺(aq) + 2e⁻',                     n: 2 },
+  pb_dissolve: { reduction: 'Pb²⁺(aq) + 2e⁻ → Pb(s)',                             oxidation: 'Pb(s) → Pb²⁺(aq) + 2e⁻',                     n: 2 },
 };

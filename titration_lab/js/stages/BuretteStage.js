@@ -82,6 +82,16 @@ export class BuretteStage extends Stage {
 
   enter() { this._cleanupBus(); }
 
+  /** Reset so student must re-fill the burette for a new run. */
+  resetForNewRun() {
+    this._stopPour();
+    this.#filled    = false;
+    this.#tipFilled = false;
+    this._burette.reset();
+    this._state.studentInitialReading = undefined;
+    this._resetComplete();
+  }
+
   exit() {
     this._stopPour();
     const { titrant, titrantConc } = this._state;
@@ -110,6 +120,18 @@ export class BuretteStage extends Stage {
   _startPour() {
     if (this.#fillTimer) return;
     if (this._burette.level >= MAX_POUR_ML) return;
+
+    // Show funnel above burette while pouring
+    const placeholder = document.getElementById('bur-funnel-placeholder');
+    if (placeholder) {
+      placeholder.style.lineHeight = '0';
+      placeholder.innerHTML = `
+        <svg width="136" height="65" viewBox="0 0 80 38">
+          <path d="M14,4 L66,4 L50,34 L30,34 Z"
+            fill="rgba(180,220,255,0.12)" stroke="rgba(180,220,255,0.50)"
+            stroke-width="1.5"/>
+        </svg>`;
+    }
 
     this.#pourStartLevel = this.#filled ? this._burette.level : 0;
     this.#pourLevel      = this.#pourStartLevel;
@@ -156,11 +178,8 @@ export class BuretteStage extends Stage {
    *   pourLevel=53 → menY=TUBE_Y         (fully above the 0 mark)
    */
   _updatePourVisual(pourLevel) {
-    const topReading = 50 - pourLevel;    // reading at glass-wall contact (top)
-    const reading    = topReading + MENISCUS_SAG_ML;  // bottom-of-meniscus reading
-    const menY       = this._menY(pourLevel);         // y of top of meniscus
-    const botMenY    = menY + MENISCUS_SAG_PX;        // y of bottom of meniscus
-    const liqH       = Math.max(0, TUBE_BOTTOM_Y - menY);
+    const menY  = this._menY(pourLevel);
+    const liqH  = Math.max(0, TUBE_BOTTOM_Y - menY);
     const vis        = pourLevel > 0.3;
     const aboveZero  = pourLevel > 50;
 
@@ -179,16 +198,6 @@ export class BuretteStage extends Stage {
     set('bur-meniscus', {
       d: `M${TUBE_X + 1},${menY.toFixed(1)} Q${TUBE_X + TUBE_W / 2},${(menY + 3.5).toFixed(1)} ${TUBE_X + TUBE_W - 1},${menY.toFixed(1)}`,
       opacity: vis ? '0.9' : '0',
-    });
-    set('bur-arrow', {
-      points: `${TUBE_X - 2},${botMenY.toFixed(1)} ${TUBE_X - 10},${(botMenY - 4).toFixed(1)} ${TUBE_X - 10},${(botMenY + 4).toFixed(1)}`,
-      opacity: vis ? '0.9' : '0',
-    });
-    set('bur-reading', {
-      y:    (botMenY + 3).toFixed(1),
-      fill: 'var(--warning)',
-      opacity: vis ? '1' : '0',
-      text: reading.toFixed(2),
     });
 
     const lvl = document.getElementById('bur-level-text');
@@ -212,11 +221,9 @@ export class BuretteStage extends Stage {
     const formula   = this._state.titrant?.formula ?? '?';
     const concStr   = (this._state.titrantConc ?? 0.1).toFixed(4);
     const level      = b.level;
-    const menY       = this._menY(level);
-    const botMenY    = menY + MENISCUS_SAG_PX;
-    const liqH       = Math.max(0, TUBE_BOTTOM_Y - menY);
-    const reading    = (50 - level) + MENISCUS_SAG_ML;  // bottom-of-meniscus reading
-    const aboveZero  = level > 50;
+    const menY      = this._menY(level);
+    const liqH      = Math.max(0, TUBE_BOTTOM_Y - menY);
+    const aboveZero = level > 50;
     const bottleFull = b.level >= MAX_POUR_ML;
 
     const capFill   = this.#tipFilled
@@ -228,19 +235,19 @@ export class BuretteStage extends Stage {
 
     el.innerHTML = `
       <div style="display:flex;height:100%;overflow:auto;
-                  padding:12px 8px 12px 16px;gap:20px;align-items:flex-start;">
+                  padding:12px 8px 12px 16px;gap:20px;align-items:center;">
 
         <!-- ── Left panel: reagent bottle ── -->
         <div id="bur-bottle"
              title="Hold to pour into burette"
              style="display:flex;flex-direction:column;align-items:center;gap:6px;
-                    min-width:88px;user-select:none;padding-top:16px;
+                    min-width:150px;user-select:none;padding-top:28px;
                     ${bottleFull
                       ? 'opacity:0.32;pointer-events:none;'
                       : !this.#filled
                         ? 'cursor:pointer;animation:funnelPulse 2s ease-in-out infinite;'
                         : 'cursor:pointer;opacity:0.82;'}">
-          <svg width="64" height="96" viewBox="0 0 64 96">
+          <svg width="109" height="163" viewBox="0 0 64 96">
             <defs>
               <clipPath id="btl-clip">
                 <path d="M24,0 L24,16 Q8,22 7,38 L7,84 Q7,92 16,92 L48,92 Q57,92 57,84 L57,38 Q56,22 40,16 L40,0 Z"/>
@@ -274,15 +281,15 @@ export class BuretteStage extends Stage {
           ${b.hasFunnel ? `
           <div id="bur-funnel" class="funnel-remove" title="Remove funnel"
                style="line-height:0;">
-            <svg width="80" height="38" viewBox="0 0 80 38">
+            <svg width="136" height="65" viewBox="0 0 80 38">
               <path d="M14,4 L66,4 L50,34 L30,34 Z"
                 fill="rgba(180,220,255,0.12)" stroke="rgba(180,220,255,0.50)"
                 stroke-width="1.5"/>
             </svg>
           </div>
-          ` : `<div style="height:38px;"></div>`}
+          ` : `<div id="bur-funnel-placeholder" style="height:65px;"></div>`}
 
-          <svg width="${SVG_W}" height="${SVG_H}" viewBox="0 0 ${SVG_W} ${SVG_H}"
+          <svg width="${Math.round(SVG_W*1.7)}" height="${Math.round(SVG_H*1.7)}" viewBox="0 0 ${SVG_W} ${SVG_H}"
                style="overflow:visible;">
             <defs>
               <clipPath id="bur-liq-clip">
@@ -324,17 +331,6 @@ export class BuretteStage extends Stage {
             <!-- Graduation marks (0 = top of scale, 50 = bottom) -->
             ${this._buildGradMarks()}
 
-            <!-- Live reading: arrow + value point at the BOTTOM of the meniscus -->
-            <polygon id="bur-arrow"
-              points="${this.#filled
-                ? `${TUBE_X - 2},${botMenY.toFixed(1)} ${TUBE_X - 10},${(botMenY - 4).toFixed(1)} ${TUBE_X - 10},${(botMenY + 4).toFixed(1)}`
-                : '0,0 0,0 0,0'}"
-              fill="var(--warning)" opacity="${this.#filled ? '0.9' : '0'}"/>
-            <text id="bur-reading"
-              x="${TUBE_X - 12}" y="${this.#filled ? (botMenY + 3).toFixed(1) : '-10'}"
-              font-size="7.5" fill="var(--warning)"
-              text-anchor="end" font-family="monospace"
-              opacity="${this.#filled ? '1' : '0'}">${this.#filled ? reading.toFixed(2) : ''}</text>
 
             <!-- Tap -->
             <g id="bur-tap"
@@ -376,14 +372,90 @@ export class BuretteStage extends Stage {
                 : `${level.toFixed(2)} mL remaining`
               : ''}
           </div>
-          ${b.hasBubble && this.#filled
-            ? `<div style="font-size:10px;color:var(--warning);margin-top:4px;">⚠ air bubble in tip</div>`
-            : ''}
         </div>
 
       </div>`;
 
     this._bindAreaEvents(el);
+    this._appendIndicatorBottle(el);
+  }
+
+  _appendIndicatorBottle(el) {
+    if (!this._state.indicator) return;
+    const indCol = this._state.indicator.acidCol ?? 'rgba(180,220,255,0.45)';
+    el.style.position = 'relative';
+    const indEl = document.createElement('div');
+    indEl.id = 'ind-bottle';
+    indEl.style.cssText = [
+      'position:absolute', 'right:20px', 'bottom:20px',
+      'cursor:grab', 'user-select:none',
+      'display:flex', 'flex-direction:column', 'align-items:center', 'gap:4px',
+      'animation:funnelPulse 2s ease-in-out infinite',
+    ].join(';');
+    indEl.innerHTML = `
+      <svg width="32" height="58" viewBox="0 0 32 58">
+        <rect x="13" y="2" width="6" height="10" rx="2"
+          fill="rgba(180,220,255,0.08)" stroke="rgba(180,220,255,0.35)" stroke-width="1"/>
+        <path d="M6,12 L6,46 Q6,54 16,54 Q26,54 26,46 L26,12 Z"
+          fill="rgba(180,220,255,0.06)" stroke="rgba(180,220,255,0.28)" stroke-width="1.2"/>
+        <path d="M7,22 L7,46 Q7,53 16,53 Q25,53 25,46 L25,22 Z"
+          fill="${indCol}" opacity="0.45"/>
+        <rect x="8" y="26" width="16" height="10" rx="1"
+          fill="rgba(255,255,255,0.03)" stroke="rgba(180,220,255,0.18)" stroke-width="0.8"/>
+      </svg>
+      <div style="font-size:8px;color:var(--muted);text-align:center;max-width:48px;">
+        ${this._state.indicator.name}
+      </div>`;
+    el.appendChild(indEl);
+    this._bindIndicatorDrag(indEl);
+  }
+
+  _bindIndicatorDrag(bottle) {
+    let dragging = false;
+    let ghost    = null;
+    let startX   = 0;
+    let startY   = 0;
+
+    bottle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      startX   = e.clientX;
+      startY   = e.clientY;
+      bottle.setPointerCapture(e.pointerId);
+      bottle.style.opacity   = '0.35';
+      bottle.style.animation = 'none';
+      ghost = bottle.cloneNode(true);
+      ghost.style.cssText = [
+        'position:fixed', 'pointer-events:none', 'opacity:0.75',
+        'transform:translate(-50%,-50%)', 'z-index:9999',
+        `left:${e.clientX}px`, `top:${e.clientY}px`,
+      ].join(';');
+      document.body.appendChild(ghost);
+    });
+
+    bottle.addEventListener('pointermove', (e) => {
+      if (!dragging || !ghost) return;
+      ghost.style.left = e.clientX + 'px';
+      ghost.style.top  = e.clientY + 'px';
+    });
+
+    bottle.addEventListener('pointerup', (e) => {
+      if (!dragging) return;
+      dragging = false;
+      bottle.style.opacity   = '';
+      bottle.style.animation = '';
+      if (ghost) { ghost.remove(); ghost = null; }
+
+      // Only log if the student dragged meaningfully (not an accidental touch)
+      const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+      if (dist > 12) {
+        this._bus.emit('logAction', {
+          action: '⚠ Indicator dropped during burette filling — error',
+          detail: `${this._state.indicator?.name ?? 'Indicator'} should be added to the conical flask, not during the burette filling stage.`,
+          level: 'warn',
+        });
+      }
+    });
   }
 
   _buildGradMarks() {
@@ -487,9 +559,6 @@ export class BuretteStage extends Stage {
     if (!this.#filled) {
       el.innerHTML = `<span style="color:var(--muted);font-size:11px;">
         Hold the reagent bottle to pour titrant into the burette.</span>`;
-    } else if (b.hasBubble) {
-      el.innerHTML = `<span style="color:var(--warning);font-size:11px;">
-        ⚠ Air bubble in tip — click the tap to run off a few mL and expel it.</span>`;
     } else if (b.initialReading === null) {
       const btn = document.createElement('button');
       btn.className = 'btn primary';
@@ -497,8 +566,9 @@ export class BuretteStage extends Stage {
       btn.addEventListener('click', () => this._showReadingModal());
       el.appendChild(btn);
     } else {
+      const displayInit = (this._state.studentInitialReading ?? b.initialReading ?? 0).toFixed(2);
       el.innerHTML = `<span style="color:var(--accent3);font-size:12px;">
-        ✓ Initial reading: ${b.initialReading.toFixed(2)} mL — ready to titrate.</span>`;
+        ✓ Initial reading: ${displayInit} mL — ready to titrate.</span>`;
     }
   }
 
@@ -514,17 +584,17 @@ export class BuretteStage extends Stage {
     if (!modal) return;
 
     document.getElementById('reading-title').textContent    = 'Initial Burette Reading';
-    document.getElementById('reading-subtitle').textContent = 'Read the bottom of the meniscus to 2 decimal places.';
+    document.getElementById('reading-subtitle').textContent = 'Read the bottom of the meniscus. Burette readings are to the nearest 0.05 mL.';
     document.getElementById('reading-hint').textContent     = 'Readings increase downward: 0.00 is at the top of the scale.';
     document.getElementById('reading-feedback').textContent = '';
 
     const input       = document.getElementById('reading-input');
     input.value       = '';
     input.placeholder = 'e.g. 0.00';
-    // Reformat to 2 d.p. so "4" becomes "4.00" after the user leaves the field
+    // Round to nearest 0.05 mL on blur
     input.onchange = () => {
       const v = parseFloat(input.value);
-      if (!isNaN(v)) input.value = v.toFixed(2);
+      if (!isNaN(v)) input.value = (Math.round(v / 0.05) * 0.05).toFixed(2);
     };
 
     // Zoom: 3.5 mL window centred on the actual reading (handle negative readings)
@@ -585,23 +655,32 @@ export class BuretteStage extends Stage {
     const newBtn = oldBtn.cloneNode(true);
     oldBtn.replaceWith(newBtn);
     newBtn.addEventListener('click', () => {
-      const entered = parseFloat(document.getElementById('reading-input').value);
+      const raw     = parseFloat(document.getElementById('reading-input').value);
       const fb      = document.getElementById('reading-feedback');
-      if (isNaN(entered) || entered < -3 || entered > 50) {
+      if (isNaN(raw) || raw < -3 || raw > 50) {
         fb.style.color = 'var(--danger)';
         fb.textContent = 'Enter a valid reading between −3.00 and 50.00 mL.';
         return;
       }
-      if (Math.abs(entered - actual) > 0.05) {
-        fb.style.color = 'var(--danger)';
-        fb.textContent = 'Check again — read the bottom of the curved meniscus.';
-        return;
-      }
+      const entered = Math.round(raw / 0.05) * 0.05;   // enforce 0.05 mL precision
       modal.classList.add('hidden');
       this.recordInitial();
+      // Store student's entered reading for display (not the computer's exact value)
+      this._state.studentInitialReading = entered;
+      if (b.hasBubble) {
+        this._bus.emit('logAction', {
+          action: '⚠ Air bubble present at initial reading',
+          detail: 'Initial reading was recorded while an air bubble remained in the burette tip. Titration results may be inaccurate.',
+          level: 'warn',
+        });
+      }
+      const readingError = Math.abs(entered - actual) > 0.10;
       this._bus.emit('logAction', {
-        action: 'Initial reading',
-        detail: `${b.initialReading?.toFixed(2)} mL recorded`,
+        action: readingError ? '⚠ Initial reading — possible error' : 'Initial reading',
+        detail: readingError
+          ? `Student recorded ${entered.toFixed(2)} mL; actual reading was ${actual.toFixed(2)} mL (bottom of meniscus). Difference: ${Math.abs(entered - actual).toFixed(2)} mL.`
+          : `${entered.toFixed(2)} mL recorded`,
+        level: readingError ? 'warn' : 'action',
       });
       this._refresh();
     });
@@ -614,7 +693,6 @@ export class BuretteStage extends Stage {
 
   validate() {
     if (!this.#filled)                         return { ok: false, reason: 'Fill the burette with titrant.' };
-    if (this._burette.hasBubble)               return { ok: false, reason: 'Expel the air bubble from the burette tip.' };
     if (this._burette.initialReading === null) return { ok: false, reason: 'Record the initial burette reading.' };
     this._markComplete();
     return { ok: true, reason: '' };

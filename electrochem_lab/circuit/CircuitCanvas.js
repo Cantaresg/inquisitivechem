@@ -42,6 +42,8 @@ export class CircuitCanvas {
     this._dragState = null;
     /** Whether the circuit is currently in the "live" (valid) state */
     this._isLive = false;
+    /** Whether electrode positions are locked while a reaction is active */
+    this._reactionLocked = false;
 
     // Wire-draw cursor state for the SVG element
     this._drawMode = false;
@@ -76,6 +78,7 @@ export class CircuitCanvas {
       y: dropY,
     });
     this.nodes.set(id, node);
+    this._checkImmersion(node);
     this._emitTopologyChange();
     return node;
   }
@@ -126,6 +129,11 @@ export class CircuitCanvas {
       else if (id === cathodeId) node.setPolarity('cathode');
       else                  node.setPolarity(null);
     }
+  }
+
+  /** Prevent or allow electrode dragging while preserving the current layout. */
+  setReactionLock(on) {
+    this._reactionLocked = Boolean(on);
   }
 
   /**
@@ -242,6 +250,11 @@ export class CircuitCanvas {
     const node = this.nodes.get(nodeId);
     if (!node) return;
 
+    if (this._reactionLocked) {
+      this._toast('Electrode positions are locked while this reaction mode is active.');
+      return;
+    }
+
     this._dragState = {
       node,
       offsetX: svgPt.x - node.x,
@@ -322,6 +335,7 @@ export class CircuitCanvas {
 
     // ── End electrode drag ─────────────────────────────────────────────
     if (this._dragState) {
+      this._checkImmersion(this._dragState.node);
       this.svg.style.cursor = '';
       this._dragState = null;
       this.svg.releasePointerCapture(e.pointerId);

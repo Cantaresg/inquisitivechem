@@ -56,6 +56,8 @@ export class FlaskRenderer {
   #acidColour  = 'rgba(180,220,255,0.12)';
   /** @type {string} */
   #alkColour   = 'rgba(255,92,122,0.55)';
+  /** @type {boolean} True once true endpoint has been confirmed — locks colour changes from phUpdated */
+  #endpointConfirmed = false;
   /** @type {Function[]} */
   #unsubs = [];
   /** @type {import('../EventBus.js').EventBus} */
@@ -91,8 +93,8 @@ export class FlaskRenderer {
     // SVG flask
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('width', '100');
-    svg.setAttribute('height', '130');
+    svg.setAttribute('width', '170');
+    svg.setAttribute('height', '221');
     svg.setAttribute('viewBox', '0 0 100 130');
     svg.classList.add('flask-svg');
 
@@ -290,19 +292,22 @@ export class FlaskRenderer {
 
   _subscribe() {
     this.#unsubs.push(
-      this.#bus.on('phUpdated', ({ pH, indicator }) => {
-        if (!indicator) return;
-        // Smoothly blend toward alkali colour as pH crosses pKin
-        const pKin = indicator.pKin ?? 8;
-        const t = Math.max(0, Math.min(1, (pH - (pKin - 1)) / 2));
-        if (t > 0 && t < 1) {
-          const blended = lerpColour(this.#acidColour, this.#alkColour, t * 0.3);
+      this.#bus.on('phUpdated', ({ preEndpointT = 0, falseEndpoint = false }) => {
+        if (this.#endpointConfirmed) return;
+        if (falseEndpoint) {
+          // Provisional endpoint: snap to full alkColour
+          this._applyColour(this.#alkColour);
+          this.#currentColour = this.#alkColour;
+        } else if (preEndpointT > 0.01) {
+          // Approaching endpoint: gradually blend (max 40 % of full alkColour tint)
+          const blended = lerpColour(this.#acidColour, this.#alkColour, preEndpointT * 0.4);
           this._applyColour(blended);
           this.#currentColour = blended;
         }
       }),
 
       this.#bus.on('endpointReached', () => {
+        this.#endpointConfirmed = true;
         this._applyColour(this.#alkColour);
         this.#currentColour = this.#alkColour;
         this.glowEndpoint();
@@ -318,6 +323,13 @@ export class FlaskRenderer {
 
       // If a false endpoint was dissipated by swirl, revert colour
       this.#bus.on('falseEndpointDissipated', () => {
+        this._applyColour(this.#acidColour);
+        this.#currentColour = this.#acidColour;
+      }),
+
+      // New run started: reset endpoint lock and revert to acidColour
+      this.#bus.on('newRunStarted', () => {
+        this.#endpointConfirmed = false;
         this._applyColour(this.#acidColour);
         this.#currentColour = this.#acidColour;
       }),

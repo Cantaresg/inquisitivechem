@@ -25,15 +25,20 @@ export class TestPanel {
    * @param {HTMLElement} container     — #test-controls element
    * @param {Function}    onTestResult  — callback(TestResult)
    */
-  constructor(container, onTestResult) {
+  constructor(container, onTestResult, onExportTrace = null, onReactionModeChange = null) {
     this._container    = container;
     this._onTestResult = onTestResult;
+    this._onExportTrace = onExportTrace;
+    this._onReactionModeChange = onReactionModeChange;
     this._target       = 'cathode';
     this._enabled      = false;
     this._result       = null;       // last ElectrolysisResult from engine
     this._electrolyte  = null;       // electrolyte record used in that run
+    this._phaseDebug   = null;
+    this._debugOpen    = true;
 
     this._build();
+    this.clearPhaseDebug();
   }
 
   // ── Public API ──────────────────────────────────────────────────────────
@@ -58,6 +63,23 @@ export class TestPanel {
     this._electrolyte = null;
     this._updateEnabled(false);
     this._hideResult();
+  }
+
+  /** Render the live phase-one kinetics/debug snapshot. */
+  setPhaseDebug(snapshot) {
+    this._phaseDebug = snapshot;
+    this._renderPhaseDebug();
+  }
+
+  /** Reset the debug monitor to its idle state. */
+  clearPhaseDebug() {
+    this.setPhaseDebug({
+      status: 'idle',
+      health: 'idle',
+      note: 'No active run',
+      warnings: [],
+      historyPoints: [],
+    });
   }
 
   // ── DOM construction ────────────────────────────────────────────────────
@@ -113,10 +135,64 @@ export class TestPanel {
       <p class="result-observation"></p>
     `;
 
+    this._debugEl = document.createElement('section');
+    this._debugEl.className = 'phase-debug';
+
+    this._debugToggleEl = document.createElement('button');
+    this._debugToggleEl.type = 'button';
+    this._debugToggleEl.className = 'phase-debug-toggle';
+    this._debugToggleEl.setAttribute('aria-expanded', 'true');
+    this._debugToggleEl.innerHTML = `
+      <span class="phase-debug-title">PHASE 1 MONITOR</span>
+      <span class="phase-debug-toggle-symbol" aria-hidden="true">▾</span>
+    `;
+    this._debugToggleEl.addEventListener('click', () => this._toggleDebugOpen());
+
+    this._debugBodyEl = document.createElement('div');
+    this._debugBodyEl.className = 'phase-debug-body';
+
+    this._debugStatusEl = document.createElement('div');
+    this._debugStatusEl.className = 'phase-debug-status';
+
+    this._debugMetricsEl = document.createElement('div');
+    this._debugMetricsEl.className = 'phase-debug-metrics';
+
+    this._debugWarningsEl = document.createElement('div');
+    this._debugWarningsEl.className = 'phase-debug-warnings phase-debug-warnings--hidden';
+
+    this._debugChartsEl = document.createElement('div');
+    this._debugChartsEl.className = 'phase-debug-charts';
+
+    this._debugModeEl = document.createElement('div');
+    this._debugModeEl.className = 'phase-debug-mode';
+    this._buildReactionModeControls();
+
+    this._debugActionsEl = document.createElement('div');
+    this._debugActionsEl.className = 'phase-debug-actions';
+
+    this._debugExportBtn = document.createElement('button');
+    this._debugExportBtn.type = 'button';
+    this._debugExportBtn.className = 'phase-debug-export';
+    this._debugExportBtn.textContent = 'Export Trace CSV';
+    this._debugExportBtn.disabled = true;
+    this._debugExportBtn.addEventListener('click', () => this._exportTrace());
+
+    this._debugActionsEl.appendChild(this._debugExportBtn);
+
+    this._debugBodyEl.appendChild(this._debugStatusEl);
+    this._debugBodyEl.appendChild(this._debugMetricsEl);
+    this._debugBodyEl.appendChild(this._debugChartsEl);
+    this._debugBodyEl.appendChild(this._debugModeEl);
+    this._debugBodyEl.appendChild(this._debugWarningsEl);
+    this._debugBodyEl.appendChild(this._debugActionsEl);
+    this._debugEl.appendChild(this._debugToggleEl);
+    this._debugEl.appendChild(this._debugBodyEl);
+
     this._container.appendChild(this._targetGroupEl);
     this._container.appendChild(sectLabel);
     this._container.appendChild(this._buttonsEl);
     this._container.appendChild(this._resultEl);
+    this._container.appendChild(this._debugEl);
   }
 
   // ── Interaction ─────────────────────────────────────────────────────────
@@ -164,4 +240,181 @@ export class TestPanel {
       b.disabled = !on;
     });
   }
+
+  _toggleDebugOpen() {
+    this._debugOpen = !this._debugOpen;
+    this._debugToggleEl.setAttribute('aria-expanded', String(this._debugOpen));
+    this._debugBodyEl.classList.toggle('phase-debug-body--hidden', !this._debugOpen);
+    this._debugToggleEl.querySelector('.phase-debug-toggle-symbol').textContent = this._debugOpen ? '▾' : '▸';
+  }
+
+  _renderPhaseDebug() {
+    const snapshot = this._phaseDebug ?? { status: 'idle', health: 'idle', warnings: [] };
+    const healthClass = `phase-debug-status--${snapshot.health ?? 'idle'}`;
+    const statusLabel = snapshot.status === 'running' ? 'Running' : 'Idle';
+    const note = snapshot.note ? `<span class="phase-debug-note">${snapshot.note}</span>` : '';
+
+    this._debugStatusEl.className = `phase-debug-status ${healthClass}`;
+    this._debugStatusEl.innerHTML = `
+      <span class="phase-debug-pill">${statusLabel}</span>
+      ${note}
+    `;
+
+    if (snapshot.status !== 'running') {
+      this._debugMetricsEl.innerHTML = `
+        <div class="phase-debug-empty">Start a valid run to inspect elapsed time, current, deposition progress, and concentration drift.</div>
+      `;
+      this._debugChartsEl.innerHTML = '';
+      this._debugExportBtn.disabled = true;
+      this._debugWarningsEl.classList.add('phase-debug-warnings--hidden');
+      this._debugWarningsEl.innerHTML = '';
+      return;
+    }
+
+    const metrics = [
+      ['Elapsed', formatSeconds(snapshot.elapsedS)],
+      ['Current', formatCurrent(snapshot.currentA)],
+      ['Deposit', formatPercent(snapshot.depositProgress)],
+      ['Cathode ion', formatConcentration(snapshot.cathodeConc, snapshot.cathodeIonId)],
+      ['Anode ion', formatConcentration(snapshot.anodeConc, snapshot.anodeIonId)],
+      ['Anode dissolve', formatPercent(snapshot.anodeDissolutionProgress)],
+      ['Cathode depletion', formatPercent(snapshot.cathodeDepletion)],
+      ['Aqueous tint', formatPercent(snapshot.aqueousTintProgress)],
+      ['Particles', String(snapshot.particleCount ?? 0)],
+      ['Products', `${snapshot.anodeProductId ?? 'none'} / ${snapshot.cathodeProductId ?? 'none'}`],
+    ];
+
+    this._debugMetricsEl.innerHTML = metrics.map(([label, value]) => `
+      <div class="phase-debug-metric">
+        <span class="phase-debug-metric-label">${label}</span>
+        <span class="phase-debug-metric-value">${value}</span>
+      </div>
+    `).join('');
+
+    this._debugChartsEl.innerHTML = this._renderCharts(snapshot);
+    this._debugExportBtn.disabled = !(snapshot.historyPoints?.length > 1);
+
+    const warnings = snapshot.warnings ?? [];
+    if (warnings.length === 0) {
+      this._debugWarningsEl.classList.remove('phase-debug-warnings--hidden');
+      this._debugWarningsEl.innerHTML = '<span class="phase-debug-ok">No warnings</span>';
+      return;
+    }
+
+    this._debugWarningsEl.classList.remove('phase-debug-warnings--hidden');
+    this._debugWarningsEl.innerHTML = warnings.map(w => `<div class="phase-debug-warning">${w}</div>`).join('');
+  }
+
+  _renderCharts(snapshot) {
+    const history = snapshot.historyPoints ?? [];
+    if (history.length < 2) {
+      return '<div class="phase-debug-empty">Trend charts appear after a few snapshots.</div>';
+    }
+
+    return [
+      renderChartCard('Deposit Growth', '0 → 100%', history, point => point.depositProgress, 0, 1, '#4df0b0'),
+      renderChartCard('Anode Dissolution', '0 → 100%', history, point => point.anodeDissolutionProgress, 0, 1, '#ffb26b'),
+      renderChartCard('Cathode Ion', snapshot.cathodeIonId ?? 'mol dm⁻³', history, point => point.cathodeConc, 0, maxValue(history, point => point.cathodeConc), '#7dc8ff'),
+      renderChartCard('Solution Tint', '0 → 100%', history, point => point.aqueousTintProgress, 0, 1, '#ffc457'),
+    ].join('');
+  }
+
+  _exportTrace() {
+    if (!this._onExportTrace) return;
+    const ok = this._onExportTrace();
+    if (!ok) return;
+
+    this._debugWarningsEl.classList.remove('phase-debug-warnings--hidden');
+    this._debugWarningsEl.innerHTML = '<span class="phase-debug-ok">Trace exported.</span>';
+  }
+
+  _buildReactionModeControls() {
+    this._debugModeEl.innerHTML = `
+      <div class="phase-debug-handle-head">
+        <span class="phase-debug-title">Reaction Mode</span>
+        <span class="phase-debug-mode-note">V2 planned</span>
+      </div>
+      <div class="phase-debug-mode-buttons" role="group" aria-label="Reaction persistence mode">
+        <button type="button" class="phase-debug-mode-btn active" data-mode="v1">V1 Current</button>
+        <button type="button" class="phase-debug-mode-btn" data-mode="v3">V3 Lock</button>
+      </div>
+      <div class="phase-debug-empty">V1 keeps today's clipped growth. V3 locks electrode positions once a valid reaction is running.</div>
+    `;
+
+    this._debugModeEl.querySelectorAll('.phase-debug-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        this._setReactionModeButtons(mode);
+        this._onReactionModeChange?.(mode);
+      });
+    });
+  }
+
+  _setReactionModeButtons(mode) {
+    this._debugModeEl.querySelectorAll('.phase-debug-mode-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+  }
+}
+
+function formatSeconds(value) {
+  if (!Number.isFinite(value)) return '—';
+  return `${value.toFixed(1)} s`;
+}
+
+function formatCurrent(value) {
+  if (!Number.isFinite(value)) return '—';
+  return `${(value * 1000).toFixed(0)} mA`;
+}
+
+function formatPercent(value) {
+  if (!Number.isFinite(value)) return '—';
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatConcentration(value, ionId) {
+  if (!Number.isFinite(value)) return '—';
+  const label = ionId ? `${ionId} ` : '';
+  return `${label}${value.toFixed(3)} mol dm⁻³`;
+}
+
+function renderChartCard(title, subtitle, points, pickY, minY, maxY, colour) {
+  return `
+    <div class="phase-debug-chart-card">
+      <div class="phase-debug-chart-head">
+        <span class="phase-debug-chart-title">${title}</span>
+        <span class="phase-debug-chart-subtitle">${subtitle}</span>
+      </div>
+      ${renderSparkline(points, pickY, minY, maxY, colour)}
+    </div>
+  `;
+}
+
+function renderSparkline(points, pickY, minY, maxY, colour) {
+  const width = 220;
+  const height = 56;
+  const safeMaxY = Math.max(maxY, minY + 1e-9);
+  const coords = points.map((point, index) => {
+    const x = (index / Math.max(1, points.length - 1)) * width;
+    const rawY = pickY(point);
+    const normal = (rawY - minY) / (safeMaxY - minY);
+    const y = height - clamp(normal, 0, 1) * height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  return `
+    <svg class="phase-debug-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="0" y1="${height - 1}" x2="${width}" y2="${height - 1}" class="phase-debug-chart-axis"></line>
+      <polyline points="${coords}" fill="none" stroke="${colour}" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    </svg>
+  `;
+}
+
+function maxValue(points, pickY) {
+  const values = points.map(pickY).filter(Number.isFinite);
+  return values.length > 0 ? Math.max(...values, 1e-6) : 1;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }

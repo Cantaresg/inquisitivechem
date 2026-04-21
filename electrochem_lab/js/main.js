@@ -108,6 +108,8 @@ try {
   const testPanel = new TestPanel(
     testControlsEl,
     testResult => simController?.onTestResult(testResult),
+    () => simController?.exportPhaseDebugTrace?.() ?? false,
+    mode => simController?.setReactionMode?.(mode),
   );
 
   _step(5, 'ObsPanel');
@@ -187,6 +189,7 @@ function bindPolarityToggle() {
     btn.setAttribute('aria-pressed', String(nowOn));
     btn.textContent = nowOn ? 'Hide labels' : 'Show labels';
     svg.classList.toggle('show-polarity', nowOn);
+    compGroupEl.classList.toggle('show-labels', nowOn);
   });
 }
 

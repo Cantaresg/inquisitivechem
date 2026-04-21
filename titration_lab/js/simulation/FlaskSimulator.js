@@ -111,6 +111,7 @@ export class FlaskSimulator {
     this.#chemical      = chemical;
     this.#concentration = concentration;
     this.#volume        = this.#capacity;
+    this.#indicator     = null;   // fresh flask has no indicator
     this._resetRunState();
   }
 
@@ -166,10 +167,21 @@ export class FlaskSimulator {
     this.#pH = newPH;
     this.#phHistory.push({ volAdded: this.#volAdded, pH: newPH });
 
+    // preEndpointT: 0 = far from transition, 1 = at/past pKin
+    let preEndpointT = 0;
+    if (this.#indicator && !this.#isAtEndpoint && !this.#falseEndpointActive) {
+      const pKin = this.#indicator.pKin;
+      preEndpointT = this.#titrantIsAcid
+        ? Math.max(0, Math.min(1, (pKin + 2 - newPH) / 2))
+        : Math.max(0, Math.min(1, (newPH - (pKin - 2)) / 2));
+    }
+
     this.#bus.emit('phUpdated', {
-      pH:       newPH,
-      color:    this.indicatorColor,
-      volAdded: this.#volAdded,
+      pH:            newPH,
+      color:         this.indicatorColor,
+      volAdded:      this.#volAdded,
+      preEndpointT,
+      falseEndpoint: this.#falseEndpointActive,
     });
 
     // ── Endpoint detection ────────────────────────────────────────────────
@@ -235,6 +247,17 @@ export class FlaskSimulator {
       } else {
         // Colour fades → false endpoint, not there yet
         this.#falseEndpointActive = false;
+        this.#bus.emit('falseEndpointDissipated');
+      }
+    } else if (!this.#isAtEndpoint && this.#indicator) {
+      // Pre-endpoint approach tint: revert colour on swirl so the student
+      // can see it is not the endpoint yet (colour returns with the next drop).
+      const pKin = this.#indicator.pKin;
+      const preT = this.#titrantIsAcid
+        ? Math.max(0, Math.min(1, (pKin + 2 - this.#pH) / 2))
+        : Math.max(0, Math.min(1, (this.#pH - (pKin - 2)) / 2));
+      if (preT > 0.01) {
+        this.#bus.emit('falseEndpointDissipated');
       }
     }
 
@@ -271,6 +294,7 @@ export class FlaskSimulator {
   get isAtEndpoint()        { return this.#isAtEndpoint; }
   get isOvershot()          { return this.#isOvershot; }
   get falseEndpointActive() { return this.#falseEndpointActive; }
+  get hasIndicator()        { return this.#indicator !== null; }
 
   /** Total analyte volume in the flask (mL) — does not change during titration */
   get volume()        { return this.#volume; }

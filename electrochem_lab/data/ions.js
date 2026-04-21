@@ -38,6 +38,7 @@ const CATION_DATA = {
     halfReactionReduction:  'Ag⁺(aq) + e⁻ → Ag(s)',
     halfReactionOxidation:  'Ag(s) → Ag⁺(aq) + e⁻',
     wordEquationReduction:  'silver ions are reduced to silver',
+    wordEquationOxidation:  'silver atoms are oxidised to silver ions',
     role:                   'cathode',
     level:                  'A_LEVEL',  // A-Level extension electrode/electrolyte
   },
@@ -51,6 +52,7 @@ const CATION_DATA = {
     halfReactionReduction:  'Cu²⁺(aq) + 2e⁻ → Cu(s)',
     halfReactionOxidation:  'Cu(s) → Cu²⁺(aq) + 2e⁻',
     wordEquationReduction:  'copper(II) ions are reduced to copper',
+    wordEquationOxidation:  'copper atoms are oxidised to copper(II) ions',
     role:                   'cathode',
     level:                  'O_LEVEL',
   },
@@ -80,6 +82,7 @@ const CATION_DATA = {
     halfReactionReduction:  'Fe²⁺(aq) + 2e⁻ → Fe(s)',
     halfReactionOxidation:  'Fe(s) → Fe²⁺(aq) + 2e⁻',
     wordEquationReduction:  'iron(II) ions are reduced to iron',
+    wordEquationOxidation:  'iron atoms are oxidised to iron(II) ions',
     role:                   'cathode',
     level:                  'A_LEVEL',
   },
@@ -93,8 +96,79 @@ const CATION_DATA = {
     halfReactionReduction:  'Zn²⁺(aq) + 2e⁻ → Zn(s)',
     halfReactionOxidation:  'Zn(s) → Zn²⁺(aq) + 2e⁻',
     wordEquationReduction:  'zinc ions are reduced to zinc',
+    wordEquationOxidation:  'zinc atoms are oxidised to zinc ions',
     role:                   'cathode',
     level:                  'O_LEVEL',
+  },
+
+  'Mg2+': {
+    symbol:                 'Mg²⁺',
+    charge:                 +2,
+    electronCount:          2,
+    standardPotential:      -2.37,
+    overpotential:          0,
+    halfReactionReduction:  'Mg²⁺(aq) + 2e⁻ → Mg(s)',
+    halfReactionOxidation:  'Mg(s) → Mg²⁺(aq) + 2e⁻',
+    wordEquationReduction:  'magnesium ions are NOT discharged in aqueous solution — water is reduced instead',
+    wordEquationOxidation:  'magnesium atoms are oxidised to magnesium ions',
+    role:                   'cathode',
+    level:                  'O_LEVEL',
+  },
+
+  'Al3+': {
+    symbol:                 'Al³⁺',
+    charge:                 +3,
+    electronCount:          3,
+    standardPotential:      -1.66,
+    overpotential:          0,
+    halfReactionReduction:  'Al³⁺(aq) + 3e⁻ → Al(s)',
+    halfReactionOxidation:  'Al(s) → Al³⁺(aq) + 3e⁻',
+    wordEquationReduction:  'aluminium ions are NOT discharged in aqueous solution — water is reduced instead',
+    wordEquationOxidation:  'aluminium atoms are oxidised to aluminium ions',
+    role:                   'cathode',
+    level:                  'O_LEVEL',
+  },
+
+  'Ni2+': {
+    symbol:                 'Ni²⁺',
+    charge:                 +2,
+    electronCount:          2,
+    standardPotential:      -0.25,
+    overpotential:          0,
+    halfReactionReduction:  'Ni²⁺(aq) + 2e⁻ → Ni(s)',
+    halfReactionOxidation:  'Ni(s) → Ni²⁺(aq) + 2e⁻',
+    wordEquationReduction:  'nickel ions are reduced to nickel',
+    wordEquationOxidation:  'nickel atoms are oxidised to nickel ions',
+    role:                   'cathode',
+    level:                  'A_LEVEL',
+  },
+
+  'Sn2+': {
+    symbol:                 'Sn²⁺',
+    charge:                 +2,
+    electronCount:          2,
+    standardPotential:      -0.14,
+    overpotential:          0,
+    halfReactionReduction:  'Sn²⁺(aq) + 2e⁻ → Sn(s)',
+    halfReactionOxidation:  'Sn(s) → Sn²⁺(aq) + 2e⁻',
+    wordEquationReduction:  'tin ions are reduced to tin',
+    wordEquationOxidation:  'tin atoms are oxidised to tin ions',
+    role:                   'cathode',
+    level:                  'A_LEVEL',
+  },
+
+  'Pb2+': {
+    symbol:                 'Pb²⁺',
+    charge:                 +2,
+    electronCount:          2,
+    standardPotential:      -0.13,
+    overpotential:          0,
+    halfReactionReduction:  'Pb²⁺(aq) + 2e⁻ → Pb(s)',
+    halfReactionOxidation:  'Pb(s) → Pb²⁺(aq) + 2e⁻',
+    wordEquationReduction:  'lead ions are reduced to lead',
+    wordEquationOxidation:  'lead atoms are oxidised to lead ions',
+    role:                   'cathode',
+    level:                  'A_LEVEL',
   },
 
   'Na+': {
@@ -287,7 +361,7 @@ export const ANION_IDS = Object.keys(ANION_DATA);
  * Earlier index = preferentially discharged.
  */
 export const CATHODE_DISCHARGE_ORDER = [
-  'Ag+', 'Cu2+', 'H+', 'Fe2+', 'Zn2+', 'Na+', 'Ca2+', 'K+',
+  'Ag+', 'Cu2+', 'H+', 'Fe2+', 'Ni2+', 'Sn2+', 'Pb2+', 'Zn2+', 'Al3+', 'Mg2+', 'Na+', 'Ca2+', 'K+',
 ];
 
 export const ANODE_DISCHARGE_ORDER = [

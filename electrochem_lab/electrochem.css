@@ -1,61 +1,51 @@
-/**
- * electrochem.css
- * Layout and design tokens for the Electrochemistry Lab.
- * Matches the InquisitiveChemistry design system (chem-lab.css palette).
- *
- * Layout zones (flex row):
- *   [component-panel 220px] [center-area flex:1] [test-panel 180px] [obs-panel 0→320px]
- *
- * center-area is a flex column:
- *   [circuit-wrap flex:1] [electrolyte-panel 120px]
- */
-
-/* ── Reset ───────────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-/* ── Design tokens ────────────────────────────────────────────────────────── */
-:root {
-  --nav-h:          52px;
-
-  /* Palette — identical to chem-lab */
-  --bg:             #07090f;
-  --surface:        #0d1018;
-  --surface2:       #111520;
-  --panel-border:   #1e2535;
-  --border2:        #263045;
-  --text:           #eef2ff;
-  --text-mid:       #a8b4d0;
-  --text-dim:       #5a6882;
-  --accent:         #4df0b0;
-  --accent2:        #38d49a;
-  --glow:           rgba(77,240,176,0.15);
-  --glow-strong:    rgba(77,240,176,0.35);
-  --danger:         #ff6b6b;
-  --btn-hover:      rgba(77,240,176,0.07);
-
-  /* Circuit-specific */
-  --wire-dead:      #3a4a66;
-  --wire-live:      #4df0b0;
-  --wire-preview:   rgba(77,240,176,0.55);
-  --wire-selected:  #ffdd55;
-  --terminal-idle:  #4a5a7a;
-  --terminal-hover: #4df0b0;
-  --terminal-conn:  #38d49a;
-  --slot-empty:     rgba(136,153,187,0.30);
-  --slot-filled:    rgba(77,240,176,0.25);
-  --beaker-glass:   rgba(160,200,255,0.22);
-  --beaker-live:    rgba(77,240,176,0.12);
-  --electrode-live: rgba(77,240,176,0.20);
-
-  /* Panel widths */
-  --comp-panel-w:   220px;
-  --test-panel-w:   180px;
-  --obs-panel-w:    320px;
-  --electrolyte-h:  116px;
+/* ── Reset & Root ───────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-/* ── Base ─────────────────────────────────────────────────────────────────── */
-html, body {
+:root {
+  --bg: #07090f;
+  --surface: #0d1018;
+  --surface2: #111520;
+  --panel-border: #1e2535;
+  --border2: #263045;
+  --accent: #4df0b0;
+  --accent2: #38d49a;
+  --gold: #ffd166;
+  --purple: #c77dff;
+  --red: #ff6b6b;
+  --blue: #4d9fff;
+  --teal: #5cffee;
+  --text: #eef2ff;
+  --text-main: #eef2ff;
+  --text-mid: #a8b4d0;
+  --text-dim: #5a6882;
+  --glow: rgba(77,240,176,0.15);
+  --glow-strong: rgba(77,240,176,0.32);
+  --btn-hover: rgba(255,255,255,0.04);
+  --nav-h: 58px;
+  --comp-panel-w: 260px;
+  --test-panel-w: 340px;
+  --obs-panel-w: 380px;
+  --electrolyte-h: 126px;
+  --danger: #ff6b6b;
+  --beaker-glass: rgba(200,220,255,0.16);
+  --terminal-idle: #7f8ca8;
+  --terminal-hover: #c5d6f5;
+  --terminal-conn: #4df0b0;
+  --wire-dead: #8899bb;
+  --wire-live: #4df0b0;
+  --wire-selected: #ffd166;
+  --wire-preview: rgba(77,240,176,0.52);
+}
+
+html {
+  height: 100%;
+}
+
+body {
   height: 100%;
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
@@ -217,7 +207,9 @@ nav {
   border-radius: 4px;
   letter-spacing: 0.04em;
   flex-shrink: 0;
+  display: none;  /* hidden until Show labels is active */
 }
+#comp-electrode-group.show-labels .comp-badge { display: inline-block; }
 .badge-inert    { background: rgba(136,153,187,0.15); color: var(--text-dim); border: 1px solid var(--panel-border); }
 .badge-reactive { background: rgba(77,240,176,0.08);  color: var(--accent);   border: 1px solid rgba(77,240,176,0.25); }
 .badge-fixed    { background: transparent; color: var(--text-dim); border: 1px solid var(--panel-border); }
@@ -385,6 +377,7 @@ kbd {
   background: var(--surface);
   border-left: 1px solid var(--panel-border);
   position: relative;  /* for obs-toggle positioning */
+  overflow-x: hidden;
 }
 #test-controls {
   flex: 1;
@@ -473,6 +466,8 @@ kbd {
   overflow-y: auto;
   padding: 12px;
 }
+#obs-observations[hidden],
+#obs-equations[hidden] { display: none; }
 
 /* Export buttons */
 #obs-export {
@@ -613,6 +608,9 @@ kbd {
   stroke: var(--beaker-glass);
   stroke-width: 4;
 }
+.beaker-liquid-fill {
+  transition: opacity 0.18s ease, filter 0.18s ease;
+}
 .beaker-electrolyte-label {
   font-family: 'DM Mono', monospace;
   font-size: 11px;
@@ -621,6 +619,9 @@ kbd {
 }
 .beaker-node.beaker-live .beaker-glass-wall {
   stroke: rgba(77,240,176,0.35);
+  filter: url(#glow-filter);
+}
+.beaker-node.beaker-live .beaker-liquid-fill {
   filter: url(#glow-filter);
 }
 
@@ -650,9 +651,6 @@ kbd {
 /* Live state (circuit closed) */
 .circuit-node.node-live .battery-body {
   stroke: rgba(77,240,176,0.45);
-  filter: url(#glow-filter);
-}
-.electrode-node.node-live .electrode-rod {
   filter: url(#glow-filter);
 }
 .electrode-node.polarity-anode  .polarity-label { fill: var(--danger); }
@@ -960,6 +958,264 @@ kbd {
   color: var(--text-mid);
   font-size: 0.76rem;
   line-height: 1.5;
+}
+
+.phase-debug {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(11, 16, 28, 0.78);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.phase-debug-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.phase-debug-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.60rem;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+}
+
+.phase-debug-toggle-symbol {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.phase-debug-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.phase-debug-body--hidden {
+  display: none;
+}
+
+.phase-debug-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.phase-debug-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(136,153,187,0.16);
+  color: var(--text-dim);
+}
+
+.phase-debug-status--good .phase-debug-pill {
+  background: rgba(77,240,176,0.14);
+  color: var(--accent);
+}
+
+.phase-debug-status--warn .phase-debug-pill {
+  background: rgba(255, 196, 87, 0.15);
+  color: #ffc457;
+}
+
+.phase-debug-note {
+  font-size: 0.72rem;
+  color: var(--text-mid);
+}
+
+.phase-debug-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.phase-debug-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.phase-debug-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.phase-debug-mode-note {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.phase-debug-mode-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.phase-debug-mode-btn {
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface2);
+  color: var(--text-mid);
+  font-size: 0.70rem;
+  cursor: pointer;
+}
+
+.phase-debug-mode-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(77,240,176,0.08);
+}
+
+.phase-debug-handle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.phase-debug-chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.phase-debug-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.phase-debug-chart-title,
+.phase-debug-chart-subtitle {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.phase-debug-chart-title {
+  color: var(--text-mid);
+}
+
+.phase-debug-chart-subtitle {
+  color: var(--text-dim);
+}
+
+.phase-debug-chart {
+  width: 100%;
+  height: 56px;
+  display: block;
+}
+
+.phase-debug-chart-axis {
+  stroke: rgba(255,255,255,0.12);
+  stroke-width: 1;
+}
+
+.phase-debug-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.phase-debug-metric-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.phase-debug-metric-value {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.phase-debug-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.phase-debug-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.phase-debug-export {
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface2);
+  color: var(--text-mid);
+  font-size: 0.70rem;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, color 0.18s;
+}
+
+.phase-debug-export:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(77,240,176,0.05);
+}
+
+.phase-debug-export:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.phase-debug-warnings--hidden {
+  display: none;
+}
+
+.phase-debug-warning,
+.phase-debug-ok,
+.phase-debug-empty {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-mid);
+}
+
+.phase-debug-warning {
+  color: #ffc457;
+}
+
+.phase-debug-ok {
+  color: var(--accent);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

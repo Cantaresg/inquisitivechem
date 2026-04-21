@@ -65,6 +65,11 @@ export class Stage {
     this.#isComplete = true;
   }
 
+  /** @protected — reset completion so the stage must be re-done (e.g. new run from pipette). */
+  _resetComplete() {
+    this.#isComplete = false;
+  }
+
   // ── Lifecycle (override in subclasses) ────────────────────────────────────
 
   /** Activate this stage: subscribe to bus events, render UI. */

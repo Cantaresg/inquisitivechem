@@ -57,7 +57,7 @@ export class ObsPanel {
    * @param {string[]} opts.observations  — from ElectrolysisResult.getObservations()
    * @param {{ cathode: string, anode: string }} opts.equations
    */
-  appendRun({ electrolyte, anodeName, cathodeName, observations, equations }) {
+  appendRun({ electrolyte, anodeName, cathodeName, observations, equations, halfEquations }) {
     const run = {
       timestamp: new Date().toLocaleTimeString(),
       electrolyte,
@@ -65,6 +65,7 @@ export class ObsPanel {
       cathodeName,
       observations,
       equations,
+      halfEquations: halfEquations ?? equations,
     };
     this._runs.push(run);
     this._renderObsRun(run);
@@ -200,11 +201,11 @@ export class ObsPanel {
       </div>
       <div class="eq-row">
         <span class="eq-label">Cathode (−):</span>
-        <code class="eq-text">${run.equations.cathode}</code>
+        <code class="eq-text">${run.halfEquations.cathode}</code>
       </div>
       <div class="eq-row">
         <span class="eq-label">Anode (+):</span>
-        <code class="eq-text">${run.equations.anode}</code>
+        <code class="eq-text">${run.halfEquations.anode}</code>
       </div>
     `;
     this._eqEl.appendChild(el);

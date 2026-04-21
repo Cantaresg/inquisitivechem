@@ -115,7 +115,7 @@ export class UIRenderer {
     // Actual animation content goes into a child div so the header overlay floats above it
     const animContent = document.createElement('div');
     animContent.id = 'anim-content';
-    animContent.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;';
+    animContent.style.cssText = 'width:100%;height:100%;display:flex;align-items:stretch;justify-content:center;position:relative;';
     centre.appendChild(animContent);
     this.#animArea = animContent;
 
@@ -255,20 +255,109 @@ export class UIRenderer {
   _renderLeftInfo() {
     const el = document.getElementById('left-info');
     if (!el) return;
+
+    if (this.#controller.currentStage?.id === 'titrate') {
+      this._renderBuretteZoom(el);
+      return;
+    }
+
     const s = this.#state;
     const rows = [
-      { label: 'Mode',       value: s.isOpenLab ? 'Open Lab' : 'Standard' },
-      { label: 'Level',      value: s.level === 'jc' ? 'JC / IB' : 'O-Level' },
-      { label: '[Titrant]',  value: s.concTitrant   ? s.concTitrant.toFixed(4) + ' M' : '—' },
-      { label: '[Analyte]',  value: s.isOpenLab ? (s.concKnownRange || '?') : (s.concAnalyte ? s.concAnalyte.toFixed(4) + ' M' : '—') },
-      { label: 'Vol analyte', value: s.volAnalyte ? s.volAnalyte.toFixed(2) + ' mL' : '—' },
-      { label: 'Vol added',  value: (s.volAdded ?? 0).toFixed(2) + ' mL' },
+      { label: 'In burette', value: s.titrant?.name ?? '—' },
+      { label: 'In flask',   value: s.analyte?.name ?? '—' },
+      { label: 'Pipette vol', value: s.volAnalyte ? s.volAnalyte.toFixed(2) + ' mL' : '25.00 mL' },
     ];
     el.innerHTML = rows.map(r => `
       <div class="info-row">
         <span>${r.label}</span>
         <span>${r.value}</span>
       </div>`).join('');
+  }
+
+  _renderBuretteZoom(el) {
+    const s        = this.#state;
+    const initial  = s.buretteInitial ?? 0;
+    const volAdded = s.volAdded ?? 0;
+    const current  = initial + volAdded;
+    const liqCol   = s.titrant?.dot ?? 'rgba(92,184,255,0.55)';
+
+    // 3.5 mL window centred on current reading
+    const lo   = Math.max(-0.5, Math.floor(current * 2) / 2 - 1.5);
+    const hi   = Math.min(50.5, lo + 3.5);
+    const zW   = 140;
+    const zH   = 180;
+    const pxML = zH / (hi - lo);
+    const mYz  = (current - lo) * pxML;   // y of bottom of meniscus
+    const sagPx = 0.10 * pxML;
+
+    // Graduation marks at 0.1 mL increments
+    const zMarks = [];
+    const startTenth = Math.ceil(lo * 10);
+    const endTenth   = Math.floor(hi * 10);
+    for (let i = startTenth; i <= endTenth; i++) {
+      const v     = i / 10;
+      const y     = (v - lo) * pxML;
+      const isMaj = i % 10 === 0;
+      const isMid = i % 5  === 0;
+      const isZ   = i === 0;
+      const x2    = isMaj ? 62 : isMid ? 56 : 50;
+      const sw    = isZ ? '1.8' : isMaj ? '1.2' : isMid ? '0.9' : '0.6';
+      const col   = isZ
+        ? 'var(--accent)'
+        : `rgba(180,220,255,${isMaj ? '0.65' : isMid ? '0.45' : '0.28'})`;
+      zMarks.push(
+        `<line x1="28" y1="${y.toFixed(1)}" x2="${x2}" y2="${y.toFixed(1)}"
+           stroke="${col}" stroke-width="${sw}"/>`,
+        isMaj || isMid
+          ? `<text x="65" y="${(y + 4).toFixed(1)}"
+               font-size="10" fill="${isZ ? 'var(--accent)' : 'var(--text)'}"
+               font-family="monospace">${v.toFixed(1)}</text>`
+          : '',
+      );
+    }
+
+    // Initial reading dashed marker (only when volume has been added)
+    const initY    = (initial - lo) * pxML;
+    const initMark = volAdded > 0.005
+      ? `<line x1="20" y1="${initY.toFixed(1)}" x2="28" y2="${initY.toFixed(1)}"
+           stroke="rgba(255,200,50,0.55)" stroke-width="1.2" stroke-dasharray="3,2"/>
+         <text x="18" y="${(initY + 4).toFixed(1)}" font-size="8"
+           fill="rgba(255,200,50,0.55)" text-anchor="end"
+           font-family="monospace">${initial.toFixed(2)}</text>`
+      : '';
+
+    // Show the student's own recorded reading (not the computer's exact value)
+    const studentInit = s.studentInitialReading ?? initial;
+    const initLabel = volAdded > 0.005
+      ? `<div class="info-row" style="padding:2px 12px;">
+           <span style="color:rgba(255,200,50,0.75);">Initial</span>
+           <span style="font-family:monospace;color:rgba(255,200,50,0.9);">${studentInit.toFixed(2)} mL</span>
+         </div>`
+      : '';
+
+    el.innerHTML = `
+      <div class="panel-section-title" style="padding:8px 12px 4px;">Burette Reading</div>
+      <div style="display:flex;justify-content:center;padding:6px 0;">
+        <svg width="${zW}" height="${zH}" viewBox="0 0 ${zW} ${zH}"
+             style="background:rgba(0,0,0,0.18);border-radius:4px;display:block;">
+          <!-- Glass tube -->
+          <rect x="28" y="0" width="14" height="${zH}"
+            fill="rgba(180,220,255,0.05)" stroke="rgba(180,220,255,0.25)" stroke-width="1"/>
+          <!-- Liquid fill -->
+          <rect x="29" y="0" width="12" height="${Math.max(0, mYz - sagPx).toFixed(1)}"
+            fill="${liqCol}" opacity="0.42"/>
+          <!-- Meniscus curve -->
+          <path d="M29,${(mYz - sagPx).toFixed(1)} Q35,${mYz.toFixed(1)} 41,${(mYz - sagPx).toFixed(1)}"
+            fill="none" stroke="${liqCol}" stroke-width="2" opacity="0.9"/>
+          <!-- Reading arrow -->
+          <polygon points="22,${mYz.toFixed(1)} 14,${(mYz-4).toFixed(1)} 14,${(mYz+4).toFixed(1)}"
+            fill="var(--warning)" opacity="0.85"/>
+          ${zMarks.join('\n')}
+          ${initMark}
+        </svg>
+      </div>
+      ${initLabel}
+      `;
   }
 
   _renderCentre() {
@@ -398,6 +487,7 @@ export class UIRenderer {
 
     this.#buretteR = new BuretteRenderer(buretteHost, this.#bus, titrantColour);
     this.#buretteR.setDropContainer(dropCont);
+    this.#buretteR.setFunnel(false);  // funnel never shown during titration
 
     const ind = this.#state.indicator;
     this.#flaskR = new FlaskRenderer(flaskHost, this.#bus, {
@@ -431,6 +521,17 @@ export class UIRenderer {
     if (this.#state.buretteInitial !== undefined) {
       this.#buretteR.setReading(this.#state.buretteInitial, this.#state.volAdded ?? 0);
     }
+
+    // Scale scene-wrap to fill available space (double-rAF ensures layout is settled)
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const scene = this.#animArea.querySelector('.titration-scene');
+      const wrap  = document.getElementById('scene-wrap');
+      if (!scene || !wrap) return;
+      const availH = scene.clientHeight - 40;
+      const availW = scene.clientWidth  - 60;
+      const s = Math.min(availH / wrap.offsetHeight, availW / wrap.offsetWidth, 3.0);
+      if (s > 1.02) wrap.style.transform = `scale(${s.toFixed(3)})`;
+    }));
   }
 
   _destroySubRenderers() {
@@ -496,8 +597,27 @@ export class UIRenderer {
       this.#bus.on('phUpdated', () => {
         this._renderLeftInfo();
       }),
+      this.#bus.on('levelChanged', () => {
+        if (this.#controller.currentStage?.id === 'titrate') {
+          this._renderLeftInfo();
+        }
+      }),
       this.#bus.on('stageAreaUpdated', () => {
         this._renderControls();
+      }),
+
+      this.#bus.on('requestNewRun', () => {
+        const stages  = this.#controller.stages;
+        const pipette = stages.find(s => s.id === 'pipette');
+        const burette = stages.find(s => s.id === 'burette');
+        const titrate = stages.find(s => s.id === 'titrate');
+        pipette?.resetForNewRun?.();
+        burette?.resetForNewRun?.();
+        titrate?.prepareNextRun?.();
+        this.#controller.jumpTo('pipette');
+      }),
+      this.#bus.on('requestAdvance', () => {
+        this.#controller.advance();
       }),
     );
   }

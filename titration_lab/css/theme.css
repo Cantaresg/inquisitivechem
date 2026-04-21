@@ -385,7 +385,7 @@ strong { color: var(--text); font-weight: 700; }
   left: 0;
   right: 0;
   transition: height 0.4s ease;
-  border-radius: 0 0 2px 2px;
+  border-radius: 40% 40% 0 0 / 4px 4px 0 0;
 }
 .burette-meniscus {
   position: absolute;
@@ -656,10 +656,9 @@ strong { color: var(--text); font-weight: 700; }
 /* ── Titration scene layout ─────────────────────────────────── */
 .titration-scene {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  gap: 60px;
-  padding: 30px 20px 10px;
+  padding: 10px 20px 10px;
   height: 100%;
 }
 
