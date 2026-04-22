@@ -54,11 +54,12 @@ const POUR_TICK_MS     = 50;
 const POUR_ML_PER_TICK = 0.5;   // 10 mL/s
 
 export class BuretteStage extends Stage {
-  /** @type {boolean} */     #filled         = false;
-  /** @type {boolean} */     #tipFilled      = false;  // true after first tap use
-  /** @type {number}  */     #pourLevel      = 0;
-  /** @type {number}  */     #pourStartLevel = 0;
-  /** @type {number|null} */ #fillTimer      = null;
+  /** @type {boolean} */     #filled          = false;
+  /** @type {boolean} */     #tipFilled       = false;  // true after first tap use
+  /** @type {boolean} */     #funnelRemoved   = false;  // true once student explicitly removes funnel
+  /** @type {number}  */     #pourLevel       = 0;
+  /** @type {number}  */     #pourStartLevel  = 0;
+  /** @type {number|null} */ #fillTimer       = null;
 
   constructor(deps) {
     super('burette', 'Fill Burette', deps);
@@ -80,13 +81,17 @@ export class BuretteStage extends Stage {
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-  enter() { this._cleanupBus(); }
+  enter() {
+    this._cleanupBus();
+    this._state.funnelRemovedBeforeTitration = false;
+  }
 
   /** Reset so student must re-fill the burette for a new run. */
   resetForNewRun() {
     this._stopPour();
-    this.#filled    = false;
-    this.#tipFilled = false;
+    this.#filled        = false;
+    this.#tipFilled     = false;
+    this.#funnelRemoved = false;
     this._burette.reset();
     this._state.studentInitialReading = undefined;
     this._resetComplete();
@@ -156,6 +161,7 @@ export class BuretteStage extends Stage {
 
     if (!this.#filled) {
       this.fill(finalLevel);
+      if (this.#funnelRemoved) this._burette.removeFunnel();
       this._bus.emit('logAction', {
         action: 'Burette filled',
         detail: `${finalLevel.toFixed(2)} mL of ${this._state.titrant?.formula ?? 'titrant'} added via funnel`,
@@ -512,6 +518,8 @@ export class BuretteStage extends Stage {
     // Funnel: click to remove; log contamination error if above 0 mark
     el.querySelector('#bur-funnel')?.addEventListener('click', () => {
       const levelBefore = b.level;
+      this.#funnelRemoved = true;
+      this._state.funnelRemovedBeforeTitration = true;
       this.removeFunnel();
       if (levelBefore > 50) {
         const drip = 0.01 + Math.random() * 0.04;  // 0.01–0.05 mL
@@ -616,6 +624,7 @@ export class BuretteStage extends Stage {
     const endTenth   = Math.floor(hi * 10);
     for (let i = startTenth; i <= endTenth; i++) {
       const v    = i / 10;
+      if (v < 0) continue;   // burette scale starts at 0.00 — no marks above zero
       const y    = (v - lo) * pxML;
       const isMaj = i % 10 === 0;   // whole mL
       const isMid = i % 5  === 0;   // 0.5 mL
@@ -637,7 +646,7 @@ export class BuretteStage extends Stage {
     }
 
     document.getElementById('reading-zoom').innerHTML = `
-      <svg width="${zW}" height="${zH}" viewBox="0 0 ${zW} ${zH}"
+      <svg width="200" height="260" viewBox="0 0 ${zW} ${zH}"
            style="background:rgba(0,0,0,0.15);border-radius:4px;">
         <rect x="26" y="0" width="14" height="${zH}"
           fill="rgba(180,220,255,0.06)" stroke="rgba(180,220,255,0.25)" stroke-width="1"/>

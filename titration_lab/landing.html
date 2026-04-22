@@ -554,6 +554,48 @@ const PRESETS = {
   Na2CO3_SA:  { mode:'practice', level:'jc',      titrant:'hcl',  analyte:'na2co3',   indicator:'mo',  concTitrant:0.1, concAnalyte:0.053, temperature:25, Kw:1e-14 },
 };
 
+// Concentration pairs [concTitrant, concAnalyte] → varied titres (15–35 mL, 25 mL analyte flask)
+// 1:1 stoichiometry: titre = (cAnalyte / cTitrant) × 25
+const CONC_PAIRS_1TO1 = [
+  [0.100, 0.060],  // 15 mL
+  [0.100, 0.080],  // 20 mL
+  [0.100, 0.100],  // 25 mL
+  [0.100, 0.120],  // 30 mL
+  [0.100, 0.140],  // 35 mL
+  [0.150, 0.090],  // 15 mL
+  [0.150, 0.120],  // 20 mL
+  [0.150, 0.150],  // 25 mL
+  [0.150, 0.180],  // 30 mL
+  [0.200, 0.120],  // 15 mL
+  [0.200, 0.160],  // 20 mL
+  [0.200, 0.200],  // 25 mL
+  [0.200, 0.240],  // 30 mL
+  [0.125, 0.100],  // 20 mL
+  [0.125, 0.150],  // 30 mL
+];
+
+// Na₂CO₃ + 2HCl (1:2): titre = (2 × cAnalyte / cTitrant) × 25
+const CONC_PAIRS_NA2CO3 = [
+  [0.100, 0.030],  // 15 mL
+  [0.100, 0.040],  // 20 mL
+  [0.100, 0.050],  // 25 mL
+  [0.100, 0.060],  // 30 mL
+  [0.150, 0.045],  // 15 mL
+  [0.150, 0.060],  // 20 mL
+  [0.150, 0.075],  // 25 mL
+  [0.150, 0.090],  // 30 mL
+  [0.200, 0.060],  // 15 mL
+  [0.200, 0.080],  // 20 mL
+  [0.200, 0.100],  // 25 mL
+  [0.200, 0.120],  // 30 mL
+];
+
+function randomiseConcs(presetKey, preset) {
+  const pairs = presetKey === 'Na2CO3_SA' ? CONC_PAIRS_NA2CO3 : CONC_PAIRS_1TO1;
+  const [cT, cA] = pairs[Math.floor(Math.random() * pairs.length)];
+  return { ...preset, concTitrant: cT, concAnalyte: cA };
+}
+
 const COMING_SOON_INFO = {
   redox:      { title:'Redox titrations — coming soon',        desc:'KMnO₄, K₂Cr₂O₇, and Ce⁴⁺ titrations with electron-transfer chemistry are in development.' },
   iodometric: { title:'Iodometric titrations — coming soon',   desc:'Starch-endpoint iodine titrations (direct and indirect) are in development.' },
@@ -593,7 +635,7 @@ function refreshAction() {
   // Meta text
   if (preset) {
     const lvlLabel = selLevel === 'foundation' ? 'O-Level / GCSE' : 'A-Level / JC / IB';
-    $('action-meta').innerHTML = `${lvlLabel} · practice mode<br>${(preset.concTitrant * 1000).toFixed(0)} mM titrant`;
+    $('action-meta').innerHTML = `${lvlLabel} · practice mode`;
   } else {
     $('action-meta').textContent = '';
   }
@@ -668,7 +710,8 @@ document.querySelectorAll('.sub-card').forEach(card => {
 $('btn-start').addEventListener('click', () => {
   const preset = currentPreset();
   if (!preset) return;
-  SessionConfig.save(preset);
+  const presetKey = selLevel === 'foundation' ? 'foundation' : selSub;
+  SessionConfig.save(randomiseConcs(presetKey, preset));
   location.href = 'lab.html';
 });
 

@@ -50,7 +50,8 @@ const INDICATORS = Object.freeze([
     pKin:       9.1,
     range:      [8.2, 10.0],
     desc:       'Colourless (acid) \u2192 Pink (alkali). Use for weak acid / strong base.',
-    works_with: ['WA_SB', 'SA_SB'],
+    works_with:        ['WA_SB', 'SA_SB'],
+    flashNearEndpoint: true,
   },
 ]);
 

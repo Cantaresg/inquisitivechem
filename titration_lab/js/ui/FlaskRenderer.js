@@ -58,6 +58,8 @@ export class FlaskRenderer {
   #alkColour   = 'rgba(255,92,122,0.55)';
   /** @type {boolean} True once true endpoint has been confirmed — locks colour changes from phUpdated */
   #endpointConfirmed = false;
+  /** @type {ReturnType<typeof setTimeout>|null} Auto-revert timer for drop-flash tint */
+  #flashTimer = null;
   /** @type {Function[]} */
   #unsubs = [];
   /** @type {import('../EventBus.js').EventBus} */
@@ -248,17 +250,6 @@ export class FlaskRenderer {
     setTimeout(() => r.remove(), 450);
   }
 
-  /** Pulse endpoint glow. */
-  glowEndpoint() {
-    const wrap = this.#root.querySelector('.flask-wrap');
-    if (!wrap) return;
-    const glow = document.createElement('div');
-    glow.className = 'endpoint-glow';
-    wrap.style.position = 'relative';
-    wrap.appendChild(glow);
-    setTimeout(() => glow.remove(), 900);
-  }
-
   /** Flash overshoot red. */
   flashOvershoot() {
     const wrap = this.#root.querySelector('.flask-wrap');
@@ -288,16 +279,36 @@ export class FlaskRenderer {
     if (this.#meniscusEl) this.#meniscusEl.style.fill = colour;
   }
 
+  _clearFlashTimer() {
+    if (this.#flashTimer !== null) {
+      clearTimeout(this.#flashTimer);
+      this.#flashTimer = null;
+    }
+  }
+
   // ── EventBus subscription ──────────────────────────────────
 
   _subscribe() {
     this.#unsubs.push(
-      this.#bus.on('phUpdated', ({ preEndpointT = 0, falseEndpoint = false }) => {
+      this.#bus.on('phUpdated', ({ preEndpointT = 0, falseEndpoint = false, dropFlash = false }) => {
         if (this.#endpointConfirmed) return;
         if (falseEndpoint) {
           // Provisional endpoint: snap to full alkColour
+          this._clearFlashTimer();
           this._applyColour(this.#alkColour);
           this.#currentColour = this.#alkColour;
+        } else if (dropFlash) {
+          // Localized drop-flash (e.g. phenolphthalein near EP): brief full-colour tint
+          // that auto-reverts so the student knows the endpoint hasn't been reached yet.
+          this._applyColour(this.#alkColour);
+          this._clearFlashTimer();
+          this.#flashTimer = setTimeout(() => {
+            if (!this.#endpointConfirmed) {
+              this._applyColour(this.#acidColour);
+              this.#currentColour = this.#acidColour;
+            }
+            this.#flashTimer = null;
+          }, 2000);
         } else if (preEndpointT > 0.01) {
           // Approaching endpoint: gradually blend (max 40 % of full alkColour tint)
           const blended = lerpColour(this.#acidColour, this.#alkColour, preEndpointT * 0.4);
@@ -307,10 +318,10 @@ export class FlaskRenderer {
       }),
 
       this.#bus.on('endpointReached', () => {
+        this._clearFlashTimer();
         this.#endpointConfirmed = true;
         this._applyColour(this.#alkColour);
         this.#currentColour = this.#alkColour;
-        this.glowEndpoint();
       }),
 
       this.#bus.on('overshot', () => {
@@ -319,16 +330,24 @@ export class FlaskRenderer {
 
       this.#bus.on('swirled', () => {
         this.runSwirlAnimation();
+        // Clear any transient tint (drop-flash or approach gradient) when student swirls
+        if (!this.#endpointConfirmed) {
+          this._clearFlashTimer();
+          this._applyColour(this.#acidColour);
+          this.#currentColour = this.#acidColour;
+        }
       }),
 
       // If a false endpoint was dissipated by swirl, revert colour
       this.#bus.on('falseEndpointDissipated', () => {
+        this._clearFlashTimer();
         this._applyColour(this.#acidColour);
         this.#currentColour = this.#acidColour;
       }),
 
       // New run started: reset endpoint lock and revert to acidColour
       this.#bus.on('newRunStarted', () => {
+        this._clearFlashTimer();
         this.#endpointConfirmed = false;
         this._applyColour(this.#acidColour);
         this.#currentColour = this.#acidColour;
@@ -337,6 +356,7 @@ export class FlaskRenderer {
   }
 
   destroy() {
+    this._clearFlashTimer();
     this.#unsubs.forEach(fn => fn());
     this.#unsubs = [];
   }

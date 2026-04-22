@@ -111,6 +111,7 @@ export class TitrationLab {
       concKnownRange: cfg.concKnownRange ?? null,
       // Dynamic — kept live by bus subscriptions below
       runs:          [],
+      actionLog:     [],   // { action, detail, level } entries from logAction bus
       volAdded:      0,
       buretteLevel:  50,
       buretteInitial: 0,
@@ -189,17 +190,23 @@ export class TitrationLab {
       this.#bus.on('levelChanged', ({ level }) => {
         this.#labState.buretteLevel = level;
       }),
-      // On stage transition, re-sync buretteInitial for new run context
+      // On stage transition, re-sync buretteInitial for new run context.
+      // Add 0.10 mL meniscus sag so the display matches the student's reading
+      // (bottom of meniscus) rather than the raw glass-contact-line position.
       this.#bus.on('stageChanged', ({ nextId }) => {
         if (nextId === 'titrate') {
-          this.#labState.buretteInitial = this.#burette.initialReading ?? 0;
+          this.#labState.buretteInitial = (this.#burette.initialReading ?? 0) + 0.10;
           this.#labState.volAdded = 0;
         }
       }),
       // New run started inside TitrateStage
       this.#bus.on('newRunStarted', () => {
-        this.#labState.buretteInitial = this.#burette.initialReading ?? 0;
+        this.#labState.buretteInitial = (this.#burette.initialReading ?? 0) + 0.10;
         this.#labState.volAdded = 0;
+      }),
+      // Accumulate all action-log entries so ResultsStage can surface mistakes
+      this.#bus.on('logAction', ({ action, detail, level }) => {
+        this.#labState.actionLog.push({ action, detail: detail ?? '', level: level ?? 'action' });
       }),
     );
   }

@@ -64,7 +64,8 @@ export class TitrateStage extends Stage {
       // Funnel forgotten: residue drips silently into the burette.
       // The student's recorded initial reading is now wrong — their titre will
       // be off by the drip amount.  Logged to the action log for discovery.
-      if (this._burette.hasFunnel) {
+      // Only fires when the student did NOT explicitly remove the funnel in BuretteStage.
+      if (this._burette.hasFunnel && !this._state.funnelRemovedBeforeTitration) {
         const drip = 0.10 + Math.random() * 0.10;   // 0.10 – 0.20 mL
         this._burette.addVolume(drip);
         this._bus.emit('logAction', {
@@ -125,19 +126,26 @@ export class TitrateStage extends Stage {
   // ── Run management ────────────────────────────────────────────────────────
 
   /**
-   * Record this run's result.
-   * @param {boolean} [isRough=false]  True for the first rough/preliminary run
+   * Record this run's result using the student's entered readings.
+   * @param {boolean} [isRough=false]
+   * @param {number|null} [studentFinal=null]   Student's entered final reading (rounded to 0.05)
+   * @param {number|null} [studentInitial=null] Student's recorded initial reading (rounded to 0.05)
    * @returns {RunRecord}
    */
-  recordResult(isRough = false) {
+  recordResult(isRough = false, studentFinal = null, studentInitial = null) {
     this._burette.recordFinal();
+    const initial = studentInitial
+      ?? this._state.studentInitialReading
+      ?? (this._burette.initialReading ?? 0) + 0.10;
+    const final_  = studentFinal
+      ?? (this._burette.finalReading ?? 0) + 0.10;
     /** @type {RunRecord} */
     const record = {
       runNumber:      this.#runNumber,
       isRough,
-      initialReading: this._burette.initialReading ?? 0,
-      finalReading:   this._burette.finalReading   ?? 0,
-      titre:          this._burette.titre,
+      initialReading: initial,
+      finalReading:   final_,
+      titre:          Math.max(0, final_ - initial),
     };
     this.#runs.push(record);
     this._state.runs = [...this.#runs];   // sync to labState for ResultsStage
@@ -181,16 +189,22 @@ export class TitrateStage extends Stage {
         reason: `Need at least 2 accurate runs (${accurate.length} recorded).`,
       };
     }
-    const titres = accurate.map(r => r.titre);
-    const spread = Math.max(...titres) - Math.min(...titres);
-    if (spread > 0.20) {
-      return {
-        ok:     false,
-        reason: `Titres not concordant (spread ${spread.toFixed(2)} mL > 0.20 mL). Repeat.`,
-      };
+    // Any adjacent pair in sorted order within 0.20 mL is concordant enough to proceed
+    const sorted = [...accurate].sort((a, b) => a.titre - b.titre);
+    for (let i = 0; i + 1 < sorted.length; i++) {
+      if (sorted[i + 1].titre - sorted[i].titre <= 0.20) {
+        this._markComplete();
+        return { ok: true, reason: '' };
+      }
     }
-    this._markComplete();
-    return { ok: true, reason: '' };
+    let bestSpread = Infinity;
+    for (let i = 0; i + 1 < sorted.length; i++) {
+      bestSpread = Math.min(bestSpread, sorted[i + 1].titre - sorted[i].titre);
+    }
+    return {
+      ok:     false,
+      reason: `No concordant pair yet (closest: ${bestSpread.toFixed(2)} mL). Repeat.`,
+    };
   }
 
   // ── Internal ─────────────────────────────────────────────────────────────
@@ -460,10 +474,10 @@ export class TitrateStage extends Stage {
    * @param {HTMLElement} ctrlEl  Controls bar element for post-modal re-render
    */
   _showFinalReadingModal(ctrlEl) {
-    const b         = this._burette;
-    const actual    = ((b.capacity ?? 50) - b.level) + 0.10;  // bottom-of-meniscus reading
-    const actualVol = b.volumeAdded;
-    const liqCol    = this._state.titrant?.dot ?? 'rgba(92,184,255,0.6)';
+    const b            = this._burette;
+    const actual       = ((b.capacity ?? 50) - b.level) + 0.10;  // bottom-of-meniscus reading
+    const actualR05    = Math.round(actual / 0.05) * 0.05;        // rounded to nearest 0.05
+    const liqCol       = this._state.titrant?.dot ?? 'rgba(92,184,255,0.6)';
 
     // Remove any stale modal
     document.getElementById('final-reading-modal')?.remove();
@@ -506,7 +520,7 @@ export class TitrateStage extends Stage {
         <h3>Final Burette Reading</h3>
         <p style="color:var(--muted);font-size:11px;">Read the bottom of the meniscus, then enter both values below.</p>
         <div style="display:flex;justify-content:center;margin:8px 0;">
-          <svg width="${zW}" height="${zH}" viewBox="0 0 ${zW} ${zH}"
+          <svg width="200" height="260" viewBox="0 0 ${zW} ${zH}"
                style="background:rgba(0,0,0,0.15);border-radius:4px;">
             <rect x="26" y="0" width="14" height="${zH}"
               fill="rgba(180,220,255,0.06)" stroke="rgba(180,220,255,0.25)" stroke-width="1"/>
@@ -580,12 +594,14 @@ export class TitrateStage extends Stage {
       const isRough      = document.getElementById('frm-rough')?.checked ?? false;
       close();
 
-      const finalErr = Math.abs(enteredFinal - actual);
-      const volErr   = Math.abs(enteredVol - actualVol);
+      // Compare against 0.05-rounded system values — same precision students are expected to use
+      const correctTitre = Math.round((actualR05 - initReading) / 0.05) * 0.05;
+      const finalErr     = Math.abs(enteredFinal - actualR05);
+      const volErr       = Math.abs(enteredVol   - correctTitre);
       if (finalErr > 0.05) {
         this._bus.emit('logAction', {
           action: '⚠ Final reading — possible error',
-          detail: `Student recorded ${enteredFinal.toFixed(2)} mL; actual reading was ${actual.toFixed(2)} mL. Difference: ${finalErr.toFixed(2)} mL.`,
+          detail: `Student recorded ${enteredFinal.toFixed(2)} mL; actual reading was ${actualR05.toFixed(2)} mL. Difference: ${finalErr.toFixed(2)} mL.`,
           level: 'warn',
         });
       } else {
@@ -597,12 +613,12 @@ export class TitrateStage extends Stage {
       if (volErr > 0.05) {
         this._bus.emit('logAction', {
           action: '⚠ Volume used — possible error',
-          detail: `Student recorded ${enteredVol.toFixed(2)} mL; actual volume was ${actualVol.toFixed(2)} mL. Difference: ${volErr.toFixed(2)} mL.`,
+          detail: `Student recorded ${enteredVol.toFixed(2)} mL; actual volume was ${correctTitre.toFixed(2)} mL. Difference: ${volErr.toFixed(2)} mL.`,
           level: 'warn',
         });
       }
 
-      this.recordResult(isRough);
+      this.recordResult(isRough, enteredFinal, initReading);
       this.renderControls(ctrlEl);
       this._bus.emit('stageAreaUpdated', { stageId: this.id });
     });

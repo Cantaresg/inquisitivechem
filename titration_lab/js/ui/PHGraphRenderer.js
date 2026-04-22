@@ -262,8 +262,8 @@ export class PHGraphRenderer {
 
   _subscribe() {
     this.#unsubs.push(
-      this.#bus.on('phUpdated', ({ volume, pH }) => {
-        this.addPoint(volume, pH);
+      this.#bus.on('phUpdated', ({ volAdded, pH }) => {
+        this.addPoint(volAdded, pH);
       }),
       this.#bus.on('endpointReached', ({ volume }) => {
         if (volume !== undefined) this.markEndpoint(volume);

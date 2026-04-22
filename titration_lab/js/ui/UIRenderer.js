@@ -125,9 +125,8 @@ export class UIRenderer {
     const tabs = document.createElement('div');
     tabs.id = 'right-tabs';
     const tabDefs = [
-      { id: 'results',   label: 'Results' },
-      { id: 'log',       label: 'Log' },
-      { id: 'calculate', label: 'Calculate' },
+      { id: 'results', label: 'Results' },
+      { id: 'log',     label: 'Log' },
     ];
     tabDefs.forEach(({ id, label }) => {
       const btn = document.createElement('div');
@@ -281,8 +280,8 @@ export class UIRenderer {
     const current  = initial + volAdded;
     const liqCol   = s.titrant?.dot ?? 'rgba(92,184,255,0.55)';
 
-    // 3.5 mL window centred on current reading
-    const lo   = Math.max(-0.5, Math.floor(current * 2) / 2 - 1.5);
+    // 0.1 mL headroom = sagPx, so liquid fill collapses to 0 and meniscus sits at top
+    const lo   = Math.max(-0.5, current - 0.1);
     const hi   = Math.min(50.5, lo + 3.5);
     const zW   = 140;
     const zH   = 180;
@@ -316,9 +315,9 @@ export class UIRenderer {
       );
     }
 
-    // Initial reading dashed marker (only when volume has been added)
+    // Initial reading dashed marker (only when visible in window)
     const initY    = (initial - lo) * pxML;
-    const initMark = volAdded > 0.005
+    const initMark = volAdded > 0.005 && initY >= 0 && initY <= zH
       ? `<line x1="20" y1="${initY.toFixed(1)}" x2="28" y2="${initY.toFixed(1)}"
            stroke="rgba(255,200,50,0.55)" stroke-width="1.2" stroke-dasharray="3,2"/>
          <text x="18" y="${(initY + 4).toFixed(1)}" font-size="8"
@@ -328,17 +327,15 @@ export class UIRenderer {
 
     // Show the student's own recorded reading (not the computer's exact value)
     const studentInit = s.studentInitialReading ?? initial;
-    const initLabel = volAdded > 0.005
-      ? `<div class="info-row" style="padding:2px 12px;">
-           <span style="color:rgba(255,200,50,0.75);">Initial</span>
-           <span style="font-family:monospace;color:rgba(255,200,50,0.9);">${studentInit.toFixed(2)} mL</span>
-         </div>`
-      : '';
+    const initLabel = `<div class="info-row" style="padding:2px 12px;">
+         <span style="color:rgba(255,200,50,0.75);">Initial</span>
+         <span style="font-family:monospace;color:rgba(255,200,50,0.9);">${studentInit.toFixed(2)} mL</span>
+       </div>`;
 
     el.innerHTML = `
       <div class="panel-section-title" style="padding:8px 12px 4px;">Burette Reading</div>
       <div style="display:flex;justify-content:center;padding:6px 0;">
-        <svg width="${zW}" height="${zH}" viewBox="0 0 ${zW} ${zH}"
+        <svg width="190" height="245" viewBox="0 0 ${zW} ${zH}"
              style="background:rgba(0,0,0,0.18);border-radius:4px;display:block;">
           <!-- Glass tube -->
           <rect x="28" y="0" width="14" height="${zH}"
@@ -419,6 +416,11 @@ export class UIRenderer {
   _renderResultsTable() {
     const host = document.getElementById('results-table-host');
     if (!host) return;
+    // Hide run data during active titration — students read the burette themselves
+    if (this.#controller.currentStage?.id === 'titrate') {
+      host.innerHTML = '';
+      return;
+    }
     const runs = this.#state.runs ?? [];
     if (runs.length === 0) {
       host.innerHTML = '<div style="color:var(--muted);font-size:11px;">No runs recorded yet.</div>';
@@ -575,9 +577,11 @@ export class UIRenderer {
         this._renderAll();
       }),
       this.#bus.on('runRecorded', () => {
-        this._renderResultsTable();
         this._renderControls();
-        this._switchTab('results');
+        if (this.#controller.currentStage?.id !== 'titrate') {
+          this._renderResultsTable();
+          this._switchTab('results');
+        }
       }),
       this.#bus.on('toast', ({ message, type }) => {
         this.toast(message, type ?? 'ok');

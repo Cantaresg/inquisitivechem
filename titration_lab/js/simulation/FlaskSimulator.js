@@ -176,12 +176,32 @@ export class FlaskSimulator {
         : Math.max(0, Math.min(1, (newPH - (pKin - 2)) / 2));
     }
 
+    // dropFlash: single-drop localized flash for indicators whose transition is
+    // too sharp for preEndpointT to show gradual colour (e.g. phenolphthalein).
+    // Fires when a drop causes a steep pH rise into the approach window.
+    let dropFlash = false;
+    if (this.#indicator?.flashNearEndpoint && !this.#isAtEndpoint && !this.#falseEndpointActive) {
+      const hist = this.#phHistory;
+      if (hist.length >= 2) {
+        const prevPH = hist[hist.length - 2].pH;
+        const pKin   = this.#indicator.pKin;
+        // How much did pH move toward pKin this tick?
+        const dpH = this.#titrantIsAcid ? (prevPH - newPH) : (newPH - prevPH);
+        // Only within ±3 pH of pKin and not already past it
+        const approaching = this.#titrantIsAcid
+          ? (newPH < pKin + 1 && newPH > pKin - 2)
+          : (newPH > pKin - 3 && newPH < pKin + 1);
+        if (dpH > 0.4 && approaching) dropFlash = true;
+      }
+    }
+
     this.#bus.emit('phUpdated', {
       pH:            newPH,
       color:         this.indicatorColor,
       volAdded:      this.#volAdded,
       preEndpointT,
       falseEndpoint: this.#falseEndpointActive,
+      dropFlash,
     });
 
     // ── Endpoint detection ────────────────────────────────────────────────
