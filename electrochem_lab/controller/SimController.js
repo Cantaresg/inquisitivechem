@@ -47,6 +47,7 @@ export class SimController {
     this._cathodeNode = null;
     this._isGalvanic  = false;
     this._reactionMode = 'v1';
+    this._lastAnimationKey = null;
 
     this._lastLoggedKey = null;
 
@@ -91,7 +92,7 @@ export class SimController {
 
   /** Select how electrode-position persistence should behave during reactions. */
   setReactionMode(mode) {
-    this._reactionMode = mode === 'v3' ? 'v3' : 'v1';
+    this._reactionMode = ['v1', 'v2', 'v3'].includes(mode) ? mode : 'v1';
     this._applyReactionLock();
   }
 
@@ -136,6 +137,7 @@ export class SimController {
       this._applyReactionLock();
       this._testPanel.disable();
       this._animLayer.stop();
+      this._lastAnimationKey = null;
       const hint = validity.errors.find(Boolean) ?? '';
       this._setStatus(
         hint || 'Assemble the circuit to run the simulation.',
@@ -154,6 +156,7 @@ export class SimController {
       this._applyReactionLock();
       this._testPanel.disable();
       this._animLayer.stop();
+      this._lastAnimationKey = null;
       this._setStatus('Select an electrolyte below to start the simulation.', 'status-hint');
       return;
     }
@@ -227,7 +230,18 @@ export class SimController {
     }
 
     this._applyReactionLock();
-    this._startAnimation(result);
+
+    const animationKey = this._buildAnimationKey(result);
+    const canReanchor = this._reactionMode === 'v2'
+      && this._animLayer.isRunning
+      && this._lastAnimationKey === animationKey;
+
+    if (canReanchor) {
+      this._updateAnimationAnchors();
+    } else {
+      this._startAnimation(result);
+      this._lastAnimationKey = animationKey;
+    }
   }
 
   _applyReactionLock() {
@@ -238,7 +252,39 @@ export class SimController {
     this._canvas.setReactionLock(shouldLock);
   }
 
+  _buildAnimationKey(result) {
+    return [
+      this._config.level,
+      this._electrolyte?.id ?? 'none',
+      Number(this._electrolyte?.concentration ?? 0).toFixed(3),
+      this._anodeNode?.data?.id ?? 'none',
+      this._cathodeNode?.data?.id ?? 'none',
+      result?.anodeProduct?.id ?? 'none',
+      result?.cathodeProduct?.id ?? 'none',
+    ].join('|');
+  }
+
   // ── Animation ───────────────────────────────────────────────────────────
+
+  _updateAnimationAnchors() {
+    const anodeNode   = this._canvas.nodes.get(this._anodeNode.id);
+    const cathodeNode = this._canvas.nodes.get(this._cathodeNode.id);
+    const beakerNode  = this._canvas.beakerNode;
+    if (!anodeNode || !cathodeNode || !beakerNode) return;
+
+    const anodeBot   = anodeNode.terminalPositions.get('rod_bottom');
+    const cathodeBot = cathodeNode.terminalPositions.get('rod_bottom');
+    if (!anodeBot || !cathodeBot) return;
+
+    this._animLayer.updateAnchors({
+      electrolyte: this._electrolyte,
+      anodeElectrode: this._anodeNode.data,
+      cathodeElectrode: this._cathodeNode.data,
+      anodePos: { x: anodeBot.x, y: anodeBot.y },
+      cathodePos: { x: cathodeBot.x, y: cathodeBot.y },
+      beakerBounds: beakerNode.getLiquidBoundsWorld(),
+    });
+  }
 
   _startAnimation(result) {
     // Resolve ElectrodeNode instances from the canvas nodes map

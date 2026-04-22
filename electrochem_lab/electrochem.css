@@ -604,52 +604,23 @@ kbd {
 }
 
 /* ── Beaker ──────────────────────────────────────────────────────────────── */
-.beaker-back-rim {
+.beaker-node {
+  transition: filter 0.2s ease;
+}
+.beaker-body-front {
   fill: none;
-  stroke: rgba(130, 144, 171, 0.28);
+  stroke: rgba(150, 216, 226, 0.95);
   stroke-width: 3;
   stroke-linecap: round;
-}
-.beaker-back-wall {
-  stroke: rgba(92, 105, 136, 0.34);
-}
-.beaker-glass-wall {
-  stroke: rgba(112, 127, 162, 0.94);
-}
-.beaker-top-lip {
-  fill: none;
-  stroke: rgba(142, 157, 192, 0.94);
-  stroke-width: 4;
-  stroke-linecap: round;
-}
-.beaker-glass-highlight {
-  fill: none;
-  stroke: rgba(206, 220, 247, 0.24);
-  stroke-linecap: round;
-}
-.beaker-glass-highlight-left,
-.beaker-glass-highlight-right {
-  stroke-width: 3;
-}
-.beaker-floor-line {
-  fill: none;
-  stroke: rgba(166, 183, 217, 0.22);
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-.beaker-meniscus {
-  fill: none;
-  stroke: rgba(226, 235, 251, 0.26);
-  stroke-width: 2;
-  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter:
+    drop-shadow(0 0 8px rgba(64, 212, 208, 0.42))
+    drop-shadow(0 0 16px rgba(92, 242, 170, 0.28));
+  transition: stroke 0.2s ease, filter 0.2s ease;
 }
 .beaker-liquid-fill {
   transition: opacity 0.18s ease;
-  fill-opacity: 0.16;
-}
-.beaker-liquid-sheen {
-  fill: rgba(240, 246, 255, 0.06);
-  opacity: 0.9;
+  fill-opacity: 0.18;
 }
 .beaker-electrolyte-label {
   font-family: 'DM Mono', monospace;
@@ -657,25 +628,14 @@ kbd {
   fill: rgba(214,225,247,0.72);
   text-anchor: middle;
 }
-.beaker-node.beaker-live .beaker-back-rim {
-  stroke: rgba(172, 188, 220, 0.38);
+.beaker-node.beaker-live .beaker-body-front {
+  stroke: rgba(178, 246, 227, 1);
+  filter:
+    drop-shadow(0 0 10px rgba(74, 226, 218, 0.66))
+    drop-shadow(0 0 24px rgba(118, 255, 188, 0.44));
 }
-.beaker-node.beaker-live .beaker-glass-wall {
-  stroke: rgba(152, 168, 201, 0.96);
-}
-.beaker-node.beaker-live .beaker-back-wall {
-  stroke: rgba(94, 111, 146, 0.42);
-}
-.beaker-node.beaker-live .beaker-top-lip {
-  stroke: rgba(170, 187, 220, 0.96);
-}
-.beaker-node.beaker-live .beaker-glass-highlights .beaker-glass-highlight,
-.beaker-node.beaker-live .beaker-floor-line,
-.beaker-node.beaker-live .beaker-meniscus {
-  stroke: rgba(222, 232, 250, 0.48);
-}
-.beaker-node.beaker-live .beaker-liquid-sheen {
-  fill: rgba(245, 251, 255, 0.1);
+.beaker-node.beaker-live {
+  filter: none;
 }
 
 /* ── Shared node styles ──────────────────────────────────────────────────── */

@@ -54,7 +54,7 @@ export const HALF_CELL_PAIRS = [
     ionId:       'Ag+',
     E0:          +0.80,
     defaultConc: 1.0,
-    colour:      'rgba(200,220,255,0.25)',
+    colour:      'rgba(188,198,212,0.30)',
   },
 ];
 

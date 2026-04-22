@@ -56,7 +56,7 @@ export const ELECTROLYTE_DB = {
     anions:         [{ ionId: 'Cl-', stoichFactor: 1 }],
     concentration:  1.0,
     isConcentrated: false,
-    colour:         'rgba(200,220,255,0.10)',   // near-colourless
+    colour:         'rgba(186,196,210,0.18)',   // near-colourless, slight grey tint
     pH:             7.0,
     level:          'O_LEVEL',
     description:    'Dilute NaCl. H₂ at cathode; O₂ at anode (Cl⁻ not discharged preferentially).',
@@ -70,7 +70,7 @@ export const ELECTROLYTE_DB = {
     anions:         [{ ionId: 'Cl-', stoichFactor: 1 }],
     concentration:  4.0,
     isConcentrated: true,            // [Cl⁻] > 2 mol dm⁻³
-    colour:         'rgba(200,220,255,0.14)',
+    colour:         'rgba(182,194,208,0.22)',
     pH:             7.0,
     level:          'O_LEVEL',
     description:    'Concentrated NaCl. H₂ at cathode; Cl₂ at anode (Cl⁻ preferentially discharged).',
@@ -98,7 +98,7 @@ export const ELECTROLYTE_DB = {
     anions:         [{ ionId: 'OH-', stoichFactor: 1 }],
     concentration:  1.0,
     isConcentrated: false,
-    colour:         'rgba(200,220,255,0.08)',   // colourless
+    colour:         'rgba(190,200,214,0.16)',   // colourless, slight grey tint
     pH:             14.0,
     level:          'O_LEVEL',
     description:    'Alkaline NaOH. H₂ at cathode; O₂ at anode.',
@@ -128,7 +128,7 @@ export const ELECTROLYTE_DB = {
     anions:         [{ ionId: 'NO3-', stoichFactor: 1 }],
     concentration:  0.5,
     isConcentrated: false,
-    colour:         'rgba(200,220,255,0.10)',   // colourless
+    colour:         'rgba(188,198,212,0.18)',   // colourless, slight grey tint
     pH:             6.5,
     level:          'A_LEVEL',
     description:    'Ag⁺ deposits at cathode; O₂ at anode (NO₃⁻ not discharged). (A-Level)',

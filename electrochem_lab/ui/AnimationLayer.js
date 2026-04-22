@@ -142,6 +142,31 @@ export class AnimationLayer {
     if (this._debugListener) this._emitIdleDebug();
   }
 
+  /** Whether an animation loop is currently active. */
+  get isRunning() {
+    return this._running;
+  }
+
+  /**
+   * Re-anchor active animation to new electrode/beaker geometry without reset.
+   * Used by reaction mode v2 to preserve progress while electrodes move.
+   */
+  updateAnchors({
+    electrolyte,
+    anodeElectrode,
+    cathodeElectrode,
+    anodePos,
+    cathodePos,
+    beakerBounds,
+  }) {
+    this._electrolyte      = electrolyte ?? this._electrolyte;
+    this._anodeElectrode   = anodeElectrode ?? this._anodeElectrode;
+    this._cathodeElectrode = cathodeElectrode ?? this._cathodeElectrode;
+    if (anodePos) this._anodePos = anodePos;
+    if (cathodePos) this._cathodePos = cathodePos;
+    if (beakerBounds) this._beakerBounds = normaliseBeakerBounds(beakerBounds);
+  }
+
   /** Download the current phase-one debug trace as CSV. */
   downloadDebugTrace() {
     if (this._debugHistory.length === 0) return false;
