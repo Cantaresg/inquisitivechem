@@ -780,6 +780,12 @@ export class BenchUI {
     this._slots[idx] = null;
   }
 
+  /** Remove all vessels from the bench silently (no confirmation). */
+  clearAll() {
+    const ids = this._slots.filter(Boolean).map(s => s.vessel.id);
+    for (const id of ids) this._removeVessel(id);
+  }
+
   /**
    * Decay gas pressure on all occupied vessels each animation frame.
    * Calls tickGasPressure on solution, then updates gas indicator only

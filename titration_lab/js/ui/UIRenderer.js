@@ -362,9 +362,9 @@ export class UIRenderer {
     const stage = this.#controller.currentStage;
     if (!stage) return;
 
-    // Update title + instructions
-    const titleEl = document.getElementById('stage-title');
-    const instrEl = document.getElementById('stage-instructions');
+    // Collapse/restore side panels for stages that need full width
+    const mainEl = document.getElementById('main');
+    if (mainEl) mainEl.classList.toggle('wide-stage', !!stage.wideLayout);
 
     // Destroy old sub-renderers if switching away from titrate
     if (stage.id !== 'titrate') this._destroySubRenderers();

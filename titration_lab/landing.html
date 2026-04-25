@@ -640,8 +640,11 @@ function refreshAction() {
     $('action-meta').textContent = '';
   }
 
-  // Seed custom setup link
-  if (preset) SessionConfig.save(preset);
+  // Seed custom setup link (include subType so SetupStage can filter chemicals)
+  if (preset) SessionConfig.save({
+    ...preset,
+    subType: selLevel === 'foundation' ? null : selSub,
+  });
 }
 
 // ── STEP 1: Level selection ────────────────────────────────────
@@ -711,7 +714,10 @@ $('btn-start').addEventListener('click', () => {
   const preset = currentPreset();
   if (!preset) return;
   const presetKey = selLevel === 'foundation' ? 'foundation' : selSub;
-  SessionConfig.save(randomiseConcs(presetKey, preset));
+  SessionConfig.save({
+    ...randomiseConcs(presetKey, preset),
+    subType: selLevel === 'foundation' ? null : selSub,
+  });
   location.href = 'lab.html';
 });
 

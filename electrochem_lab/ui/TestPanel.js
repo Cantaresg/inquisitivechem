@@ -335,8 +335,8 @@ export class TestPanel {
         <span class="phase-debug-mode-note">V2 active</span>
       </div>
       <div class="phase-debug-mode-buttons" role="group" aria-label="Reaction persistence mode">
-        <button type="button" class="phase-debug-mode-btn active" data-mode="v1">V1 Current</button>
-        <button type="button" class="phase-debug-mode-btn" data-mode="v2">V2 Follow</button>
+        <button type="button" class="phase-debug-mode-btn" data-mode="v1">V1 Current</button>
+        <button type="button" class="phase-debug-mode-btn active" data-mode="v2">V2 Follow</button>
         <button type="button" class="phase-debug-mode-btn" data-mode="v3">V3 Lock</button>
       </div>
       <div class="phase-debug-empty">V1 restarts growth on topology changes. V2 preserves growth and follows electrode movement. V3 locks electrode positions once a valid reaction is running.</div>

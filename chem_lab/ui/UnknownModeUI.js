@@ -61,6 +61,50 @@ function _wouldPrecipitate(a, b) {
   return false;
 }
 
+/** Fast reagent lookup by id — used during answer checking. */
+const _REAGENT_BY_ID = new Map(REAGENTS.map(r => [r.id, r]));
+
+// Na⁺ and K⁺ have no reliable bench test (flame test only) so they are
+// excluded from the identification list.
+const _CATION_EXCLUDE = new Set(['Na+', 'K+']);
+
+/** All testable cation symbols appearing across UNKNOWN_POOL (sorted). */
+const _ALL_CATIONS = [...new Set(UNKNOWN_POOL.flatMap(r => _cations(r)))]
+  .filter(c => !_CATION_EXCLUDE.has(c))
+  .sort();
+/** All anion symbols appearing across UNKNOWN_POOL (sorted). */
+const _ALL_ANIONS  = [...new Set(UNKNOWN_POOL.flatMap(r => _anions(r)))].sort();
+
+/**
+ * Format a raw ion symbol using unicode sub/superscripts.
+ * 'SO4²-' → 'SO₄²⁻',  'NH4+' → 'NH₄⁺',  'Fe3+' → 'Fe³⁺'
+ */
+function _fmtIon(sym) {
+  const SUBS = '₀₁₂₃₄₅₆₇₈₉';
+  // Longest charge suffix first to avoid partial matches (e.g. '3+' before '+').
+  const CHARGES = [['3+', '³⁺'], ['2+', '²⁺'], ['²-', '²⁻'], ['+', '⁺'], ['-', '⁻']];
+  for (const [raw, pretty] of CHARGES) {
+    if (sym.endsWith(raw)) {
+      const formula = sym.slice(0, -raw.length);
+      const fmtFormula = formula.replace(/\d+/g, n => [...n].map(d => SUBS[+d]).join(''));
+      return fmtFormula + pretty;
+    }
+  }
+  return sym;
+}
+
+/**
+ * Canonical sorted, comma-joined string of every ion present across one or
+ * more reagents.  Used as the answer key so that any chemical combination
+ * that produces the same ion set is accepted as correct.
+ * e.g. NaCl + Ca(NO3)₂  ≡  NaNO3 + CaCl2  → "Ca2+,Cl-,NO3-,Na+"
+ */
+function _ionKey(...reagents) {
+  const ions = new Set();
+  for (const r of reagents) for (const ion of Object.keys(r.ions ?? {})) ions.add(ion);
+  return [...ions].sort().join(',');
+}
+
 function _pick(pool) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -267,28 +311,15 @@ export class UnknownModeUI {
     this._stockPanel.hidden = false;
   }
 
-  /** Build one guess row per answer — shown in the right panel and mirrored in the modal. */
+  /** Build one ion-identification block per answer — shown in the right panel and mirrored in the modal. */
   _buildGuessSection() {
-    this._guessSec.innerHTML      = '';
+    this._guessSec.innerHTML       = '';
     this._guessPanelBody.innerHTML = '';
-    const sortedPool = [...UNKNOWN_POOL].sort((a, b) => a.label.localeCompare(b.label));
 
     for (const answer of this._answers) {
-      // For mixed unknowns, show two rows and tag them so _checkGuesses can
-      // do order-independent matching across the pair.
-      const mixedAnswers = answer.reagentA
-        ? [answer.reagentA.id, answer.reagentB.id].sort().join(',')
-        : null;
-      const slots = answer.reagentA
-        ? [{ label: `${answer.label} — Salt 1`, reagent: answer.reagentA, mixedAnswers },
-           { label: `${answer.label} — Salt 2`, reagent: answer.reagentB, mixedAnswers }]
-        : [{ label: answer.label, reagent: answer.reagent }];
-
-      for (const slot of slots) {
-        const row = this._buildGuessRow(slot, sortedPool);
-        this._guessPanelBody.appendChild(row);
-        this._guessSec.appendChild(row.cloneNode(true));
-      }
+      const block = this._buildIonBlock(answer);
+      this._guessPanelBody.appendChild(block);
+      this._guessSec.appendChild(block.cloneNode(true));
     }
 
     // Check button in the right panel
@@ -312,93 +343,90 @@ export class UnknownModeUI {
   }
 
   /** @private */
-  _buildGuessRow(slot, sortedPool) {
-    const row = document.createElement('div');
-    row.className = 'unknown-guess-row';
+  _buildIonBlock(answer) {
+    const reagents   = answer.reagentA ? [answer.reagentA, answer.reagentB] : [answer.reagent];
+    const answerIons = new Set(_ionKey(...reagents).split(',').filter(Boolean));
 
-    const lbl = document.createElement('span');
-    lbl.className   = 'unknown-guess-label';
-    lbl.textContent = slot.label + ':';
+    const block = document.createElement('div');
+    block.className          = 'unknown-ion-block';
+    block.dataset.answerIons = [...answerIons].sort().join(',');
 
-    const sel = document.createElement('select');
-    sel.className = 'unknown-guess-select';
-    sel.setAttribute('aria-label', `Your guess for ${slot.label}`);
-    sel.dataset.answerId = slot.reagent.id;
-    if (slot.mixedAnswers) sel.dataset.mixedAnswers = slot.mixedAnswers;
+    const title = document.createElement('div');
+    title.className   = 'unknown-ion-title';
+    title.textContent = answer.label + ' — ions present:';
+    block.appendChild(title);
 
-    const placeholder = document.createElement('option');
-    placeholder.value       = '';
-    placeholder.textContent = '— select —';
-    placeholder.disabled    = true;
-    placeholder.selected    = true;
-    sel.appendChild(placeholder);
-
-    for (const r of sortedPool) {
-      const opt = document.createElement('option');
-      opt.value       = r.id;
-      opt.textContent = r.label;
-      sel.appendChild(opt);
+    if (answerIons.size === 0) {
+      const note = document.createElement('div');
+      note.className   = 'unknown-ion-fallback';
+      note.textContent = 'Solid — identify by physical tests';
+      block.appendChild(note);
+      return block;
     }
 
-    const result = document.createElement('span');
-    result.className = 'unknown-guess-result';
-
-    sel.addEventListener('change', () => {
-      result.textContent = '';
-      result.className   = 'unknown-guess-result';
-    });
-
-    row.append(lbl, sel, result);
-    return row;
+    block.appendChild(this._buildIonGroup('Cations', _ALL_CATIONS, answerIons));
+    block.appendChild(this._buildIonGroup('Anions',  _ALL_ANIONS,  answerIons));
+    return block;
   }
 
-  /** @param {HTMLElement} container — the panel or modal section to read rows from */
+  /** @private */
+  _buildIonGroup(groupLabel, ionList, answerIons) {
+    const group = document.createElement('div');
+    group.className = 'unknown-ion-group';
+
+    const lbl = document.createElement('span');
+    lbl.className   = 'unknown-ion-group-label';
+    lbl.textContent = groupLabel + ':';
+    group.appendChild(lbl);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'unknown-ion-items';
+
+    for (const ion of ionList) {
+      const item = document.createElement('label');
+      item.className = 'unknown-ion-item';
+
+      const cb = document.createElement('input');
+      cb.type             = 'checkbox';
+      cb.dataset.ion      = ion;
+      cb.dataset.expected = answerIons.has(ion) ? '1' : '0';
+
+      const span = document.createElement('span');
+      span.textContent = _fmtIon(ion);
+
+      item.append(cb, span);
+      wrap.appendChild(item);
+    }
+
+    group.appendChild(wrap);
+    return group;
+  }
+
+  /** @param {HTMLElement} container — the panel or modal section to read ion blocks from */
   _checkGuesses(container) {
-    const rows = [...container.querySelectorAll('.unknown-guess-row')];
-    let allCorrect = true;
+    const blocks = [...container.querySelectorAll('.unknown-ion-block')];
+    let allCorrect  = true;
+    let hasAnyGuess = false;
 
-    // Group mixed-pair rows by their shared mixedAnswers key so they can be
-    // checked as a set (order-independent).
-    const mixedGroups = new Map(); // key → [{ sel, result }]
-    const singleRows  = [];
+    for (const block of blocks) {
+      const answerIons = new Set((block.dataset.answerIons || '').split(',').filter(Boolean));
+      if (answerIons.size === 0) continue;
 
-    for (const row of rows) {
-      const sel    = row.querySelector('.unknown-guess-select');
-      const result = row.querySelector('.unknown-guess-result');
-      const key    = sel.dataset.mixedAnswers;
-      if (key) {
-        if (!mixedGroups.has(key)) mixedGroups.set(key, []);
-        mixedGroups.get(key).push({ sel, result });
-      } else {
-        singleRows.push({ sel, result });
+      for (const item of block.querySelectorAll('.unknown-ion-item')) {
+        const cb       = item.querySelector('input[type=checkbox]');
+        const expected = answerIons.has(cb.dataset.ion);
+        const checked  = cb.checked;
+
+        item.classList.remove('correct', 'wrong', 'missed');
+        if (checked) hasAnyGuess = true;
+
+        if      (checked && expected)  item.classList.add('correct');
+        else if (checked && !expected) { item.classList.add('wrong');  allCorrect = false; }
+        else if (!checked && expected) { item.classList.add('missed'); allCorrect = false; }
       }
     }
 
-    // Single-unknown rows: exact positional match.
-    for (const { sel, result } of singleRows) {
-      if (!sel.value) { result.textContent = ''; continue; }
-      const correct = sel.value === sel.dataset.answerId;
-      result.textContent = correct ? '✓' : '✗';
-      result.className   = 'unknown-guess-result ' + (correct ? 'correct' : 'wrong');
-      if (!correct) allCorrect = false;
-    }
-
-    // Mixed-pair rows: set equality — both values must match the expected pair
-    // in any order.
-    for (const [key, entries] of mixedGroups) {
-      const selected = entries.map(e => e.sel.value).filter(Boolean).sort().join(',');
-      const pairCorrect = selected === key; // key is already sorted
-      for (const { sel, result } of entries) {
-        if (!sel.value) { result.textContent = ''; allCorrect = false; continue; }
-        // Mark each row correct only if the whole pair is correct.
-        result.textContent = pairCorrect ? '✓' : '✗';
-        result.className   = 'unknown-guess-result ' + (pairCorrect ? 'correct' : 'wrong');
-      }
-      if (!pairCorrect) allCorrect = false;
-    }
-
-    const hasAnyGuess = rows.some(r => r.querySelector('.unknown-guess-select').value);
-    if (hasAnyGuess && allCorrect) this._toast('All guesses correct!', 'info');
+    if (hasAnyGuess && allCorrect && blocks.length > 0) this._toast('All ions identified correctly!', 'info');
   }
 
   _toggleReveal() {
@@ -418,8 +446,9 @@ export class UnknownModeUI {
     btn.textContent = 'Hide Answer';
   }
 
-  /** Reset to setup state; does not remove vessels from the bench. */
+  /** Reset to setup state and clear all bench vessels. */
   _reset() {
+    this._bench.clearAll();
     this._answers = null;
     this._answerEl.hidden = true;
     this._answerEl.textContent = '';

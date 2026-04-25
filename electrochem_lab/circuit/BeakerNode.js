@@ -165,9 +165,11 @@ export class BeakerNode extends ComponentNode {
     g.appendChild(bodyFront);
 
     // ── Electrolyte label inside beaker ──────────────────────────────
+    // Keep it around mid-liquid so top/bottom molten metal layers do not occlude it.
+    const labelY = Math.round(LIQ_Y_TOP + (LIQ_Y_BOTTOM - LIQ_Y_TOP) * 0.52);
     const eLabel = document.createElementNS(SVG_NS, 'text');
     eLabel.setAttribute('x', 0);
-    eLabel.setAttribute('y', bh - 20);
+    eLabel.setAttribute('y', labelY);
     eLabel.classList.add('beaker-electrolyte-label');
     eLabel.textContent = '';
     g.appendChild(eLabel);

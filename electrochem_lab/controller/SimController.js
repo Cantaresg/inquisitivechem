@@ -46,8 +46,9 @@ export class SimController {
     this._anodeNode   = null;
     this._cathodeNode = null;
     this._isGalvanic  = false;
-    this._reactionMode = 'v1';
+    this._reactionMode = 'v2';
     this._lastAnimationKey = null;
+    this._pendingInvalidStopId = null;
 
     this._lastLoggedKey = null;
 
@@ -88,6 +89,7 @@ export class SimController {
    */
   onTestResult(testResult) {
     this._obsPanel.appendTestResult(testResult);
+    this._animLayer.playTestAnimation?.(testResult);
   }
 
   /** Select how electrode-position persistence should behave during reactions. */
@@ -123,12 +125,21 @@ export class SimController {
     this._canvas.setLive(validity.isValid);
 
     if (validity.isValid) {
+      this._cancelPendingInvalidStop();
       this._canvas.setPolarity(validity.anode.id, validity.cathode.id);
       this._anodeNode   = validity.anode;
       this._cathodeNode = validity.cathode;
       this._isGalvanic  = validity.isGalvanic;
       this._run();
     } else {
+      const shouldDebounceStop = this._reactionMode === 'v2' && this._animLayer.isRunning;
+      if (shouldDebounceStop) {
+        this._scheduleInvalidStop();
+        this._setStatus('Repositioning electrode… keep both rods immersed and wired to continue.', 'status-hint');
+        return;
+      }
+
+      this._cancelPendingInvalidStop();
       this._anodeNode   = null;
       this._cathodeNode = null;
       this._isGalvanic  = false;
@@ -144,6 +155,29 @@ export class SimController {
         'status-hint',
       );
     }
+  }
+
+  _scheduleInvalidStop() {
+    if (this._pendingInvalidStopId !== null) return;
+    this._pendingInvalidStopId = window.setTimeout(() => {
+      this._pendingInvalidStopId = null;
+      this._anodeNode   = null;
+      this._cathodeNode = null;
+      this._isGalvanic  = false;
+      this._lastResult  = null;
+      this._canvas.setPolarity(null, null);
+      this._applyReactionLock();
+      this._testPanel.disable();
+      this._animLayer.stop();
+      this._lastAnimationKey = null;
+      this._setStatus('Assemble the circuit to run the simulation.', 'status-hint');
+    }, 320);
+  }
+
+  _cancelPendingInvalidStop() {
+    if (this._pendingInvalidStopId === null) return;
+    window.clearTimeout(this._pendingInvalidStopId);
+    this._pendingInvalidStopId = null;
   }
 
   // ── Engine run ──────────────────────────────────────────────────────────
@@ -280,6 +314,9 @@ export class SimController {
       electrolyte: this._electrolyte,
       anodeElectrode: this._anodeNode.data,
       cathodeElectrode: this._cathodeNode.data,
+      anodeNodeId: this._anodeNode.id,
+      cathodeNodeId: this._cathodeNode.id,
+      batteryEnabled: this._canvas.batteryEnabled,
       anodePos: { x: anodeBot.x, y: anodeBot.y },
       cathodePos: { x: cathodeBot.x, y: cathodeBot.y },
       beakerBounds: beakerNode.getLiquidBoundsWorld(),
@@ -321,6 +358,9 @@ export class SimController {
       electrolyte: this._electrolyte,
       anodeElectrode: this._anodeNode.data,
       cathodeElectrode: this._cathodeNode.data,
+      anodeNodeId: this._anodeNode.id,
+      cathodeNodeId: this._cathodeNode.id,
+      batteryEnabled: this._canvas.batteryEnabled,
       anodePos:   { x: anodeBot.x,   y: anodeBot.y   },
       cathodePos: { x: cathodeBot.x, y: cathodeBot.y },
       beakerBounds: beakerNode.getLiquidBoundsWorld(),

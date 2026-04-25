@@ -214,6 +214,30 @@ nav {
 .badge-reactive { background: rgba(77,240,176,0.08);  color: var(--accent);   border: 1px solid rgba(77,240,176,0.25); }
 .badge-fixed    { background: transparent; color: var(--text-dim); border: 1px solid var(--panel-border); }
 
+.battery-flip-btn {
+  width: 100%;
+  margin-top: 2px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-mid);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.battery-flip-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(77,240,176,0.06);
+}
+.battery-flip-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* Hint text */
 .panel-hint {
   font-size: 0.72rem;
@@ -531,11 +555,31 @@ kbd {
 .battery-pole-label {
   font-family: 'DM Mono', monospace;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   text-anchor: middle;
+  paint-order: stroke fill;
+  stroke: rgba(6, 10, 18, 0.95);
+  stroke-width: 1.8;
 }
 .pole-pos { fill: var(--accent); }
 .pole-neg { fill: var(--danger); }
+.battery-terminal-pos {
+  fill: rgba(86, 250, 191, 0.98);
+  stroke: rgba(3, 8, 14, 0.9);
+  stroke-width: 2.2;
+}
+.battery-terminal-neg {
+  fill: rgba(255, 116, 116, 0.98);
+  stroke: rgba(3, 8, 14, 0.9);
+  stroke-width: 2.2;
+}
+
+@keyframes ltWispRise {
+  0%   { transform: translateY(0); opacity: 0; }
+  25%  { opacity: 0.45; }
+  80%  { opacity: 0.22; }
+  100% { transform: translateY(-28px); opacity: 0; }
+}
 
 /* ── Electrode ───────────────────────────────────────────────────────────── */
 .electrode-rod {
@@ -548,16 +592,28 @@ kbd {
   font-size: 16px;
   font-weight: 500;
   fill: var(--text);
+  text-rendering: geometricPrecision;
+  paint-order: stroke fill;
+  stroke: rgba(6, 10, 18, 0.9);
+  stroke-width: 0.7;
 }
 .electrode-name-label {
   font-family: 'DM Sans', sans-serif;
-  font-size: 9px;
+  font-size: 10px;
   fill: var(--text-dim);
+  text-rendering: geometricPrecision;
+  paint-order: stroke fill;
+  stroke: rgba(6, 10, 18, 0.9);
+  stroke-width: 0.45;
 }
 .polarity-label {
   font-family: 'DM Mono', monospace;
   font-size: 9px;
   fill: var(--accent);
+  text-rendering: geometricPrecision;
+  paint-order: stroke fill;
+  stroke: rgba(6, 10, 18, 0.9);
+  stroke-width: 0.45;
   /* hidden by default — revealed when #circuit-svg has .show-polarity */
   display: none;
 }
@@ -598,6 +654,11 @@ kbd {
   border-color: var(--accent);
   color: var(--accent);
   background: rgba(77,240,176,0.08);
+}
+.flow-toggle-btn[aria-pressed="true"] {
+  border-color: rgba(96, 192, 255, 0.8);
+  color: #9dd8ff;
+  background: rgba(96, 192, 255, 0.12);
 }
 .electrode-node.electrode-submerged .electrode-rod {
   filter: drop-shadow(0 0 4px var(--accent));
@@ -655,6 +716,8 @@ kbd {
   cursor: crosshair;
   transition: fill 0.15s;
 }
+.terminal-dot.battery-terminal-pos { fill: rgba(86, 250, 191, 0.98); }
+.terminal-dot.battery-terminal-neg { fill: rgba(255, 116, 116, 0.98); }
 .terminal-dot:hover { fill: var(--terminal-hover); }
 .terminal-dot.terminal-connected { fill: var(--terminal-conn); }
 

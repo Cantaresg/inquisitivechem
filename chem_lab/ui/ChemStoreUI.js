@@ -179,6 +179,7 @@ export class ChemStoreUI {
   _buildReagentItem(reagent) {
     const item = document.createElement('div');
     item.className = 'store-item';
+    item.dataset.reagentId = reagent.id;
     item.setAttribute('role', 'button');
     item.setAttribute('tabindex', '0');
     // textContent only — label comes from data (TRAP-10)
@@ -204,6 +205,26 @@ export class ChemStoreUI {
     });
 
     return item;
+  }
+
+  /**
+   * Restrict the store to a set of allowed reagent IDs.
+   * Subcategories and categories with no visible items are hidden automatically.
+   * Pass null to restore all items.
+   * @param {Set<string>|null} allowedIds
+   */
+  filter(allowedIds) {
+    for (const item of this._treeEl.querySelectorAll('.store-item')) {
+      item.hidden = allowedIds !== null && !allowedIds.has(item.dataset.reagentId);
+    }
+    for (const sub of this._treeEl.querySelectorAll('.store-subcategory')) {
+      const hasVisible = [...sub.querySelectorAll('.store-item')].some(i => !i.hidden);
+      sub.hidden = !hasVisible;
+    }
+    for (const cat of this._catEls) {
+      const hasVisible = [...cat.querySelectorAll('.store-subcategory')].some(s => !s.hidden);
+      cat.hidden = !hasVisible;
+    }
   }
 }
 

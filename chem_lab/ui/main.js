@@ -22,6 +22,7 @@ import { BenchUI }          from './BenchUI.js';
 import { ChemStoreUI }      from './ChemStoreUI.js';
 import { TestBarUI }        from './TestBarUI.js';
 import { UnknownModeUI }    from './UnknownModeUI.js';
+import { StudentSession }   from './StudentSession.js';
 
 // ─── Toast helper ────────────────────────────────────────────────────────────
 
@@ -79,14 +80,14 @@ export const benchUI = new BenchUI(
 
 // ─── 5. ChemStoreUI ──────────────────────────────────────────────────────────
 
-new ChemStoreUI(
+const chemStore = new ChemStoreUI(
   document.getElementById('chem-store-tree'),
   dragDropManager,
 );
 
 // ─── 6. TestBarUI ────────────────────────────────────────────────────────────
 
-new TestBarUI(
+const testBar = new TestBarUI(
   document.getElementById('test-bar'),
   animManager,
   obsLog,
@@ -102,6 +103,10 @@ benchUI.setToolButtons(document.querySelectorAll('.tool-btn'));
 // ─── 8. Unknown Mode ─────────────────────────────────────────────────────────
 
 new UnknownModeUI(benchUI, showToast, dragDropManager);
+
+// ─── 9. Student session ──────────────────────────────────────────────────────
+
+new StudentSession(chemStore, testBar, showToast);
 
 // ─── 9. Gas pressure decay loop ─────────────────────────────────────────────
 // Drives tickGasPressure so dissolved gases slowly dissipate over ~27 s.

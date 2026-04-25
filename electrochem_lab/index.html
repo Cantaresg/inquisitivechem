@@ -13,11 +13,10 @@
 
   <!-- ── Nav ──────────────────────────────────────────────────────────────── -->
   <nav>
-    <a class="nav-logo" href="../../website/index.html">Inquisitive<span>Chemistry</span></a>
+    <a class="nav-logo" href="../index.html">Inquisitive<span>Chemistry</span></a>
     <ul class="nav-links">
-      <li><a href="../../website/index.html#simulations">Simulations</a></li>
-      <li><a href="../../website/index.html#teachers">For Teachers</a></li>
-      <li><a class="nav-cta" href="../../website/index.html#feedback">FEEDBACK</a></li>
+      <li><a href="../../website/index.html#subjects">Simulations</a></li>
+      <li><a class="nav-cta" href="../../website/index.html#contact">FEEDBACK</a></li>
     </ul>
   </nav>
 
@@ -45,6 +44,10 @@
           <span class="comp-symbol" style="color:#4df0b0">⚡</span>
           <span class="comp-name">DC Battery</span>
           <span class="comp-badge badge-fixed" id="battery-badge">Included</span>
+        </button>
+        <button id="battery-flip" class="battery-flip-btn"
+                type="button" title="Flip the battery polarity (+/−)">
+          Flip polarity
         </button>
       </div>
 
@@ -87,6 +90,11 @@
                aria-live="polite" aria-atomic="true">
             Assemble the circuit to run the simulation.
           </div>
+          <button id="flow-toggle" class="polarity-toggle-btn flow-toggle-btn"
+                  type="button" aria-pressed="false"
+                  title="Show/hide electron and ion flow hints">
+            Show flow
+          </button>
           <button id="polarity-toggle" class="polarity-toggle-btn"
                   type="button" aria-pressed="false"
                   title="Show/hide anode and cathode labels">

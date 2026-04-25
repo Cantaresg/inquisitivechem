@@ -79,36 +79,87 @@ export class SetupStage extends Stage {
 
   // ── Phase 4: UI rendering ─────────────────────────────────────────────────
 
+  /**
+   * Allowed chemicals per titrant/analyte role for each sub-type.
+   * null filters (custom/O-level) show every chemical.
+   */
+  static #SUBTYPE_FILTERS = {
+    SA_SB:     {
+      titrant: c => c.type === 'base' && c.strong,
+      analyte: c => c.type === 'acid' && c.strong,
+      note: 'Strong acid–strong base. Only strong acids and strong bases are valid.',
+    },
+    WA_SB:     {
+      titrant: c => c.type === 'base' && c.strong,
+      analyte: c => c.type === 'acid' && !c.strong,
+      note: 'Weak acid–strong base. Strong base in burette, weak acid in flask.',
+    },
+    SA_WB:     {
+      titrant: c => c.type === 'acid' && c.strong,
+      analyte: c => c.type === 'base' && !c.strong && c.id !== 'na2co3',
+      note: 'Strong acid–weak base. Strong acid in burette, weak base in flask.',
+    },
+    Na2CO3_SA: {
+      titrant: c => c.type === 'acid' && c.strong,
+      analyte: c => c.id === 'na2co3',
+      note: 'Carbonate system. Strong acid in burette, Na₂CO₃ standard in flask.',
+    },
+  };
+
   renderArea(el) {
-    const s = this._state;
-    const chemicals  = [...ChemicalDB.all()];
-    const indicators = [...IndicatorDB.all()];
+    const s        = this._state;
+    const allChems = [...ChemicalDB.all()];
+    const allInds  = [...IndicatorDB.all()];
+
+    const filter   = SetupStage.#SUBTYPE_FILTERS[s.subType] ?? null;
+    const titrants = filter ? allChems.filter(filter.titrant) : allChems;
+    const analytes = filter ? allChems.filter(filter.analyte) : allChems;
+
+    // Indicators: when an analyte is selected, restrict to its indicator_ok list
+    const validIndIds = s.analyte?.indicator_ok ?? null;
+    const indicators  = validIndIds
+      ? allInds.filter(i => validIndIds.includes(i.id))
+      : allInds;
 
     const card = (chem, selected, action) =>
-      `<div class="setup-card ${selected ? 'selected' : ''}" data-action="${action}" data-id="${chem.id}" style="cursor:pointer;">
-        <h4><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chem.dot ?? 'var(--accent)'};margin-right:6px;vertical-align:middle;"></span>${chem.formula}</h4>
+      `<div class="setup-card ${selected ? 'selected' : ''}"
+            data-action="${action}" data-id="${chem.id}" style="cursor:pointer;">
+        <h4>
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;
+            background:${chem.dot ?? 'var(--accent)'};margin-right:6px;vertical-align:middle;"></span>
+          ${chem.formula}
+        </h4>
         <p>${chem.name} · ${chem.strong ? 'Strong' : 'Weak'} ${chem.type}</p>
       </div>`;
 
     const indCard = (ind, selected) =>
-      `<div class="setup-card ${selected ? 'selected' : ''}" data-action="indicator" data-id="${ind.id}" style="cursor:pointer;">
+      `<div class="setup-card ${selected ? 'selected' : ''}"
+            data-action="indicator" data-id="${ind.id}" style="cursor:pointer;">
         <h4><span class="ind-dot" style="background:${ind.alkCol}"></span>${ind.name}</h4>
         <p>${ind.desc ?? ''}</p>
       </div>`;
 
     el.innerHTML = `
-      <div style="width:100%;max-width:640px;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px;overflow-y:auto;max-height:100%;">
+      <div style="width:100%;max-width:660px;padding:20px;display:grid;grid-template-columns:1fr 1fr;
+                  gap:20px;overflow-y:auto;max-height:100%;">
         <div>
           <div class="panel-section-title">In Burette (Titrant)</div>
-          ${chemicals.map(c => card(c, s.titrant?.id === c.id, 'titrant')).join('')}
+          ${titrants.map(c => card(c, s.titrant?.id === c.id, 'titrant')).join('')}
         </div>
         <div>
           <div class="panel-section-title">In Flask (Analyte)</div>
-          ${chemicals.map(c => card(c, s.analyte?.id === c.id, 'analyte')).join('')}
+          ${analytes.map(c => card(c, s.analyte?.id === c.id, 'analyte')).join('')}
           <div class="panel-section-title" style="margin-top:14px;">Indicator</div>
           ${indicators.map(i => indCard(i, s.indicator?.id === i.id)).join('')}
+          ${validIndIds && indicators.length === 0
+            ? `<p style="font-size:11px;color:var(--muted);">No suitable indicator — select an analyte first.</p>`
+            : ''}
         </div>
-      </div>`;
+      </div>
+      ${filter
+        ? `<div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;
+                       font-size:10px;color:var(--muted);">${filter.note}</div>`
+        : ''}`;
 
     el.querySelectorAll('[data-action]').forEach(cardEl => {
       cardEl.addEventListener('click', () => {

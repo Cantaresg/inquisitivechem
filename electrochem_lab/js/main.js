@@ -93,7 +93,8 @@ try {
   canvas = new CircuitCanvas(svg);
 
   _step(2, 'AnimationLayer');
-  const animLayer = new AnimationLayer(circuitWrap);
+  const animLayer = new AnimationLayer(circuitWrap, { svgEl: svg });
+  animLayer.setCircuitCanvas(canvas);
 
   _step(3, 'ElectrolytePanel');
   electrolytePanel = new ElectrolytePanel({
@@ -141,8 +142,12 @@ try {
   bindLevelToggle();
   _step(9, 'bindBatteryToggle');
   bindBatteryToggle();
-  _step(10, 'bindPolarityToggle');
+  _step(10, 'bindBatteryFlip');
+  bindBatteryFlip();
+  _step(11, 'bindPolarityToggle');
   bindPolarityToggle();
+  _step(12, 'bindFlowToggle');
+  bindFlowToggle(animLayer);
   _done();
 } catch (err) {
   _dbg.style.color = '#ff6b6b';
@@ -171,12 +176,24 @@ function bindLevelToggle() {
 function bindBatteryToggle() {
   const btn   = document.getElementById('battery-toggle');
   const badge = document.getElementById('battery-badge');
+  const flipBtn = document.getElementById('battery-flip');
   if (!btn) return;
   btn.addEventListener('click', () => {
     const nowOn = btn.getAttribute('aria-pressed') !== 'true';
     btn.setAttribute('aria-pressed', String(nowOn));
     badge.textContent = nowOn ? 'Included' : 'Removed';
+    if (flipBtn) flipBtn.disabled = !nowOn;
     canvas?.setBatteryVisible(nowOn);
+  });
+}
+
+// ── Battery polarity flip ───────────────────────────────────────────────
+function bindBatteryFlip() {
+  const btn = document.getElementById('battery-flip');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    canvas?.flipBatteryPolarity?.();
+    showToast('Battery polarity flipped.');
   });
 }
 
@@ -190,6 +207,18 @@ function bindPolarityToggle() {
     btn.textContent = nowOn ? 'Hide labels' : 'Show labels';
     svg.classList.toggle('show-polarity', nowOn);
     compGroupEl.classList.toggle('show-labels', nowOn);
+  });
+}
+
+// ── Flow hint toggle ──────────────────────────────────────────────────────
+function bindFlowToggle(animLayer) {
+  const btn = document.getElementById('flow-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const nowOn = btn.getAttribute('aria-pressed') !== 'true';
+    btn.setAttribute('aria-pressed', String(nowOn));
+    btn.textContent = nowOn ? 'Hide flow' : 'Show flow';
+    animLayer?.setFlowHintsEnabled?.(nowOn);
   });
 }
 

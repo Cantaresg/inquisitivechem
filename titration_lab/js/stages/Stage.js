@@ -56,9 +56,11 @@ export class Stage {
 
   // ── Identity ──────────────────────────────────────────────────────────────
 
-  get id()         { return this.#id; }
-  get label()      { return this.#label; }
-  get isComplete() { return this.#isComplete; }
+  get id()          { return this.#id; }
+  get label()       { return this.#label; }
+  get isComplete()  { return this.#isComplete; }
+  /** Override to true in stages that want the side panels collapsed. */
+  get wideLayout()  { return false; }
 
   /** @protected — call when validate() confirms the stage criteria are fully met. */
   _markComplete() {

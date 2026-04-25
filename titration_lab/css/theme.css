@@ -140,6 +140,18 @@ strong { color: var(--text); font-weight: 700; }
   overflow: hidden;
 }
 
+/* Wide-layout stages collapse the side panels to give the centre full width */
+#main.wide-stage {
+  grid-template-columns: 0px 1fr 0px;
+}
+#main.wide-stage #left-panel,
+#main.wide-stage #right-panel {
+  width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+}
+
 /* Left panel */
 #left-panel {
   background: var(--surface);

@@ -130,6 +130,17 @@ export class TestBarUI {
     return ph;
   }
 
+  /**
+   * Restrict the test bar to a set of allowed test IDs.
+   * Pass null to restore all tests.
+   * @param {Set<string>|null} allowedIds
+   */
+  filter(allowedIds) {
+    for (const card of this._testBarEl.querySelectorAll('.test-tool')) {
+      card.hidden = allowedIds !== null && !allowedIds.has(card.dataset.testId);
+    }
+  }
+
   // ─── Drop handling ────────────────────────────────────────────────────────
 
   /**

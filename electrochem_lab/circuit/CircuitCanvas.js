@@ -47,6 +47,7 @@ export class CircuitCanvas {
 
     // Wire-draw cursor state for the SVG element
     this._drawMode = false;
+    this._batteryPolarityReversed = false;
 
     // Initialise fixed components after a frame so SVG has a real size
     requestAnimationFrame(() => this._initLayout());
@@ -156,6 +157,15 @@ export class CircuitCanvas {
   /** Whether the battery is currently visible/enabled. */
   get batteryEnabled() { return this._batteryEnabled !== false; }
 
+  /** Flip battery polarity and reroute connected wires to follow moved terminals. */
+  flipBatteryPolarity() {
+    if (!this.batteryNode) return;
+    this._batteryPolarityReversed = !this._batteryPolarityReversed;
+    this.batteryNode.setHorizontal(true, this._batteryPolarityReversed);
+    this._rerouteWiresForNode(this.batteryNode);
+    this._emitTopologyChange();
+  }
+
   // ── Layout initialisation ─────────────────────────────────────────────
 
   _initLayout() {
@@ -175,8 +185,10 @@ export class CircuitCanvas {
       id:               'battery',
       componentsLayer:  this._componentsLayer,
     });
+    const reversedPolarity = Math.random() < 0.5;
+    this._batteryPolarityReversed = reversedPolarity;
     this.batteryNode.moveTo(batX, batY);
-    this.batteryNode.setHorizontal(true);
+    this.batteryNode.setHorizontal(true, reversedPolarity);
 
     this.beakerNode = new BeakerNode({
       id:          'beaker',

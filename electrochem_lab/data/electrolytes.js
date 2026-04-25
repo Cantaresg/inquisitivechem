@@ -118,6 +118,51 @@ export const ELECTROLYTE_DB = {
     description:    'Blue-green solution. Cu²⁺ deposits at cathode; Cl₂ or O₂ at anode depending on [Cl⁻].',
   },
 
+  nacl_molten: {
+    id:             'nacl_molten',
+    name:           'Sodium chloride (molten)',
+    formula:        'NaCl(l)',
+    cations:        [{ ionId: 'Na+', stoichFactor: 1 }],
+    anions:         [{ ionId: 'Cl-', stoichFactor: 1 }],
+    concentration:  3.0,
+    isConcentrated: true,
+    isMolten:       true,
+    colour:         'rgba(255, 190, 120, 0.24)',
+    pH:             7.0,
+    level:          'O_LEVEL',
+    description:    'Molten NaCl. Na forms at cathode; Cl₂ forms at anode (no water present).',
+  },
+
+  pbbr2_molten: {
+    id:             'pbbr2_molten',
+    name:           'Lead(II) bromide (molten)',
+    formula:        'PbBr₂(l)',
+    cations:        [{ ionId: 'Pb2+', stoichFactor: 1 }],
+    anions:         [{ ionId: 'Br-', stoichFactor: 2 }],
+    concentration:  2.0,
+    isConcentrated: true,
+    isMolten:       true,
+    colour:         'rgba(255, 168, 116, 0.26)',
+    pH:             7.0,
+    level:          'A_LEVEL',
+    description:    'Molten PbBr₂. Pb forms at cathode; Br₂ forms at anode.',
+  },
+
+  zncl2_molten: {
+    id:             'zncl2_molten',
+    name:           'Zinc chloride (molten)',
+    formula:        'ZnCl₂(l)',
+    cations:        [{ ionId: 'Zn2+', stoichFactor: 1 }],
+    anions:         [{ ionId: 'Cl-', stoichFactor: 2 }],
+    concentration:  2.5,
+    isConcentrated: true,
+    isMolten:       true,
+    colour:         'rgba(255, 202, 138, 0.24)',
+    pH:             7.0,
+    level:          'O_LEVEL',
+    description:    'Molten ZnCl₂. Zn forms at cathode; Cl₂ forms at anode.',
+  },
+
   // ── A-Level electrolytes ──────────────────────────────────────────────
 
   agno3_aq: {
@@ -144,7 +189,10 @@ export const ELECTROLYTE_ORDER = [
   'h2so4_dil',
   'naoh_aq',
   'cucl2_aq',
+  'nacl_molten',
+  'zncl2_molten',
   'agno3_aq',
+  'pbbr2_molten',
 ];
 
 /** Returns all electrolyte records visible at the given curriculum level */

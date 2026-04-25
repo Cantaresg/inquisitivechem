@@ -14,11 +14,14 @@
 
   <!-- ── Nav ──────────────────────────────────────────────────────────────── -->
   <nav>
-    <a class="nav-logo" href="../../website/index.html">Inquisitive<span>Chemistry</span></a>
+    <a class="nav-logo" href="../index.html">Inquisitive<span>Chemistry</span></a>
     <ul class="nav-links">
-      <li><a href="../../website/index.html#simulations">Simulations</a></li>
-      <li><a href="../../website/index.html#teachers">For Teachers</a></li>
-      <li><a class="nav-cta" href="../../website/index.html#feedback">FEEDBACK</a></li>
+      <li><a href="../../website/index.html#subjects">Simulations</a></li>
+      <li><a href="../chem-lab-teacher.html">For Teachers</a></li>
+      <li><a class="nav-cta" href="../../website/index.html#contact">FEEDBACK</a></li>
+      <li><button id="join-session-btn" type="button" class="nav-join-btn">
+        Join Session
+      </button></li>
       <li><button id="debug-log-nav-btn" type="button" hidden
                   aria-expanded="false" aria-controls="debug-log-panel"
                   title="Toggle reaction debug log">🔬 Debug Log</button></li>
@@ -33,6 +36,16 @@
       <h1 id="lab-title-text">Virtual Chemistry Lab</h1>
       <span id="lab-title-badge" aria-hidden="true">A-Level / IGCSE</span>
       <span id="lab-version"    aria-hidden="true">v0.2</span>
+      <!-- Session info — shown when a session is active -->
+      <div id="session-info" hidden>
+        <span class="session-divider" aria-hidden="true">|</span>
+        <span id="session-code-badge" class="session-code"></span>
+        <button id="session-instructions-btn" type="button" class="session-instr-btn">
+          Instructions
+        </button>
+        <a id="session-docs-link" href="#" target="_blank" rel="noopener noreferrer"
+           class="session-docs-link" hidden>Google Docs →</a>
+      </div>
     </header>
 
     <!-- ── Left: chemical store ──────────────────────────────────────────── -->
@@ -182,6 +195,57 @@
 
   <!-- ── Screen-reader announcements (keyboard drag-drop) ──────────────────── -->
   <div id="aria-announce" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
+  <!-- ── Join session modal ────────────────────────────────────────────────── -->
+  <div id="join-modal" class="modal-overlay" hidden
+       role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
+    <div class="modal-box join-box">
+      <div class="join-header">
+        <h2 id="join-modal-title" class="join-title">Join a Classroom Session</h2>
+        <button id="join-modal-close" type="button" class="modal-close-x" aria-label="Close">✕</button>
+      </div>
+      <p class="join-sub">Enter the session code your teacher shared with you.</p>
+      <div class="join-fields">
+        <div class="field-group">
+          <label class="field-label" for="join-code">Session Code</label>
+          <input id="join-code" type="text" class="field-input field-mono"
+                 placeholder="e.g. CHEM-K7M2" maxlength="9"
+                 autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="join-name">Your Name</label>
+          <input id="join-name" type="text" class="field-input"
+                 placeholder="e.g. Tan Wei Ming" autocomplete="name">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="join-class">Your Class</label>
+          <input id="join-class" type="text" class="field-input"
+                 placeholder="e.g. 4A1" autocomplete="off">
+        </div>
+      </div>
+      <div id="join-error" class="join-error" hidden></div>
+      <div class="join-actions">
+        <button id="join-cancel" type="button" class="btn-secondary">Cancel</button>
+        <button id="join-submit" type="button" class="btn-primary">Join Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Instructions modal ────────────────────────────────────────────────── -->
+  <div id="instructions-modal" class="modal-overlay" hidden
+       role="dialog" aria-modal="true" aria-labelledby="instructions-modal-title">
+    <div class="modal-box instructions-box">
+      <div class="join-header">
+        <h2 id="instructions-modal-title" class="join-title">Activity Instructions</h2>
+        <button id="instructions-close" type="button" class="modal-close-x" aria-label="Close">✕</button>
+      </div>
+      <div id="instructions-body" class="instructions-body"></div>
+      <div id="instructions-questions" class="instructions-questions"></div>
+    </div>
+  </div>
+
+  <!-- ── Supabase (for session loading) ───────────────────────────────────── -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- ── Entry point ───────────────────────────────────────────────────────── -->
   <script type="module" src="ui/main.js"></script>

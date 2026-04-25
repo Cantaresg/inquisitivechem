@@ -99,6 +99,7 @@ export class TitrationLab {
       // Static config
       mode:        cfg.mode        ?? 'practice',
       level:       cfg.level       ?? 'o_level',
+      subType:     cfg.subType     ?? null,
       isOpenLab:   cfg.mode === 'openLab',
       titrant,
       analyte,
@@ -171,8 +172,11 @@ export class TitrationLab {
         ? [all.standard, all.pipette, all.burette, all.titrate, all.results]
         : [all.pipette, all.burette, all.titrate, all.results];
     } else {
-      // practice / openLab — SetupStage first; no StandardStage
-      list = [all.setup, all.pipette, all.burette, all.titrate, all.results];
+      // practice / openLab — SetupStage first.
+      // JC level adds StandardStage (weighing primary standard before pipetting).
+      list = (level === 'jc')
+        ? [all.setup, all.standard, all.pipette, all.burette, all.titrate, all.results]
+        : [all.setup, all.pipette, all.burette, all.titrate, all.results];
     }
 
     return list;

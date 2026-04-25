@@ -59,13 +59,10 @@ export class BatteryNode extends ComponentNode {
     body.classList.add('battery-body');
     g.appendChild(body);
 
-    // IEC battery lines (alternating long/short), centred on x=0
+    // IEC-like battery glyph: one short and one long plate pair.
     const lines = [
-      { y: -21, half: 18, cls: 'battery-line-long'  },
-      { y: -11, half: 10, cls: 'battery-line-short' },
-      { y:   0, half: 18, cls: 'battery-line-long'  },
-      { y: +11, half: 10, cls: 'battery-line-short' },
-      { y: +21, half: 18, cls: 'battery-line-long'  },
+      { y: -8, half: 10, cls: 'battery-line-short' },
+      { y: +8, half: 18, cls: 'battery-line-long'  },
     ];
     for (const { y, half, cls } of lines) {
       const ln = document.createElementNS(SVG_NS, 'line');
@@ -81,19 +78,6 @@ export class BatteryNode extends ComponentNode {
     dc.classList.add('battery-dc-label');
     dc.textContent = 'DC';
     g.appendChild(dc);
-
-    // + / − pole labels
-    const posLabel = document.createElementNS(SVG_NS, 'text');
-    posLabel.setAttribute('x', 0); posLabel.setAttribute('y', -BODY_H - 7);
-    posLabel.classList.add('battery-pole-label', 'pole-pos');
-    posLabel.textContent = '+';
-    g.appendChild(posLabel);
-
-    const negLabel = document.createElementNS(SVG_NS, 'text');
-    negLabel.setAttribute('x', 0); negLabel.setAttribute('y', BODY_H + 17);
-    negLabel.classList.add('battery-pole-label', 'pole-neg');
-    negLabel.textContent = '−';
-    g.appendChild(negLabel);
 
     // Lead lines from body to terminal pads
     for (const [sign, poleCls] of [[-1, 'lead-pos'], [+1, 'lead-neg']]) {
@@ -112,7 +96,16 @@ export class BatteryNode extends ComponentNode {
       pad.setAttribute('r',  9);
       pad.setAttribute('data-terminal', termId);
       pad.classList.add('terminal-dot');
+      pad.classList.add(termId === 'bat_pos' ? 'battery-terminal-pos' : 'battery-terminal-neg');
       g.appendChild(pad);
+
+      // Draw explicit polarity on top of each pad so random flips stay obvious.
+      const poleLabel = document.createElementNS(SVG_NS, 'text');
+      poleLabel.setAttribute('x', 0);
+      poleLabel.setAttribute('y', sign * termY + 4);
+      poleLabel.classList.add('battery-pole-label', termId === 'bat_pos' ? 'pole-pos' : 'pole-neg');
+      poleLabel.textContent = termId === 'bat_pos' ? '+' : '−';
+      g.appendChild(poleLabel);
     }
 
     // Fixed label below battery
@@ -133,16 +126,17 @@ export class BatteryNode extends ComponentNode {
   moveTo(x, y) {
     this._x = x;
     this._y = y;
-    const rot = this._horizontal ? ' rotate(-90)' : '';
+    const rot = this._horizontal ? ` rotate(${this._horizontalDeg ?? -90})` : '';
     this.svgGroup.setAttribute('transform', `translate(${x},${y})${rot}`);
     this.svgGroup.ownerSVGElement?.dispatchEvent(
       new CustomEvent('node:moved', { bubbles: false, detail: { node: this } })
     );
   }
 
-  /** Orient the battery horizontally (bat_pos left, bat_neg right). */
-  setHorizontal(on) {
+  /** Orient the battery horizontally. If reversed=true, bat_pos appears on the right. */
+  setHorizontal(on, reversed = false) {
     this._horizontal = !!on;
+    this._horizontalDeg = reversed ? 90 : -90;
     this.moveTo(this._x ?? 0, this._y ?? 0);
   }
 }

@@ -44,6 +44,7 @@ export class ElectrolysisResult {
    * @param {string|null} opts.anodeWinnerIonId
    * @param {number|null} opts.anodeE
    * @param {boolean}     opts.isReactiveAnode
+   * @param {boolean}     [opts.isMolten]
    * @param {import('./CurriculumConfig.js').CurriculumConfig} opts.config
    */
   constructor({
@@ -54,6 +55,7 @@ export class ElectrolysisResult {
     anodeWinnerIonId,
     anodeE,
     isReactiveAnode,
+    isMolten = false,
     config,
   }) {
     this.cathodeProduct       = cathodeProduct;
@@ -63,6 +65,7 @@ export class ElectrolysisResult {
     this.anodeWinnerIonId     = anodeWinnerIonId;
     this.anodeE               = anodeE;
     this.isReactiveAnode      = isReactiveAnode;
+    this.isMolten             = isMolten;
     this.config               = config;
   }
 
@@ -96,7 +99,10 @@ export class ElectrolysisResult {
     } else {
       // O-Level: word equations from ION_DB
       const catIon = ION_DB[this.cathodeWinnerIonId];
-      const catWord = catIon?.wordEquationReduction ?? this.cathodeProduct.observation;
+      let catWord = catIon?.wordEquationReduction ?? this.cathodeProduct.observation;
+      if (this.isMolten && this.cathodeWinnerIonId === 'Na+') {
+        catWord = 'sodium ions are reduced to sodium (liquid metal)';
+      }
 
       let anoWord;
       if (this.isReactiveAnode) {
@@ -144,6 +150,7 @@ export class ElectrolysisEngine {
       anodeWinnerIonId:   anoIonId,
       anodeE:             anoE,
       isReactiveAnode:    isReactive,
+      isMolten:           Boolean(electrolyte?.isMolten),
       config,
     });
   }
@@ -172,8 +179,8 @@ export class ElectrolysisEngine {
       candidates.push({ ionId, effectiveE: E + (ionData.overpotential ?? 0) });
     }
 
-    // 2. H⁺ — always implicitly present (from water auto-ionisation or acid)
-    {
+    // 2. H⁺ is only implicitly present in aqueous electrolytes.
+    if (!electrolyte.isMolten) {
       const hData = ION_DB['H+'];
       const Q     = NernstCalculator.qCation(hConc);
       const E     = NernstCalculator.calculateAt25C(
@@ -188,8 +195,14 @@ export class ElectrolysisEngine {
     candidates.sort((a, b) => b.effectiveE - a.effectiveE);
     const winner = candidates[0];
 
+    let productId = CATHODE_PRODUCT_BY_ION[winner.ionId] ?? 'h2_gas';
+    if (electrolyte.isMolten) {
+      const MOLTEN_MAP = { 'Na+': 'na_liquid', 'Pb2+': 'pb_liquid', 'Zn2+': 'zn_liquid' };
+      productId = MOLTEN_MAP[winner.ionId] ?? productId;
+    }
+
     return {
-      productId:  CATHODE_PRODUCT_BY_ION[winner.ionId] ?? 'h2_gas',
+      productId,
       winnerIonId: winner.ionId,
       effectiveE: winner.effectiveE,
     };
@@ -233,8 +246,8 @@ export class ElectrolysisEngine {
       candidates.push({ ionId, effectiveE: E + (ionData.overpotential ?? 0) });
     }
 
-    // 2. OH⁻ — always implicitly present (from water auto-ionisation)
-    {
+    // 2. OH⁻ is only implicitly present in aqueous electrolytes.
+    if (!electrolyte.isMolten) {
       const ohData = ION_DB['OH-'];
       const Q      = NernstCalculator.qAnion(ohConc, ohData.electronCount);
       const E      = NernstCalculator.calculateAt25C(

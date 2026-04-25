@@ -120,6 +120,60 @@ export const PRODUCT_DB = {
     },
   },
 
+  na_liquid: {
+    id:          'na_liquid',
+    name:        'Sodium (molten)',
+    formula:     'Na(l)',
+    state:       'liquid',
+    floats:      true,           // Na (~0.97 g/cm³) is less dense than molten NaCl (~1.56 g/cm³)
+    electrode:   'cathode',
+    colour:      '#d9e4ef',
+    observation: 'Silvery molten sodium metal floats on the surface of the melt.',
+    tests: {
+      litmus:         null,
+      glowingSplint:  null,
+      burningSplint:  null,
+      flameColour:    '#f8d74a',
+      smell:          null,
+    },
+  },
+
+  pb_liquid: {
+    id:          'pb_liquid',
+    name:        'Lead (molten)',
+    formula:     'Pb(l)',
+    state:       'liquid',
+    floats:      false,          // Pb (~10.5 g/cm³) is denser than molten PbBr₂ (~5.7 g/cm³)
+    electrode:   'cathode',
+    colour:      '#8590a0',
+    observation: 'Silvery liquid lead sinks to the bottom of the melt.',
+    tests: {
+      litmus:         null,
+      glowingSplint:  null,
+      burningSplint:  null,
+      flameColour:    null,
+      smell:          null,
+    },
+  },
+
+  zn_liquid: {
+    id:          'zn_liquid',
+    name:        'Zinc (molten)',
+    formula:     'Zn(l)',
+    state:       'liquid',
+    floats:      false,          // Zn (~6.6 g/cm³) is denser than molten ZnCl₂ (~2.5 g/cm³)
+    electrode:   'cathode',
+    colour:      '#9ba8b0',
+    observation: 'Silvery liquid zinc sinks to the bottom of the melt.',
+    tests: {
+      litmus:         null,
+      glowingSplint:  null,
+      burningSplint:  null,
+      flameColour:    null,
+      smell:          null,
+    },
+  },
+
   // ──────────────────────────────────────────────────────────────────────
   // ANODE PRODUCTS — oxidation of electrolyte ions (inert electrode)
   // ──────────────────────────────────────────────────────────────────────
@@ -437,4 +491,7 @@ export const PRODUCT_EQUATIONS = {
   ni_dissolve: { reduction: 'Ni²⁺(aq) + 2e⁻ → Ni(s)',                             oxidation: 'Ni(s) → Ni²⁺(aq) + 2e⁻',                     n: 2 },
   sn_dissolve: { reduction: 'Sn²⁺(aq) + 2e⁻ → Sn(s)',                             oxidation: 'Sn(s) → Sn²⁺(aq) + 2e⁻',                     n: 2 },
   pb_dissolve: { reduction: 'Pb²⁺(aq) + 2e⁻ → Pb(s)',                             oxidation: 'Pb(s) → Pb²⁺(aq) + 2e⁻',                     n: 2 },
+  na_liquid:   { reduction: 'Na⁺ + e⁻ → Na(l)',                                    oxidation: 'Na(l) → Na⁺ + e⁻',                            n: 1 },
+  pb_liquid:   { reduction: 'Pb²⁺(l) + 2e⁻ → Pb(l)',                               oxidation: 'Pb(l) → Pb²⁺(l) + 2e⁻',                       n: 2 },
+  zn_liquid:   { reduction: 'Zn²⁺(l) + 2e⁻ → Zn(l)',                               oxidation: 'Zn(l) → Zn²⁺(l) + 2e⁻',                       n: 2 },
 };
