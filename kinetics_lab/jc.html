@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kinetics Lab — JC/A-Level · InquisitiveChemistry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:#07090f; --surface:#0d1018; --surface2:#111520;
+  --border:#1e2535; --border2:#263045;
+  --accent:#4df0b0; --accent2:#38d49a;
+  --gold:#ffd166; --amber:#f4a261; --purple:#c77dff; --red:#ff6b6b; --blue:#4d9fff;
+  --text:#eef2ff; --text-mid:#a8b4d0; --text-dim:#5a6882;
+  --glow:rgba(77,240,176,0.1);
+}
+html { scroll-behavior:smooth; }
+body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; line-height:1.6; overflow-x:hidden; min-height:100vh; display:flex; flex-direction:column; }
+
+/* NAV */
+nav { position:fixed; top:0; left:0; right:0; z-index:200; display:flex; align-items:center; padding:0 32px; height:56px; background:rgba(7,9,15,0.95); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); gap:12px; }
+.nav-logo { font-family:'Instrument Serif',serif; font-size:1.05rem; color:var(--text); text-decoration:none; white-space:nowrap; }
+.nav-logo span { color:var(--accent); }
+.nav-crumb { display:flex; align-items:center; gap:6px; font-family:'DM Mono',monospace; font-size:0.65rem; color:var(--text-dim); }
+.nav-crumb .sep { color:var(--border2); }
+.nav-crumb .cur { color:var(--amber); }
+.nav-back { margin-left:auto; font-size:0.78rem; color:var(--text-dim); text-decoration:none; transition:color 0.2s; display:flex; align-items:center; gap:5px; }
+.nav-back:hover { color:var(--text); }
+
+/* ── LAYOUT ── */
+.jc-shell { display:grid; grid-template-columns:320px 1fr; grid-template-rows:1fr; height:calc(100vh - 56px); margin-top:56px; overflow:hidden; }
+.jc-left  { background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.jc-right { background:var(--bg); display:flex; flex-direction:column; overflow:hidden; }
+
+/* ── LEFT: MODULE TABS ── */
+.module-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
+.mtab {
+  flex:1; font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.05em;
+  padding:10px 4px; text-align:center; color:var(--text-dim); cursor:pointer;
+  border-bottom:2px solid transparent; transition:all 0.2s; background:none;
+  border-top:none; border-left:none; border-right:none;
+}
+.mtab:hover { color:var(--text-mid); }
+.mtab.active { color:var(--amber); border-bottom-color:var(--amber); }
+
+.module-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
+.module-body::-webkit-scrollbar { width:4px; }
+.module-body::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+/* ── RIGHT: TABS + CONTENT ── */
+.right-tabs { display:flex; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0; }
+.rtab {
+  font-family:'DM Mono',monospace; font-size:0.6rem; letter-spacing:0.06em;
+  padding:10px 18px; color:var(--text-dim); cursor:pointer;
+  border-bottom:2px solid transparent; transition:all 0.2s; background:none;
+  border-top:none; border-left:none; border-right:none; white-space:nowrap;
+}
+.rtab:hover { color:var(--text-mid); }
+.rtab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+.right-content { flex:1; overflow:auto; padding:24px; display:flex; flex-direction:column; gap:20px; }
+
+/* ── SHARED PANEL BITS ── */
+.section-hdr { font-family:'DM Mono',monospace; font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:6px; }
+.hint { font-size:0.78rem; color:var(--text-dim); line-height:1.65; padding:10px 12px; background:var(--surface2); border-radius:8px; border-left:2px solid var(--amber); }
+.hint strong { color:var(--text-mid); }
+.formula-block { font-family:'DM Mono',monospace; font-size:0.82rem; color:var(--accent); background:rgba(77,240,176,0.06); border:1px solid rgba(77,240,176,0.15); border-radius:8px; padding:10px 14px; line-height:1.8; }
+
+/* Reagent controls */
+.reagent-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:var(--surface2); border:1px solid var(--border); }
+.rr-label { font-size:0.8rem; color:var(--text-mid); flex:1; }
+.rr-sub { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--text-dim); }
+.rr-slider { -webkit-appearance:none; appearance:none; width:80px; height:3px; border-radius:2px; background:var(--border2); outline:none; flex-shrink:0; }
+.rr-slider::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--amber); cursor:pointer; border:2px solid var(--bg); }
+.rr-val { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--gold); min-width:52px; text-align:right; }
+
+/* Run button */
+.run-btn {
+  font-family:'DM Mono',monospace; font-size:0.65rem; letter-spacing:0.08em;
+  padding:9px 20px; border-radius:8px; border:1px solid rgba(77,240,176,0.4);
+  background:rgba(77,240,176,0.06); color:var(--accent); cursor:pointer;
+  transition:all 0.2s; display:flex; align-items:center; gap:8px; justify-content:center;
+}
+.run-btn:hover { background:rgba(77,240,176,0.12); border-color:var(--accent); }
+
+/* Results grid */
+.results-mini { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.result-cell { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 8px; text-align:center; }
+.rc-label { font-family:'DM Mono',monospace; font-size:0.58rem; color:var(--text-dim); margin-bottom:4px; }
+.rc-val   { font-family:'DM Mono',monospace; font-size:0.9rem; color:var(--accent); }
+
+/* Experiment set for initial rates */
+.exp-set { display:flex; flex-direction:column; gap:8px; }
+.exp-set-item { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; position:relative; }
+.esi-num { font-family:'DM Mono',monospace; font-size:0.58rem; color:var(--text-dim); margin-bottom:6px; }
+.esi-controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.esi-label { font-size:0.72rem; color:var(--text-mid); white-space:nowrap; }
+.esi-input { width:56px; background:var(--surface2); border:1px solid var(--border2); border-radius:4px; padding:3px 6px; font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--text); outline:none; text-align:center; }
+.esi-input:focus { border-color:rgba(77,240,176,0.3); }
+.esi-rate { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--gold); margin-top:6px; }
+
+/* Canvas chart area */
+.chart-wrap { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; position:relative; }
+.chart-title { font-family:'DM Mono',monospace; font-size:0.65rem; letter-spacing:0.08em; color:var(--text-dim); margin-bottom:12px; }
+canvas.chart { display:block; width:100%; }
+
+/* Graph selector pills */
+.graph-pills { display:flex; gap:8px; flex-wrap:wrap; }
+.gpill {
+  font-family:'DM Mono',monospace; font-size:0.6rem; padding:5px 12px;
+  border-radius:20px; border:1px solid var(--border); color:var(--text-dim);
+  cursor:pointer; transition:all 0.2s; background:transparent;
+}
+.gpill:hover { border-color:var(--border2); color:var(--text-mid); }
+.gpill.active { background:rgba(77,240,176,0.1); border-color:rgba(77,240,176,0.4); color:var(--accent); }
+
+/* Derived values panel */
+.derived-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.dv-box { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px; }
+.dv-label { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--text-dim); margin-bottom:4px; }
+.dv-val   { font-size:1rem; color:var(--gold); font-weight:600; }
+.dv-unit  { font-family:'DM Mono',monospace; font-size:0.65rem; color:var(--text-dim); }
+
+/* Q&A */
+.q-block { display:flex; flex-direction:column; gap:8px; }
+.q-num  { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--amber); letter-spacing:0.06em; }
+.q-text { font-size:0.82rem; color:var(--text-mid); line-height:1.6; }
+.q-input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-family:'DM Sans',sans-serif; font-size:0.8rem; color:var(--text); resize:vertical; min-height:60px; outline:none; transition:border-color 0.2s; }
+.q-input:focus { border-color:rgba(244,162,97,0.4); }
+
+/* Stopwatch (for JC timing measurements) */
+.sw-wrap { display:flex; align-items:center; gap:8px; }
+.sw-disp { font-family:'DM Mono',monospace; font-size:1rem; color:var(--accent); background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:4px 12px; min-width:90px; text-align:center; }
+.sw-disp.running { color:var(--gold); }
+.swb { font-family:'DM Mono',monospace; font-size:0.6rem; padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-mid); cursor:pointer; transition:all 0.2s; }
+.swb.start { border-color:rgba(77,240,176,0.4); color:var(--accent); }
+.swb.start:hover { background:var(--glow); }
+.swb.stop  { border-color:rgba(255,107,107,0.4); color:var(--red); }
+.swb.stop:hover  { background:rgba(255,107,107,0.08); }
+
+/* Responsive */
+@media (max-width:900px) {
+  .jc-shell { grid-template-columns:1fr; grid-template-rows:auto 1fr; height:auto; overflow:visible; }
+  .jc-left  { max-height:380px; border-right:none; border-bottom:1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="../index.html" class="nav-logo">Inquisitive<span>Chemistry</span></a>
+  <div class="nav-crumb">
+    <span class="sep">/</span>
+    <a href="index.html" style="color:var(--text-dim);text-decoration:none;">Kinetics</a>
+    <span class="sep">/</span>
+    <span class="cur">JC / A-Level</span>
+  </div>
+  <a href="index.html" class="nav-back">
+    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+      <path d="M10 7H4M6 4L3 7l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Level Select
+  </a>
+</nav>
+
+<div class="jc-shell">
+
+  <!-- LEFT PANEL: EXPERIMENT SETUP -->
+  <div class="jc-left">
+    <div class="module-tabs">
+      <button class="mtab active" data-mod="initial">INITIAL RATES</button>
+      <button class="mtab" data-mod="integrated">INTEGRATED</button>
+      <button class="mtab" data-mod="arrhenius">ARRHENIUS</button>
+    </div>
+
+    <!-- ── INITIAL RATES MODULE ── -->
+    <div class="module-body" id="modInitial">
+      <div class="hint">
+        <strong>Goal:</strong> Determine the order of reaction with respect to each reactant using the initial rates method. rate = k[A]ᵐ[B]ⁿ
+      </div>
+      <div class="formula-block">
+        rate = k [A]ᵐ [B]ⁿ<br>
+        To find m: keep [B] constant, double [A]<br>
+        → if rate doubles, m = 1 (first order)
+      </div>
+      <div class="section-hdr">Experiment Set</div>
+      <div class="exp-set" id="initialExpSet">
+        <!-- 3 experiments rendered by JS -->
+      </div>
+      <button class="run-btn" id="runInitialBtn">▶ Run All Experiments</button>
+      <div class="section-hdr" style="margin-top:4px;">Observed Initial Rates</div>
+      <div id="initialRatesDisplay" style="font-size:0.75rem;color:var(--text-dim);">Run experiments to see rates.</div>
+
+      <div class="section-hdr">Derived</div>
+      <div class="derived-grid" id="initialDerived">
+        <div class="dv-box"><div class="dv-label">ORDER in A</div><div class="dv-val" id="orderA">—</div></div>
+        <div class="dv-box"><div class="dv-label">ORDER in B</div><div class="dv-val" id="orderB">—</div></div>
+        <div class="dv-box"><div class="dv-label">OVERALL ORDER</div><div class="dv-val" id="orderTotal">—</div></div>
+        <div class="dv-box"><div class="dv-label">k (at 25°C)</div><div class="dv-val" id="kVal">—</div><div class="dv-unit" id="kUnit"></div></div>
+      </div>
+    </div>
+
+    <!-- ── INTEGRATED MODULE ── -->
+    <div class="module-body" id="modIntegrated" style="display:none;">
+      <div class="hint">
+        <strong>Goal:</strong> Identify reaction order from the shape of concentration–time graphs. Choose which graph gives a straight line.
+      </div>
+      <div class="formula-block">
+        0th: [A] = [A]₀ − kt<br>
+        1st: ln[A] = ln[A]₀ − kt<br>
+        2nd: 1/[A] = 1/[A]₀ + kt
+      </div>
+      <div class="section-hdr">Conditions</div>
+      <div class="reagent-row">
+        <div><div class="rr-label">Initial [A]₀</div><div class="rr-sub">mol dm⁻³</div></div>
+        <input type="range" class="rr-slider" id="intA0Slider" min="0.1" max="2.0" step="0.1" value="1.0">
+        <div class="rr-val" id="intA0Val">1.00 M</div>
+      </div>
+      <div class="reagent-row">
+        <div><div class="rr-label">True Order</div><div class="rr-sub">set for yourself</div></div>
+        <select id="trueOrderSelect" style="background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--text);outline:none;">
+          <option value="0">0th order</option>
+          <option value="1" selected>1st order</option>
+          <option value="2">2nd order</option>
+        </select>
+      </div>
+      <div class="reagent-row">
+        <div><div class="rr-label">Rate constant k</div><div class="rr-sub">adjustable</div></div>
+        <input type="range" class="rr-slider" id="intKSlider" min="0.05" max="1.0" step="0.05" value="0.3">
+        <div class="rr-val" id="intKVal">0.30</div>
+      </div>
+      <button class="run-btn" id="runIntegratedBtn">▶ Generate Data</button>
+
+      <div class="section-hdr" style="margin-top:4px;">Graph Type</div>
+      <div class="graph-pills" id="intGraphPills">
+        <button class="gpill active" data-graph="conc">[A] vs t</button>
+        <button class="gpill" data-graph="ln">ln[A] vs t</button>
+        <button class="gpill" data-graph="inv">1/[A] vs t</button>
+      </div>
+
+      <div class="section-hdr" style="margin-top:4px;">Half-life</div>
+      <div class="derived-grid" id="intDerived">
+        <div class="dv-box"><div class="dv-label">t½</div><div class="dv-val" id="halfLifeVal">—</div><div class="dv-unit">s</div></div>
+        <div class="dv-box"><div class="dv-label">Gradient</div><div class="dv-val" id="gradVal">—</div></div>
+      </div>
+    </div>
+
+    <!-- ── ARRHENIUS MODULE ── -->
+    <div class="module-body" id="modArrhenius" style="display:none;">
+      <div class="hint">
+        <strong>Goal:</strong> Measure k at different temperatures. Plot ln k vs 1/T. Gradient = −Eₐ/R → extract Eₐ.
+      </div>
+      <div class="formula-block">
+        k = A · e^(−Eₐ/RT)<br>
+        ln k = ln A − Eₐ/R · (1/T)<br>
+        gradient = −Eₐ / R
+      </div>
+      <div class="section-hdr">True Eₐ (hidden)</div>
+      <div class="reagent-row">
+        <div><div class="rr-label">Activation Energy</div><div class="rr-sub">kJ mol⁻¹ (for teacher)</div></div>
+        <input type="range" class="rr-slider" id="eaSlider" min="20" max="120" step="5" value="60">
+        <div class="rr-val" id="eaVal">60 kJ</div>
+      </div>
+      <div class="section-hdr">Temperature Points</div>
+      <div id="arrTempInputs" style="display:flex;flex-direction:column;gap:6px;">
+        <!-- 5 temperature rows -->
+      </div>
+      <button class="run-btn" id="runArrheniusBtn">▶ Measure k at Each Temperature</button>
+      <div class="section-hdr" style="margin-top:4px;">Derived Eₐ</div>
+      <div class="derived-grid">
+        <div class="dv-box"><div class="dv-label">Eₐ (from graph)</div><div class="dv-val" id="eaDerived">—</div><div class="dv-unit">kJ mol⁻¹</div></div>
+        <div class="dv-box"><div class="dv-label">ln A</div><div class="dv-val" id="lnADerived">—</div></div>
+      </div>
+    </div>
+
+  </div><!-- /jc-left -->
+
+  <!-- RIGHT PANEL: GRAPHS + QUESTIONS -->
+  <div class="jc-right">
+    <div class="right-tabs">
+      <button class="rtab active" data-rtab="graph">Graph</button>
+      <button class="rtab" data-rtab="data">Data Table</button>
+      <button class="rtab" data-rtab="questions">Questions</button>
+    </div>
+
+    <!-- GRAPH VIEW -->
+    <div class="right-content" id="rtabGraph">
+      <div class="chart-wrap" style="flex:1;min-height:320px;">
+        <div class="chart-title" id="chartTitle">RUN AN EXPERIMENT TO SEE THE GRAPH</div>
+        <canvas class="chart" id="mainChart" height="320"></canvas>
+      </div>
+      <div class="results-mini" id="resultsMini" style="display:none;">
+        <div class="result-cell"><div class="rc-label">EXPERIMENT</div><div class="rc-val" id="rm1">—</div></div>
+        <div class="result-cell"><div class="rc-label">RESULT</div><div class="rc-val" id="rm2">—</div></div>
+        <div class="result-cell"><div class="rc-label">CONCLUSION</div><div class="rc-val" id="rm3">—</div></div>
+      </div>
+    </div>
+
+    <!-- DATA TABLE VIEW -->
+    <div class="right-content" id="rtabData" style="display:none;">
+      <div class="section-hdr">Collected Data</div>
+      <div style="overflow-x:auto;">
+        <table id="jcTable" style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+          <thead id="jcThead"></thead>
+          <tbody id="jcTbody"><tr><td colspan="10" style="color:var(--text-dim);text-align:center;padding:20px;">Run an experiment first.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- QUESTIONS VIEW -->
+    <div class="right-content" id="rtabQuestions" style="display:none;" id="rtabQuestionsContent">
+      <div id="questionsOut"></div>
+    </div>
+
+  </div><!-- /jc-right -->
+
+</div><!-- /jc-shell -->
+
+<style>
+#jcTable th { font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.05em;color:var(--text-dim);padding:7px 10px;text-align:left;border-bottom:1px solid var(--border); }
+#jcTable td { padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text-mid);font-family:'DM Mono',monospace;font-size:0.7rem; }
+#jcTable tr:last-child td { border-bottom:none; }
+</style>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+
+const R = 8.314; // J mol⁻¹ K⁻¹
+
+const state = {
+  module: 'initial',
+  // Initial rates
+  initialExps: [
+    { a: 0.10, b: 0.10 },
+    { a: 0.20, b: 0.10 },
+    { a: 0.10, b: 0.20 },
+  ],
+  initialRates: [],
+  trueOrderA: 1, trueOrderB: 1,
+  trueK: 0.5,
+  // Integrated
+  intA0: 1.0,
+  intOrder: 1,
+  intK: 0.3,
+  intGraphType: 'conc',
+  intData: null,
+  // Arrhenius
+  eaTrue: 60000, // J mol⁻¹
+  arrTemps: [283, 293, 303, 313, 323], // K
+  arrData: null,
+};
+
+// ─── CHART CANVAS ────────────────────────────────────────────────────────────
+
+const chartCanvas = document.getElementById('mainChart');
+const chartCtx    = chartCanvas.getContext('2d');
+
+function resizeChart() {
+  const rect = chartCanvas.parentElement.getBoundingClientRect();
+  const dpr  = window.devicePixelRatio || 1;
+  chartCanvas.width  = rect.width  * dpr;
+  chartCanvas.height = Math.max(280, rect.height - 60) * dpr;
+  chartCanvas.style.width  = rect.width + 'px';
+  chartCanvas.style.height = Math.max(280, rect.height - 60) + 'px';
+  chartCtx.scale(dpr, dpr);
+}
+window.addEventListener('resize', () => { resizeChart(); redrawChart(); });
+resizeChart();
+
+function clearChart() {
+  const w = parseInt(chartCanvas.style.width);
+  const h = parseInt(chartCanvas.style.height);
+  chartCtx.clearRect(0, 0, w, h);
+}
+
+function drawAxes(ctx, left, top, right, bottom, xLabel, yLabel, xTicks, yTicks) {
+  ctx.strokeStyle = 'rgba(180,220,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(left, top); ctx.lineTo(left, bottom);
+  ctx.moveTo(left, bottom); ctx.lineTo(right, bottom);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(168,180,208,0.7)';
+  ctx.font = '10px DM Mono, monospace';
+  ctx.textAlign = 'center';
+  xTicks.forEach(t => {
+    const x = left + (t.val / t.max) * (right - left);
+    ctx.beginPath(); ctx.moveTo(x, bottom); ctx.lineTo(x, bottom + 4); ctx.stroke();
+    ctx.fillText(t.label, x, bottom + 14);
+  });
+  ctx.textAlign = 'right';
+  yTicks.forEach(t => {
+    const y = bottom - (t.val / t.max) * (bottom - top);
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left - 4, y); ctx.stroke();
+    ctx.fillText(t.label, left - 7, y + 3);
+  });
+
+  ctx.save();
+  ctx.font = '11px DM Sans, sans-serif';
+  ctx.fillStyle = 'rgba(168,180,208,0.6)';
+  ctx.textAlign = 'center';
+  ctx.fillText(xLabel, (left + right) / 2, bottom + 28);
+  ctx.translate(left - 36, (top + bottom) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+}
+
+function plotLine(ctx, points, color, left, top, right, bottom, xMax, yMin, yMax) {
+  if (points.length < 2) return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const x = left + (p.x / xMax) * (right - left);
+    const y = bottom - ((p.y - yMin) / (yMax - yMin)) * (bottom - top);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function plotDots(ctx, points, color, left, top, right, bottom, xMax, yMin, yMax) {
+  ctx.fillStyle = color;
+  ctx.shadowColor = color; ctx.shadowBlur = 8;
+  points.forEach(p => {
+    const x = left + (p.x / xMax) * (right - left);
+    const y = bottom - ((p.y - yMin) / (yMax - yMin)) * (bottom - top);
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.shadowBlur = 0;
+}
+
+let _currentChartData = null;
+function redrawChart() { if (_currentChartData) _currentChartData(); }
+
+// ─── MODULE TABS ─────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.mtab').forEach(t => {
+  t.onclick = () => {
+    state.module = t.dataset.mod;
+    document.querySelectorAll('.mtab').forEach(m => m.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('modInitial').style.display    = state.module === 'initial'    ? 'flex' : 'none';
+    document.getElementById('modIntegrated').style.display = state.module === 'integrated' ? 'flex' : 'none';
+    document.getElementById('modArrhenius').style.display  = state.module === 'arrhenius'  ? 'flex' : 'none';
+    renderQuestionsForModule(state.module);
+    clearChart();
+    document.getElementById('chartTitle').textContent = 'Run an experiment to see the graph';
+    _currentChartData = null;
+  };
+});
+
+// ─── RIGHT TABS ───────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.rtab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.rtab').forEach(r => r.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('rtabGraph').style.display     = t.dataset.rtab === 'graph'     ? 'flex' : 'none';
+    document.getElementById('rtabData').style.display      = t.dataset.rtab === 'data'       ? 'flex' : 'none';
+    document.getElementById('rtabQuestions').style.display = t.dataset.rtab === 'questions'  ? 'flex' : 'none';
+  };
+});
+
+// ─── INITIAL RATES MODULE ─────────────────────────────────────────────────────
+
+function buildInitialExpSet() {
+  const set = document.getElementById('initialExpSet');
+  set.innerHTML = '';
+  state.initialExps.forEach((exp, i) => {
+    const div = document.createElement('div');
+    div.className = 'exp-set-item';
+    div.innerHTML = `
+      <div class="esi-num">EXP ${i+1}</div>
+      <div class="esi-controls">
+        <span class="esi-label">[A]</span>
+        <input class="esi-input" type="number" min="0.05" max="1.0" step="0.05" value="${exp.a.toFixed(2)}" id="ea${i}">
+        <span class="esi-label" style="margin-left:4px;">[B]</span>
+        <input class="esi-input" type="number" min="0.05" max="1.0" step="0.05" value="${exp.b.toFixed(2)}" id="eb${i}">
+        <span class="esi-label" style="margin-left:4px;">mol dm⁻³</span>
+      </div>
+      <div class="esi-rate" id="erate${i}">Rate: —</div>
+    `;
+    set.appendChild(div);
+    document.getElementById(`ea${i}`).oninput = e => { state.initialExps[i].a = parseFloat(e.target.value)||0.1; };
+    document.getElementById(`eb${i}`).oninput = e => { state.initialExps[i].b = parseFloat(e.target.value)||0.1; };
+  });
+}
+
+function computeInitialRate(a, b) {
+  return state.trueK * Math.pow(a, state.trueOrderA) * Math.pow(b, state.trueOrderB);
+}
+
+function runInitialRates() {
+  state.initialRates = state.initialExps.map(e => computeInitialRate(e.a, e.b));
+
+  state.initialExps.forEach((_, i) => {
+    document.getElementById(`erate${i}`).textContent = `Rate: ${state.initialRates[i].toExponential(3)} mol dm⁻³ s⁻¹`;
+  });
+
+  // Deduce orders from ratios
+  const r01 = state.initialRates[1] / state.initialRates[0];
+  const a01 = state.initialExps[1].a / state.initialExps[0].a;
+  const mA  = Math.round(Math.log(r01) / Math.log(a01));
+
+  const r02 = state.initialRates[2] / state.initialRates[0];
+  const b02 = state.initialExps[2].b / state.initialExps[0].b;
+  const mB  = Math.round(Math.log(r02) / Math.log(b02));
+
+  document.getElementById('orderA').textContent = mA;
+  document.getElementById('orderB').textContent = mB;
+  document.getElementById('orderTotal').textContent = mA + mB;
+
+  // k from first experiment
+  const exp0 = state.initialExps[0];
+  const kCalc = state.initialRates[0] / (Math.pow(exp0.a, mA) * Math.pow(exp0.b, mB));
+  const units = ['mol dm⁻³ s⁻¹','s⁻¹','dm³ mol⁻¹ s⁻¹','dm⁶ mol⁻² s⁻¹'];
+  document.getElementById('kVal').textContent  = kCalc.toExponential(2);
+  document.getElementById('kUnit').textContent = units[mA + mB] || '';
+
+  // Draw bar chart of rates
+  drawInitialRatesChart();
+  populateJCTable_initial(mA, mB, kCalc);
+}
+
+function drawInitialRatesChart() {
+  resizeChart();
+  const w = parseInt(chartCanvas.style.width);
+  const h = parseInt(chartCanvas.style.height);
+  clearChart();
+
+  document.getElementById('chartTitle').textContent = 'INITIAL RATES COMPARISON';
+  document.getElementById('resultsMini').style.display = 'grid';
+
+  const maxR = Math.max(...state.initialRates) * 1.2;
+  const left = 64, right = w - 24, top = 24, bottom = h - 48;
+  const barW  = (right - left) / (state.initialRates.length * 2 + 1);
+  const colors = ['#4df0b0','#ffd166','#c77dff'];
+  const labels = ['Exp 1','Exp 2','Exp 3'];
+
+  // Axes
+  chartCtx.strokeStyle = 'rgba(180,220,255,0.2)';
+  chartCtx.lineWidth   = 1;
+  chartCtx.beginPath();
+  chartCtx.moveTo(left, top); chartCtx.lineTo(left, bottom);
+  chartCtx.moveTo(left, bottom); chartCtx.lineTo(right, bottom);
+  chartCtx.stroke();
+
+  // Y ticks
+  chartCtx.fillStyle = 'rgba(168,180,208,0.6)'; chartCtx.font = '9px DM Mono, monospace';
+  chartCtx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const val = (maxR * i / 4);
+    const y   = bottom - (val / maxR) * (bottom - top);
+    chartCtx.fillText(val.toExponential(1), left - 5, y + 3);
+    chartCtx.strokeStyle = 'rgba(180,220,255,0.07)'; chartCtx.lineWidth = 0.5;
+    chartCtx.beginPath(); chartCtx.moveTo(left, y); chartCtx.lineTo(right, y); chartCtx.stroke();
+  }
+
+  // Y label
+  chartCtx.save(); chartCtx.translate(14, (top + bottom)/2); chartCtx.rotate(-Math.PI/2);
+  chartCtx.textAlign = 'center'; chartCtx.fillStyle = 'rgba(168,180,208,0.5)'; chartCtx.font = '10px DM Sans';
+  chartCtx.fillText('Initial rate (mol dm⁻³ s⁻¹)', 0, 0); chartCtx.restore();
+
+  state.initialRates.forEach((r, i) => {
+    const x = left + (i * 2 + 1) * barW;
+    const bh = (r / maxR) * (bottom - top);
+    chartCtx.fillStyle = colors[i] + '33';
+    chartCtx.strokeStyle = colors[i];
+    chartCtx.lineWidth = 1.5;
+    chartCtx.fillRect(x, bottom - bh, barW * 1.2, bh);
+    chartCtx.strokeRect(x, bottom - bh, barW * 1.2, bh);
+    // Glow
+    chartCtx.shadowColor = colors[i]; chartCtx.shadowBlur = 8;
+    chartCtx.strokeRect(x, bottom - bh, barW * 1.2, bh);
+    chartCtx.shadowBlur = 0;
+    // Label
+    chartCtx.fillStyle = colors[i]; chartCtx.font = '10px DM Mono'; chartCtx.textAlign = 'center';
+    chartCtx.fillText(labels[i], x + barW * 0.6, bottom + 14);
+    chartCtx.fillStyle = 'rgba(168,180,208,0.6)'; chartCtx.font = '9px DM Mono';
+    chartCtx.fillText(`[A]=${state.initialExps[i].a}`, x + barW * 0.6, bottom + 26);
+  });
+
+  _currentChartData = drawInitialRatesChart;
+}
+
+function populateJCTable_initial(mA, mB, k) {
+  document.getElementById('jcThead').innerHTML = `<tr>
+    <th>Exp</th><th>[A] / mol dm⁻³</th><th>[B] / mol dm⁻³</th><th>Initial Rate / mol dm⁻³ s⁻¹</th>
+  </tr>`;
+  document.getElementById('jcTbody').innerHTML = state.initialExps.map((e, i) => `
+    <tr>
+      <td>${i+1}</td><td>${e.a.toFixed(2)}</td><td>${e.b.toFixed(2)}</td>
+      <td>${state.initialRates[i].toExponential(3)}</td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('runInitialBtn').onclick = runInitialRates;
+buildInitialExpSet();
+
+// ─── INTEGRATED RATE LAW MODULE ───────────────────────────────────────────────
+
+const intA0Slider = document.getElementById('intA0Slider');
+const intKSlider  = document.getElementById('intKSlider');
+const trueOrder   = document.getElementById('trueOrderSelect');
+
+intA0Slider.oninput = e => { state.intA0 = parseFloat(e.target.value); document.getElementById('intA0Val').textContent = state.intA0.toFixed(2) + ' M'; };
+intKSlider.oninput  = e => { state.intK  = parseFloat(e.target.value); document.getElementById('intKVal').textContent  = state.intK.toFixed(2); };
+trueOrder.onchange  = e => { state.intOrder = parseInt(e.target.value); };
+
+document.querySelectorAll('#intGraphPills .gpill').forEach(p => {
+  p.onclick = () => {
+    document.querySelectorAll('#intGraphPills .gpill').forEach(g => g.classList.remove('active'));
+    p.classList.add('active');
+    state.intGraphType = p.dataset.graph;
+    if (state.intData) drawIntegratedChart(state.intData);
+  };
+});
+
+function generateIntegratedData() {
+  const A0 = state.intA0, k = state.intK, order = state.intOrder;
+  const tMax = order === 0 ? A0 / k * 1.1 : order === 1 ? 5 / k : 10 / (k * A0);
+  const n = 80;
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = (i / n) * tMax;
+    let A;
+    if (order === 0)      A = Math.max(0, A0 - k * t);
+    else if (order === 1) A = A0 * Math.exp(-k * t);
+    else                  A = A0 / (1 + k * A0 * t);
+    pts.push({ t, A });
+  }
+  state.intData = { pts, tMax, A0, k, order };
+  return state.intData;
+}
+
+function drawIntegratedChart(data) {
+  resizeChart();
+  const w = parseInt(chartCanvas.style.width);
+  const h = parseInt(chartCanvas.style.height);
+  clearChart();
+
+  const { pts, tMax, A0, k, order } = data;
+  const left = 68, right = w - 20, top = 24, bottom = h - 48;
+
+  let yLabel, yFn, yVals, isLinear;
+  const gtype = state.intGraphType;
+
+  if (gtype === 'conc') {
+    yFn = p => p.A;
+    yLabel = '[A] / mol dm⁻³';
+    isLinear = (order === 0);
+  } else if (gtype === 'ln') {
+    yFn = p => p.A > 0 ? Math.log(p.A) : null;
+    yLabel = 'ln[A]';
+    isLinear = (order === 1);
+  } else {
+    yFn = p => p.A > 0 ? 1 / p.A : null;
+    yLabel = '1/[A] / dm³ mol⁻¹';
+    isLinear = (order === 2);
+  }
+
+  const ys = pts.map(yFn).filter(v => v !== null);
+  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+  const yRange = yMax - yMin || 1;
+  const yPad = yRange * 0.1;
+
+  // Axis ticks
+  const nXT = 5;
+  const xTicks = Array.from({length: nXT + 1}, (_, i) => ({
+    val: tMax * i / nXT, max: tMax,
+    label: (tMax * i / nXT).toFixed(1)
+  }));
+  const nYT = 5;
+  const yTickMin = yMin - yPad, yTickMax = yMax + yPad;
+  const yTicks = Array.from({length: nYT + 1}, (_, i) => {
+    const v = yTickMin + (yTickMax - yTickMin) * i / nYT;
+    return { val: v - yTickMin, max: yTickMax - yTickMin, label: v.toFixed(2) };
+  });
+
+  drawAxes(chartCtx, left, top, right, bottom, 'Time / s', yLabel, xTicks, yTicks);
+
+  // Draw line colour based on linearity
+  const lineColor = isLinear ? '#4df0b0' : '#f4a261';
+  const mapped = pts.map(p => ({ x: p.t, y: yFn(p) })).filter(p => p.y !== null);
+  plotLine(chartCtx, mapped, lineColor, left, top, right, bottom, tMax, yTickMin, yTickMax);
+
+  // Linear annotation
+  if (isLinear) {
+    chartCtx.font = '11px DM Mono, monospace';
+    chartCtx.fillStyle = '#4df0b0';
+    chartCtx.textAlign = 'left';
+    chartCtx.fillText('✓ Linear — this is the correct order!', left + 8, top + 18);
+  }
+
+  document.getElementById('chartTitle').textContent = `${yLabel.split(' ')[0]} vs TIME (${['0th','1st','2nd'][order]} order reaction)`;
+
+  // Half life
+  let t50;
+  if (order === 1) t50 = Math.LN2 / k;
+  else if (order === 0) t50 = A0 / (2 * k);
+  else t50 = 1 / (k * A0);
+  document.getElementById('halfLifeVal').textContent = t50.toFixed(2);
+  document.getElementById('gradVal').textContent = (-k).toFixed(3);
+
+  _currentChartData = () => drawIntegratedChart(data);
+  populateJCTable_integrated(data);
+}
+
+function populateJCTable_integrated(data) {
+  const { pts, order } = data;
+  document.getElementById('jcThead').innerHTML = `<tr>
+    <th>t / s</th><th>[A] / mol dm⁻³</th><th>ln[A]</th><th>1/[A] / dm³ mol⁻¹</th>
+  </tr>`;
+  const sample = pts.filter((_, i) => i % 8 === 0);
+  document.getElementById('jcTbody').innerHTML = sample.map(p => `
+    <tr>
+      <td>${p.t.toFixed(2)}</td>
+      <td>${p.A.toFixed(4)}</td>
+      <td>${p.A > 0 ? Math.log(p.A).toFixed(4) : '—'}</td>
+      <td>${p.A > 0 ? (1/p.A).toFixed(4) : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('runIntegratedBtn').onclick = () => {
+  state.intA0   = parseFloat(intA0Slider.value);
+  state.intK    = parseFloat(intKSlider.value);
+  state.intOrder= parseInt(trueOrder.value);
+  const data = generateIntegratedData();
+  drawIntegratedChart(data);
+};
+
+// ─── ARRHENIUS MODULE ──────────────────────────────────────────────────────────
+
+const eaSlider = document.getElementById('eaSlider');
+eaSlider.oninput = e => {
+  state.eaTrue = parseFloat(e.target.value) * 1000;
+  document.getElementById('eaVal').textContent = parseFloat(e.target.value) + ' kJ';
+};
+
+function buildArrTempInputs() {
+  const container = document.getElementById('arrTempInputs');
+  container.innerHTML = '';
+  [283,293,303,313,323].forEach((T, i) => {
+    const row = document.createElement('div');
+    row.className = 'reagent-row';
+    row.innerHTML = `
+      <div><div class="rr-label">T${i+1}</div><div class="rr-sub">Kelvin</div></div>
+      <input class="esi-input" type="number" min="273" max="373" step="5" value="${T}" id="arrT${i}" style="width:64px;">
+      <span style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--text-dim);">${T-273} °C</span>
+    `;
+    container.appendChild(row);
+    document.getElementById(`arrT${i}`).oninput = e => {
+      state.arrTemps[i] = parseFloat(e.target.value) || T;
+      row.querySelector('span').textContent = `${state.arrTemps[i]-273} °C`;
+    };
+  });
+}
+buildArrTempInputs();
+
+const A_PRE = 1e8; // pre-exponential factor (arbitrary)
+
+function computeK_arr(T) {
+  return A_PRE * Math.exp(-state.eaTrue / (R * T));
+}
+
+function runArrheniusExperiment() {
+  const temps = [...state.arrTemps];
+  const ks    = temps.map(T => computeK_arr(T));
+  const invTs = temps.map(T => 1 / T);
+  const lnKs  = ks.map(k => Math.log(k));
+  state.arrData = { temps, ks, invTs, lnKs };
+
+  // Linear regression: ln k = ln A - Ea/R · (1/T)
+  const n = temps.length;
+  const sx  = invTs.reduce((a,b) => a+b, 0);
+  const sy  = lnKs.reduce((a,b)  => a+b, 0);
+  const sxy = invTs.reduce((a,x,i) => a + x * lnKs[i], 0);
+  const sx2 = invTs.reduce((a,x)  => a + x*x, 0);
+  const slope = (n * sxy - sx * sy) / (n * sx2 - sx * sx);
+  const intercept = (sy - slope * sx) / n;
+  const eaDerived = -slope * R / 1000; // kJ mol⁻¹
+
+  document.getElementById('eaDerived').textContent  = eaDerived.toFixed(1);
+  document.getElementById('lnADerived').textContent  = intercept.toFixed(1);
+
+  drawArrheniusChart({ temps, ks, invTs, lnKs, slope, intercept });
+  populateJCTable_arrhenius({ temps, ks, invTs, lnKs });
+}
+
+function drawArrheniusChart(data) {
+  resizeChart();
+  const w = parseInt(chartCanvas.style.width);
+  const h = parseInt(chartCanvas.style.height);
+  clearChart();
+
+  const { invTs, lnKs, slope, intercept } = data;
+  const left = 72, right = w - 20, top = 24, bottom = h - 48;
+
+  const xMin = Math.min(...invTs) * 0.998;
+  const xMax = Math.max(...invTs) * 1.002;
+  const yMin = Math.min(...lnKs) - 1;
+  const yMax = Math.max(...lnKs) + 1;
+
+  // Axes
+  const nXT = 5;
+  const xTicks = Array.from({length:nXT+1},(_,i) => {
+    const v = xMin + (xMax - xMin) * i / nXT;
+    return { val: v - xMin, max: xMax - xMin, label: (v*1000).toFixed(2) };
+  });
+  const nYT = 5;
+  const yTicks = Array.from({length:nYT+1},(_,i) => {
+    const v = yMin + (yMax - yMin) * i / nYT;
+    return { val: v - yMin, max: yMax - yMin, label: v.toFixed(1) };
+  });
+  drawAxes(chartCtx, left, top, right, bottom, '1/T × 10³ / K⁻¹', 'ln k', xTicks, yTicks);
+
+  // Best fit line
+  const linePts = [
+    { x: xMin, y: slope * xMin + intercept },
+    { x: xMax, y: slope * xMax + intercept },
+  ];
+  plotLine(chartCtx, linePts.map(p => ({x: p.x - xMin, y: p.y})), 'rgba(244,162,97,0.5)', left, top, right, bottom, xMax - xMin, yMin, yMax);
+
+  // Data points
+  plotDots(chartCtx, invTs.map((x,i) => ({x: x-xMin, y: lnKs[i]})), '#4df0b0', left, top, right, bottom, xMax - xMin, yMin, yMax);
+
+  // Slope annotation
+  chartCtx.font = '11px DM Mono, monospace';
+  chartCtx.fillStyle = 'rgba(244,162,97,0.85)';
+  chartCtx.textAlign = 'left';
+  chartCtx.fillText(`gradient = ${slope.toFixed(0)}`, left + 8, top + 18);
+  chartCtx.fillText(`Eₐ = ${(-slope * R / 1000).toFixed(1)} kJ mol⁻¹`, left + 8, top + 33);
+
+  document.getElementById('chartTitle').textContent = 'ln k vs 1/T  (Arrhenius Plot)';
+  _currentChartData = () => drawArrheniusChart(data);
+}
+
+function populateJCTable_arrhenius(data) {
+  const { temps, ks, invTs, lnKs } = data;
+  document.getElementById('jcThead').innerHTML = `<tr>
+    <th>T / K</th><th>T / °C</th><th>k</th><th>ln k</th><th>1/T / K⁻¹</th>
+  </tr>`;
+  document.getElementById('jcTbody').innerHTML = temps.map((T,i) => `
+    <tr>
+      <td>${T}</td><td>${T-273}</td>
+      <td>${ks[i].toExponential(3)}</td>
+      <td>${lnKs[i].toFixed(3)}</td>
+      <td>${invTs[i].toExponential(4)}</td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('runArrheniusBtn').onclick = runArrheniusExperiment;
+
+// ─── QUESTIONS ────────────────────────────────────────────────────────────────
+
+const QUESTIONS = {
+  initial: [
+    { q:'From your data, what is the rate equation for this reaction? Show your working clearly.', ph:'rate = k[A]ᵐ[B]ⁿ ...' },
+    { q:'Comparing Experiments 1 and 2, [A] was doubled while [B] was constant. What happened to the rate? What is the order with respect to A?', ph:'Rate ratio = ..., therefore m = ...' },
+    { q:'What are the units of k for this reaction? Explain how you determined them.', ph:'Units of k = ...' },
+    { q:'Predict the initial rate if [A] = 0.40 mol dm⁻³ and [B] = 0.10 mol dm⁻³. Show your working.', ph:'rate = k × ...' },
+  ],
+  integrated: [
+    { q:'Which graph ([A] vs t, ln[A] vs t, or 1/[A] vs t) gave a straight line? What does this tell you about the order of reaction?', ph:'The straight line graph is ..., this means ...' },
+    { q:'From the gradient of the straight line, determine the rate constant k. Include units.', ph:'gradient = -k = ..., therefore k = ...' },
+    { q:'For a first-order reaction, show that the half-life is constant. Use the integrated rate law.', ph:'[A] = [A]₀ e^(-kt), at t½ ...' },
+    { q:'How does the half-life change as you increase the initial concentration for a second-order reaction? Explain.', ph:'For 2nd order: t½ = 1/(k[A]₀), so ...' },
+  ],
+  arrhenius: [
+    { q:'From the Arrhenius plot, determine the activation energy Eₐ. Show how you used the gradient.', ph:'gradient = -Eₐ/R, therefore Eₐ = ...' },
+    { q:'What does the activation energy represent physically? Use a Maxwell-Boltzmann distribution to explain your answer.', ph:'Eₐ is the minimum energy ... The M-B distribution shows ...' },
+    { q:'How does a catalyst affect the Arrhenius plot? Sketch what you would expect.', ph:'A catalyst lowers Eₐ, so the gradient becomes less steep ...' },
+    { q:'If the temperature is raised from 298 K to 308 K, estimate how the rate constant changes. Comment on whether this agrees with the "rule of thumb" of doubling per 10°C.', ph:'Use k₂/k₁ = e^(-Eₐ/R × (1/T₂ - 1/T₁)) ...' },
+  ],
+};
+
+function renderQuestionsForModule(mod) {
+  const qs = QUESTIONS[mod] || [];
+  document.getElementById('questionsOut').innerHTML = qs.map((q, i) => `
+    <div class="q-block" style="${i>0?'margin-top:18px;':''}">
+      <div class="q-num">Q${i+1}</div>
+      <div class="q-text">${q.q}</div>
+      <textarea class="q-input" placeholder="${q.ph}" rows="3"></textarea>
+    </div>
+  `).join('');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+
+renderQuestionsForModule('initial');
+</script>
+</body>
+</html>

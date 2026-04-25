@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChemLab — Teacher Mode</title>
+  <meta name="description" content="Create and configure chemistry lab sessions for your students.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="chem-lab-teacher.css">
+</head>
+<body>
+
+  <!-- ── Navbar ──────────────────────────────────────────────────────────── -->
+  <nav class="teacher-nav">
+    <a class="nav-logo" href="index.html">Inquisitive<span>Chemistry</span></a>
+    <span class="nav-badge">TEACHER MODE</span>
+    <ul class="nav-links">
+      <li><a href="chem_lab/chem-lab.html">Open Lab</a></li>
+      <li><a href="index.html">Hub</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── Page content ────────────────────────────────────────────────────── -->
+  <div class="page-wrap">
+
+    <!-- ── Step 1: Landing ──────────────────────────────────────────────── -->
+    <div id="step-landing" class="step-screen">
+      <header class="page-header">
+        <div class="page-eyebrow">Teacher Mode</div>
+        <h1 class="page-title">Where would you like to start?</h1>
+      </header>
+      <div class="choice-grid">
+        <button id="btn-new" type="button" class="choice-card">
+          <span class="choice-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="choice-title">Create New Session</span>
+          <span class="choice-desc">Build a new lab session with custom chemicals, tests, and instructions for your class.</span>
+        </button>
+        <button id="btn-load-choice" type="button" class="choice-card">
+          <span class="choice-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="choice-title">Edit Existing Session</span>
+          <span class="choice-desc">Load a saved session using your CHEM‑XXXX code to update it for another class.</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Step 2a: Email capture ────────────────────────────────────────── -->
+    <div id="step-create" class="step-screen" hidden>
+      <header class="page-header">
+        <div class="page-eyebrow">Session Builder</div>
+        <h1 class="page-title">Create a New Session</h1>
+        <p class="page-sub">Optionally leave your email — we can use it to help you recover your session code later.</p>
+      </header>
+      <div class="step-card">
+        <div class="field-group">
+          <label class="field-label" for="teacher-email">
+            Your email <span class="field-hint">(optional)</span>
+          </label>
+          <input id="teacher-email" type="email" class="field-input"
+                 placeholder="teacher@school.edu" autocomplete="email">
+        </div>
+      </div>
+      <div class="step-actions">
+        <button id="btn-create-back" type="button" class="btn-secondary">← Back</button>
+        <button id="btn-create-continue" type="button" class="btn-primary">
+          Continue
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Step 2b: Code entry ────────────────────────────────────────────── -->
+    <div id="step-edit" class="step-screen" hidden>
+      <header class="page-header">
+        <div class="page-eyebrow">Session Builder</div>
+        <h1 class="page-title">Load an Existing Session</h1>
+        <p class="page-sub">Enter the session code you were given when you first saved the session.</p>
+      </header>
+      <div class="step-card">
+        <div class="field-group">
+          <label class="field-label" for="load-code-input">Session code</label>
+          <input id="load-code-input" type="text" class="field-input field-mono"
+                 placeholder="e.g. CHEM-4832" maxlength="9"
+                 autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+      <div class="step-actions">
+        <button id="btn-edit-back" type="button" class="btn-secondary">← Back</button>
+        <button id="btn-load" type="button" class="btn-primary">
+          Load Session
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Step 3: Editor ─────────────────────────────────────────────────── -->
+    <div id="step-editor" class="step-screen" hidden>
+
+      <header class="page-header">
+        <div class="page-eyebrow">Session Builder</div>
+        <h1 class="page-title">Configure a Lab Session</h1>
+        <p class="page-sub">
+          Set the chemicals, tests, and instructions for your class.
+          Save to get a session code — share it (and your Google Docs link) with students.
+        </p>
+      </header>
+
+      <!-- Session-level fields -->
+      <div class="session-card">
+        <div class="session-card-title">Session Details</div>
+        <div class="session-fields">
+          <div class="field-group">
+            <label class="field-label" for="session-title">Session Title</label>
+            <input id="session-title" type="text" class="field-input"
+                   placeholder="e.g. Qualitative Analysis Practical">
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="session-docs-url">
+              Google Docs URL
+              <span class="field-hint">(share with students)</span>
+            </label>
+            <input id="session-docs-url" type="url" class="field-input"
+                   placeholder="https://docs.google.com/document/d/…">
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity tabs -->
+      <div class="activities-section">
+        <div id="tab-bar" class="tab-bar" role="tablist">
+          <button id="tab-add-btn" type="button" class="tab-add" title="Add activity" aria-label="Add activity">+</button>
+        </div>
+        <div id="tab-panels" class="tab-panels"></div>
+      </div>
+
+      <!-- Actions bar -->
+      <div class="actions-bar">
+        <button id="btn-save" type="button" class="btn-primary">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+            <path d="M2 7.5l3.5 3.5L13 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Save Session
+        </button>
+        <span id="save-status" class="save-status"></span>
+      </div>
+
+    </div><!-- /step-editor -->
+
+  </div><!-- /page-wrap -->
+
+  <!-- ── Code modal ──────────────────────────────────────────────────────── -->
+  <div id="code-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-heading">
+    <div class="modal-box">
+      <h2 id="modal-heading" class="modal-title">Session Ready</h2>
+      <p class="modal-sub">Share this code with your students</p>
+
+      <div class="code-display">
+        <span id="modal-code-value" class="code-value">CHEM-XXXX</span>
+        <button id="modal-copy-btn" type="button" class="code-copy" title="Copy code" aria-label="Copy session code">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+            <rect x="5" y="5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M3 10V3a1 1 0 011-1h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-docs">
+        <strong>Google Docs:</strong>&nbsp;
+        <span id="modal-docs-link"></span>
+      </div>
+
+      <div class="modal-share-msg">
+        Ask students to open the Qualitative Analysis Lab, then navigate to the URL or
+        enter the session code above. They should open your Google Docs link to record
+        their observations and answers.
+      </div>
+
+      <div class="modal-actions">
+        <button id="modal-close" type="button" class="btn-secondary">Back to Editor</button>
+        <button id="modal-new-session" type="button" class="btn-primary">New Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast container ─────────────────────────────────────────────────── -->
+  <div id="toast-container" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="chem_lab/teacher/teacher-main.js"></script>
+</body>
+</html>

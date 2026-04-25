@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kinetics Lab — Secondary · InquisitiveChemistry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:#07090f; --surface:#0d1018; --surface2:#111520;
+  --border:#1e2535; --border2:#263045;
+  --accent:#4df0b0; --accent2:#38d49a;
+  --gold:#ffd166; --amber:#f4a261; --purple:#c77dff; --red:#ff6b6b; --blue:#4d9fff;
+  --text:#eef2ff; --text-mid:#a8b4d0; --text-dim:#5a6882;
+  --glow:rgba(77,240,176,0.1);
+}
+html { scroll-behavior:smooth; }
+body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; line-height:1.6; overflow-x:hidden; min-height:100vh; display:flex; flex-direction:column; }
+
+/* ── NAV ── */
+nav { position:fixed; top:0; left:0; right:0; z-index:200; display:flex; align-items:center; padding:0 32px; height:56px; background:rgba(7,9,15,0.95); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); gap:12px; flex-shrink:0; }
+.nav-logo { font-family:'Instrument Serif',serif; font-size:1.05rem; color:var(--text); text-decoration:none; white-space:nowrap; }
+.nav-logo span { color:var(--accent); }
+.nav-crumb { display:flex; align-items:center; gap:6px; font-family:'DM Mono',monospace; font-size:0.65rem; color:var(--text-dim); }
+.nav-crumb .sep { color:var(--border2); }
+.nav-crumb .cur { color:var(--amber); }
+.nav-actions { margin-left:auto; display:flex; align-items:center; gap:12px; }
+.nav-back { font-size:0.78rem; color:var(--text-dim); text-decoration:none; transition:color 0.2s; display:flex; align-items:center; gap:5px; }
+.nav-back:hover { color:var(--text); }
+
+/* ── LAYOUT ── */
+.lab-shell { display:grid; grid-template-columns:1fr 340px; grid-template-rows:auto 1fr; height:calc(100vh - 56px); margin-top:56px; overflow:hidden; }
+.lab-top    { grid-column:1/-1; background:var(--surface); border-bottom:1px solid var(--border); padding:10px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.lab-bench  { background:var(--bg); overflow:hidden; position:relative; }
+.lab-panel  { background:var(--surface); border-left:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+
+/* ── TOP BAR ── */
+.exp-tabs { display:flex; gap:4px; }
+.exp-tab {
+  font-family:'DM Mono',monospace; font-size:0.65rem; letter-spacing:0.06em;
+  padding:6px 14px; border-radius:8px; border:1px solid var(--border);
+  background:transparent; color:var(--text-dim); cursor:pointer; transition:all 0.2s;
+}
+.exp-tab:hover { border-color:var(--border2); color:var(--text-mid); }
+.exp-tab.active { background:rgba(244,162,97,0.12); border-color:rgba(244,162,97,0.4); color:var(--amber); }
+
+.divider-v { width:1px; height:28px; background:var(--border); flex-shrink:0; }
+
+/* Stopwatch */
+.stopwatch-wrap { display:flex; align-items:center; gap:8px; }
+.sw-display {
+  font-family:'DM Mono',monospace; font-size:1.2rem; letter-spacing:0.08em;
+  color:var(--accent); background:var(--bg); border:1px solid var(--border);
+  border-radius:8px; padding:4px 14px; min-width:100px; text-align:center;
+  transition:color 0.3s;
+}
+.sw-display.running { color:var(--gold); }
+.sw-btn {
+  font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.08em;
+  padding:5px 12px; border-radius:6px; border:1px solid var(--border);
+  background:transparent; color:var(--text-mid); cursor:pointer; transition:all 0.2s;
+}
+.sw-btn.start  { border-color:rgba(77,240,176,0.4); color:var(--accent); }
+.sw-btn.start:hover  { background:var(--glow); }
+.sw-btn.stop   { border-color:rgba(255,107,107,0.4); color:var(--red); }
+.sw-btn.stop:hover   { background:rgba(255,107,107,0.08); }
+.sw-btn.reset  { }
+.sw-btn.reset:hover  { border-color:var(--border2); color:var(--text); }
+
+.sw-auto-label { font-size:0.72rem; color:var(--text-dim); display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; white-space:nowrap; }
+.sw-auto-label input { accent-color:var(--amber); cursor:pointer; }
+
+/* Temperature bath */
+.temp-wrap { display:flex; align-items:center; gap:10px; }
+.temp-label { font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.08em; color:var(--text-dim); white-space:nowrap; }
+.temp-display { font-family:'DM Mono',monospace; font-size:0.95rem; color:var(--gold); min-width:52px; text-align:center; }
+.temp-slider { -webkit-appearance:none; appearance:none; width:90px; height:4px; border-radius:2px; background:var(--border2); outline:none; }
+.temp-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--gold); cursor:pointer; border:2px solid var(--bg); }
+
+/* ── BENCH ── */
+.bench-content { width:100%; height:100%; position:relative; display:flex; align-items:flex-end; justify-content:center; padding-bottom:24px; gap:0; }
+
+/* Shelf at back */
+.shelf {
+  position:absolute; top:0; left:0; right:0; height:160px;
+  background:linear-gradient(to bottom, rgba(13,16,24,0.9), transparent);
+  border-bottom:2px solid var(--border2);
+  display:flex; align-items:flex-end; justify-content:center; gap:18px;
+  padding-bottom:8px; z-index:10;
+}
+
+/* Reagent bottle */
+.bottle {
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  cursor:grab; user-select:none; position:relative;
+  transition:transform 0.15s;
+}
+.bottle:hover { transform:translateY(-4px); }
+.bottle:active { cursor:grabbing; }
+
+.bottle-svg { filter:drop-shadow(0 4px 12px rgba(0,0,0,0.5)); }
+
+.bottle-label {
+  font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.06em;
+  color:var(--text-dim); text-align:center; max-width:64px; line-height:1.3;
+}
+
+/* Measuring cylinder */
+.cylinder-area {
+  position:absolute; bottom:24px; left:0; right:0;
+  display:flex; align-items:flex-end; justify-content:center; gap:24px;
+  z-index:5;
+}
+.cylinder-wrap {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  opacity:0; transform:translateY(12px);
+  transition:opacity 0.3s, transform 0.3s;
+}
+.cylinder-wrap.visible { opacity:1; transform:translateY(0); }
+
+.cylinder-outer {
+  position:relative; width:44px; height:140px;
+  cursor:ns-resize; user-select:none;
+}
+.cyl-body {
+  position:absolute; bottom:0; left:50%; transform:translateX(-50%);
+  width:32px; height:130px;
+  background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.18);
+  border-radius:2px 2px 4px 4px; overflow:visible;
+}
+/* Graduation marks */
+.cyl-grads {
+  position:absolute; left:0; right:0; top:0; bottom:0; pointer-events:none;
+}
+.cyl-liquid {
+  position:absolute; bottom:0; left:0; right:0;
+  border-radius:0 0 3px 3px;
+  transition:height 0.15s;
+}
+.cyl-meniscus {
+  position:absolute; top:-3px; left:0; right:0; height:6px;
+  border-radius:50% 50% 0 0;
+  opacity:0.7;
+}
+.cyl-reading {
+  position:absolute; right:-38px; font-family:'DM Mono',monospace; font-size:0.6rem;
+  color:var(--accent); white-space:nowrap; pointer-events:none;
+  transition:top 0.15s;
+}
+.cyl-label { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--text-dim); text-align:center; }
+.cyl-vol { font-family:'DM Mono',monospace; font-size:0.75rem; color:var(--text-mid); text-align:center; }
+.cyl-pour-btn {
+  font-family:'DM Mono',monospace; font-size:0.6rem; padding:4px 10px;
+  border-radius:6px; border:1px solid rgba(77,240,176,0.3);
+  background:transparent; color:var(--accent); cursor:pointer;
+  transition:all 0.2s; white-space:nowrap;
+}
+.cyl-pour-btn:hover { background:var(--glow); }
+.cyl-pour-btn:disabled { opacity:0.3; cursor:default; }
+
+/* Reaction vessel */
+.vessel-area {
+  position:absolute; bottom:0; left:50%; transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  z-index:8;
+}
+.vessel-wrap {
+  position:relative; width:180px; height:220px;
+  filter:drop-shadow(0 8px 24px rgba(0,0,0,0.6));
+}
+.vessel-label-row {
+  font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--text-dim);
+  text-align:center; margin-bottom:4px;
+}
+
+/* Cross experiment cross */
+.cross-container {
+  position:absolute; bottom:-32px; left:50%; transform:translateX(-50%);
+  width:64px; height:64px; display:none;
+}
+.cross-svg { width:64px; height:64px; }
+.vessel-area.cross-mode .cross-container { display:block; }
+
+/* Reaction status badge */
+.reaction-status {
+  position:absolute; top:8px; left:50%; transform:translateX(-50%);
+  font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.08em;
+  padding:4px 12px; border-radius:20px; background:var(--surface2);
+  border:1px solid var(--border); color:var(--text-dim); white-space:nowrap;
+  transition:all 0.5s; z-index:20;
+}
+.reaction-status.ready    { border-color:rgba(77,240,176,0.3); color:var(--accent); }
+.reaction-status.reacting { border-color:rgba(255,209,102,0.4); color:var(--gold); }
+.reaction-status.done     { border-color:rgba(199,125,255,0.4); color:var(--purple); }
+
+/* Thermal bath */
+.bath-area {
+  position:absolute; bottom:24px; right:24px;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  z-index:6;
+}
+.bath-visual {
+  width:80px; height:70px; border-radius:8px;
+  border:2px solid var(--border2); background:var(--surface2);
+  position:relative; overflow:hidden; cursor:default;
+}
+.bath-liquid {
+  position:absolute; bottom:0; left:0; right:0; height:55%;
+  background:linear-gradient(to top, rgba(77,160,255,0.35), rgba(77,200,255,0.15));
+  transition:background 1s;
+}
+.bath-bubbles { position:absolute; inset:0; pointer-events:none; }
+.bath-temp-display { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--gold); }
+.bath-label { font-family:'DM Mono',monospace; font-size:0.58rem; color:var(--text-dim); letter-spacing:0.06em; }
+
+/* Pour animation overlay */
+.pour-anim {
+  position:absolute; pointer-events:none; z-index:50;
+  width:3px; background:transparent;
+  transform-origin:top center;
+}
+
+/* ── PANEL ── */
+.panel-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
+.ptab {
+  flex:1; font-family:'DM Mono',monospace; font-size:0.6rem; letter-spacing:0.06em;
+  padding:10px 4px; text-align:center; color:var(--text-dim); cursor:pointer;
+  border-bottom:2px solid transparent; transition:all 0.2s; background:none; border-top:none; border-left:none; border-right:none;
+}
+.ptab:hover { color:var(--text-mid); }
+.ptab.active { color:var(--amber); border-bottom-color:var(--amber); }
+
+.panel-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:16px; }
+.panel-body::-webkit-scrollbar { width:4px; }
+.panel-body::-webkit-scrollbar-track { background:transparent; }
+.panel-body::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+/* Particle size selector (marble) */
+.psize-select { display:flex; gap:8px; flex-wrap:wrap; }
+.psize-opt {
+  flex:1; min-width:60px; padding:10px 8px; border-radius:8px; text-align:center;
+  border:1px solid var(--border); background:var(--surface2); cursor:pointer;
+  transition:all 0.2s;
+}
+.psize-opt:hover { border-color:var(--border2); }
+.psize-opt.selected { border-color:rgba(77,240,176,0.5); background:rgba(77,240,176,0.08); }
+.psize-icon { font-size:1.2rem; margin-bottom:4px; }
+.psize-name { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--text-dim); }
+.psize-opt.selected .psize-name { color:var(--accent); }
+
+/* Catalyst toggle */
+.catalyst-row { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:8px; background:var(--surface2); border:1px solid var(--border); }
+.catalyst-name { font-size:0.82rem; color:var(--text-mid); }
+.catalyst-sub  { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--text-dim); }
+.cat-toggle { width:36px; height:20px; border-radius:10px; border:1px solid var(--border2); background:var(--bg); position:relative; cursor:pointer; transition:background 0.2s; flex-shrink:0; }
+.cat-toggle.on { background:rgba(77,240,176,0.2); border-color:var(--accent); }
+.cat-toggle::after { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:var(--text-dim); transition:transform 0.2s, background 0.2s; }
+.cat-toggle.on::after { transform:translateX(16px); background:var(--accent); }
+
+/* Data table */
+.data-table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:0.75rem; }
+th { font-family:'DM Mono',monospace; font-size:0.58rem; letter-spacing:0.06em; color:var(--text-dim); padding:6px 8px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+td { padding:6px 8px; border-bottom:1px solid var(--border); color:var(--text-mid); font-family:'DM Mono',monospace; font-size:0.7rem; }
+tr:last-child td { border-bottom:none; }
+.td-new { color:var(--accent); }
+
+.table-btns { display:flex; gap:8px; margin-top:8px; }
+.tbl-btn {
+  font-family:'DM Mono',monospace; font-size:0.6rem; padding:5px 12px;
+  border-radius:6px; border:1px solid var(--border); background:transparent;
+  color:var(--text-dim); cursor:pointer; transition:all 0.2s;
+}
+.tbl-btn:hover { border-color:var(--border2); color:var(--text-mid); }
+.tbl-btn.primary { border-color:rgba(77,240,176,0.35); color:var(--accent); }
+.tbl-btn.primary:hover { background:var(--glow); }
+.tbl-btn.danger  { border-color:rgba(255,107,107,0.3); color:var(--red); }
+.tbl-btn.danger:hover { background:rgba(255,107,107,0.06); }
+
+/* Questions */
+.question-block { display:flex; flex-direction:column; gap:8px; }
+.q-num { font-family:'DM Mono',monospace; font-size:0.6rem; color:var(--amber); letter-spacing:0.06em; }
+.q-text { font-size:0.82rem; color:var(--text-mid); line-height:1.6; }
+.q-input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-family:'DM Sans',sans-serif; font-size:0.8rem; color:var(--text); resize:vertical; min-height:60px; transition:border-color 0.2s; outline:none; }
+.q-input:focus { border-color:rgba(244,162,97,0.4); }
+
+/* Hint / instruction text */
+.hint { font-size:0.78rem; color:var(--text-dim); line-height:1.65; padding:10px 12px; background:var(--surface2); border-radius:8px; border-left:2px solid var(--amber); }
+.hint strong { color:var(--text-mid); }
+
+/* Section headings in panel */
+.panel-section-hdr { font-family:'DM Mono',monospace; font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:6px; }
+
+/* Reset btn */
+.reset-experiment-btn {
+  font-family:'DM Mono',monospace; font-size:0.62rem; letter-spacing:0.06em;
+  padding:7px 16px; border-radius:8px; border:1px solid var(--border);
+  background:transparent; color:var(--text-dim); cursor:pointer; transition:all 0.2s; margin-top:auto;
+}
+.reset-experiment-btn:hover { border-color:rgba(255,107,107,0.3); color:var(--red); }
+
+/* ── DRAG GHOST ── */
+.drag-ghost {
+  position:fixed; z-index:9999; pointer-events:none;
+  font-family:'DM Mono',monospace; font-size:0.7rem;
+  padding:6px 12px; background:var(--surface2); border:1px solid var(--border2);
+  border-radius:8px; color:var(--text-mid);
+  transform:translate(-50%, -50%);
+  box-shadow:0 8px 24px rgba(0,0,0,0.5);
+}
+
+/* ── VESSEL DROP HIGHLIGHT ── */
+.vessel-wrap.drag-over { filter:drop-shadow(0 0 16px rgba(77,240,176,0.5)); }
+
+/* ── POUR STREAM ── */
+@keyframes pourStream { 0%{opacity:0;scaleY:0} 10%{opacity:1;scaleY:1} 90%{opacity:1} 100%{opacity:0} }
+
+/* ── RESPONSIVE ── */
+@media (max-width:900px) {
+  .lab-shell { grid-template-columns:1fr; grid-template-rows:auto 1fr auto; height:auto; overflow:visible; }
+  .lab-panel { max-height:400px; border-left:none; border-top:1px solid var(--border); }
+  .lab-bench { height:480px; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="../index.html" class="nav-logo">Inquisitive<span>Chemistry</span></a>
+  <div class="nav-crumb">
+    <span class="sep">/</span>
+    <a href="index.html" style="color:var(--text-dim);text-decoration:none;">Kinetics</a>
+    <span class="sep">/</span>
+    <span class="cur">Secondary</span>
+  </div>
+  <div class="nav-actions">
+    <a href="index.html" class="nav-back">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+        <path d="M10 7H4M6 4L3 7l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Level Select
+    </a>
+  </div>
+</nav>
+
+<div class="lab-shell">
+
+  <!-- TOP BAR -->
+  <div class="lab-top">
+    <!-- Experiment selector -->
+    <div class="exp-tabs">
+      <button class="exp-tab active" data-exp="iodine">🟦 Iodine Clock</button>
+      <button class="exp-tab" data-exp="cross">✖ Disappearing Cross</button>
+      <button class="exp-tab" data-exp="marble">🧪 Marble + HCl</button>
+    </div>
+
+    <div class="divider-v"></div>
+
+    <!-- Stopwatch -->
+    <div class="stopwatch-wrap">
+      <div class="sw-display" id="swDisplay">00:00.0</div>
+      <button class="sw-btn start" id="swStartBtn">START</button>
+      <button class="sw-btn reset" id="swResetBtn">RESET</button>
+      <label class="sw-auto-label">
+        <input type="checkbox" id="swAutoCheck"> auto-start on mix
+      </label>
+    </div>
+
+    <div class="divider-v"></div>
+
+    <!-- Temperature bath -->
+    <div class="temp-wrap">
+      <span class="temp-label">BATH</span>
+      <input type="range" class="temp-slider" id="tempSlider" min="10" max="70" value="25" step="5">
+      <span class="temp-display" id="tempDisplay">25 °C</span>
+    </div>
+  </div>
+
+  <!-- BENCH -->
+  <div class="lab-bench" id="labBench">
+    <div class="reaction-status" id="reactionStatus">Add reagents to begin</div>
+
+    <!-- Reagent shelf -->
+    <div class="shelf" id="reagentShelf">
+      <!-- Bottles rendered by JS -->
+    </div>
+
+    <!-- Measuring cylinders -->
+    <div class="cylinder-area" id="cylinderArea">
+      <!-- Rendered by JS -->
+    </div>
+
+    <!-- Reaction vessel -->
+    <div class="vessel-area" id="vesselArea">
+      <div class="vessel-label-row" id="vesselLabelRow">Reaction vessel</div>
+      <div class="vessel-wrap" id="vesselWrap">
+        <svg id="vesselSvg" viewBox="0 0 180 220" width="180" height="220" style="overflow:visible;">
+          <!-- Beaker shape (default) -->
+          <g id="beakerGroup">
+            <!-- Glass walls -->
+            <path d="M30 20 L30 190 Q30 205 45 205 L135 205 Q150 205 150 190 L150 20 Z"
+                  fill="rgba(180,220,255,0.04)" stroke="rgba(180,220,255,0.35)" stroke-width="1.5"/>
+            <!-- Lip -->
+            <path d="M26 20 L154 20" stroke="rgba(180,220,255,0.35)" stroke-width="2" stroke-linecap="round"/>
+            <!-- Spout notch -->
+            <path d="M26 20 L20 14" stroke="rgba(180,220,255,0.3)" stroke-width="1.5" stroke-linecap="round"/>
+            <!-- Graduation marks on beaker -->
+            <line x1="34" y1="80"  x2="42" y2="80"  stroke="rgba(180,220,255,0.2)" stroke-width="1"/>
+            <line x1="34" y1="110" x2="42" y2="110" stroke="rgba(180,220,255,0.2)" stroke-width="1"/>
+            <line x1="34" y1="140" x2="42" y2="140" stroke="rgba(180,220,255,0.2)" stroke-width="1"/>
+            <line x1="34" y1="170" x2="42" y2="170" stroke="rgba(180,220,255,0.2)" stroke-width="1"/>
+            <text x="44" y="83"  font-family="monospace" font-size="8" fill="rgba(180,220,255,0.2)">150</text>
+            <text x="44" y="113" font-family="monospace" font-size="8" fill="rgba(180,220,255,0.2)">100</text>
+            <text x="44" y="143" font-family="monospace" font-size="8" fill="rgba(180,220,255,0.2)">50</text>
+            <!-- Liquid inside beaker -->
+            <clipPath id="beakerClip">
+              <rect x="31" y="20" width="118" height="185"/>
+            </clipPath>
+            <rect id="beakerLiquid" x="31" y="185" width="118" height="0" fill="rgba(77,180,255,0.25)" clip-path="url(#beakerClip)" style="transition:y 0.8s, height 0.8s, fill 1s;"/>
+            <!-- Reaction colour overlay -->
+            <rect id="reactionOverlay" x="31" y="20" width="118" height="185" fill="transparent" clip-path="url(#beakerClip)" style="transition:fill 0.5s; pointer-events:none;"/>
+            <!-- Meniscus -->
+            <ellipse id="beakerMeniscus" cx="90" cy="185" rx="59" ry="4" fill="rgba(120,200,255,0.2)" style="transition:cy 0.8s;"/>
+          </g>
+        </svg>
+        <!-- Cross for thiosulfate experiment -->
+        <div class="cross-container" id="crossContainer">
+          <svg class="cross-svg" viewBox="0 0 64 64">
+            <line x1="8" y1="32" x2="56" y2="32" stroke="rgba(200,200,200,0.85)" stroke-width="4" stroke-linecap="round" id="crossH"/>
+            <line x1="32" y1="8" x2="32" y2="56" stroke="rgba(200,200,200,0.85)" stroke-width="4" stroke-linecap="round" id="crossV"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thermal bath visual -->
+    <div class="bath-area" id="bathArea">
+      <div class="bath-visual" id="bathVisual">
+        <div class="bath-liquid" id="bathLiquid"></div>
+        <canvas class="bath-bubbles" id="bathBubbles" width="80" height="70"></canvas>
+      </div>
+      <div class="bath-temp-display" id="bathTempDisplay">25 °C</div>
+      <div class="bath-label">WATER BATH</div>
+    </div>
+
+  </div><!-- /lab-bench -->
+
+  <!-- SIDE PANEL -->
+  <div class="lab-panel">
+    <div class="panel-tabs">
+      <button class="ptab active" data-tab="setup">SETUP</button>
+      <button class="ptab" data-tab="data">DATA</button>
+      <button class="ptab" data-tab="questions">Qs</button>
+    </div>
+
+    <!-- SETUP TAB -->
+    <div class="panel-body" id="tabSetup">
+
+      <div class="hint" id="expHint">
+        <strong>Iodine Clock:</strong> Mix Solutions A and B. The reaction is invisible at first, then the liquid suddenly turns dark blue when the Na₂S₂O₃ is used up.
+      </div>
+
+      <!-- Marble particle size (hidden unless marble experiment) -->
+      <div id="particleSizeSection" style="display:none;">
+        <div class="panel-section-hdr">Particle Size</div>
+        <div class="psize-select" id="psizeSelect">
+          <div class="psize-opt" data-size="powder">
+            <div class="psize-icon">🌫️</div>
+            <div class="psize-name">Powder</div>
+          </div>
+          <div class="psize-opt selected" data-size="chips">
+            <div class="psize-icon">◻️</div>
+            <div class="psize-name">Chips</div>
+          </div>
+          <div class="psize-opt" data-size="lumps">
+            <div class="psize-icon">🪨</div>
+            <div class="psize-name">Lumps</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Catalyst (hidden for marble) -->
+      <div id="catalystSection">
+        <div class="panel-section-hdr">Catalyst</div>
+        <div class="catalyst-row" id="catalystRow">
+          <div>
+            <div class="catalyst-name" id="catalystName">Fe²⁺ catalyst</div>
+            <div class="catalyst-sub" id="catalystSub">Iron(II) sulfate solution</div>
+          </div>
+          <div class="cat-toggle" id="catToggle"></div>
+        </div>
+      </div>
+
+      <div class="panel-section-hdr" style="margin-top:4px;">Instructions</div>
+      <div style="font-size:0.78rem; color:var(--text-dim); line-height:1.7;" id="expInstructions">
+        1. Set the water bath temperature.<br>
+        2. Click a reagent bottle on the shelf to fill its measuring cylinder.<br>
+        3. Drag the cylinder over the beaker, or click <strong style="color:var(--accent)">Pour →</strong>.<br>
+        4. Start the stopwatch before (or enable auto-start).<br>
+        5. Observe the colour change and record the time.
+      </div>
+
+      <button class="reset-experiment-btn" id="resetBtn">↺ Reset Experiment</button>
+    </div>
+
+    <!-- DATA TAB -->
+    <div class="panel-body" id="tabData" style="display:none;">
+      <div class="panel-section-hdr">Results Table</div>
+      <div class="data-table-wrap">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th id="col2Hdr">Vol A (mL)</th>
+              <th id="col3Hdr">Vol B (mL)</th>
+              <th>H₂O (mL)</th>
+              <th>Temp (°C)</th>
+              <th>Time (s)</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody">
+            <tr><td colspan="6" style="color:var(--text-dim);text-align:center;padding:16px 8px;">No results yet. Run an experiment and click Record.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-btns">
+        <button class="tbl-btn primary" id="recordBtn">+ Record Result</button>
+        <button class="tbl-btn danger" id="clearTableBtn">Clear</button>
+      </div>
+    </div>
+
+    <!-- QUESTIONS TAB -->
+    <div class="panel-body" id="tabQuestions" style="display:none;">
+      <div id="questionsContent">
+        <!-- Populated by JS based on experiment -->
+      </div>
+    </div>
+
+  </div><!-- /lab-panel -->
+
+</div><!-- /lab-shell -->
+
+<script>
+// ─── STATE ─────────────────────────────────────────────────────────────────
+
+const state = {
+  experiment: 'iodine',   // 'iodine' | 'cross' | 'marble'
+  temperature: 25,
+  particleSize: 'chips',  // marble only
+  catalystOn: false,
+
+  // Volumes poured into vessel (mL)
+  volumes: {},            // { reagentId: mL }
+  totalVolumeTarget: 100, // mL total
+
+  // Reaction
+  reactionStarted: false,
+  reactionProgress: 0,    // 0→1
+  reactionDone: false,
+  reactionTimer: null,
+  reactionDuration: 0,    // seconds
+
+  // Stopwatch
+  swRunning: false,
+  swStartTime: null,
+  swElapsed: 0,
+  swRaf: null,
+  swAutoStart: false,
+
+  // Cylinders: { reagentId: { vol: mL, max: mL, poured: bool } }
+  cylinders: {},
+
+  // Active cylinder being dragged
+  draggingCyl: null,
+};
+
+// ─── EXPERIMENT DEFINITIONS ────────────────────────────────────────────────
+
+const EXPERIMENTS = {
+  iodine: {
+    name: 'Iodine Clock',
+    hint: '<strong>Iodine Clock:</strong> Mix Solutions A and B. The reaction is invisible at first, then turns <strong style="color:#6464ee">dark blue</strong> when the Na₂S₂O₃ is exhausted.',
+    reagents: [
+      { id:'solA', label:'Solution A', sublabel:'H₂O₂ + H₂SO₄', color:'rgba(255,245,180,0.7)', colorHex:'#fff5b4', maxVol:50 },
+      { id:'solB', label:'Solution B', sublabel:'KI + starch + Na₂S₂O₃', color:'rgba(180,200,255,0.7)', colorHex:'#b4c8ff', maxVol:50 },
+      { id:'water', label:'Distilled Water', sublabel:'H₂O', color:'rgba(200,230,255,0.55)', colorHex:'#c8e6ff', maxVol:80 },
+      { id:'catalyst', label:'Catalyst', sublabel:'FeSO₄ (aq)', color:'rgba(180,255,180,0.7)', colorHex:'#b4ffb4', maxVol:10 },
+    ],
+    catalystId: 'catalyst',
+    catalystName: 'Fe²⁺ catalyst',
+    catalystSub: 'Iron(II) sulfate solution',
+    endColor: 'rgba(30,20,100,0.85)',   // deep blue/black
+    endColorHex: '#1e1464',
+    progressColor: (p) => {
+      // Gradual deepening blue transition only in last 20% of time
+      if (p < 0.8) return null;
+      const t = (p - 0.8) / 0.2; // 0→1 in final 20%
+      const alpha = t * 0.85;
+      return `rgba(30,20,100,${alpha.toFixed(2)})`;
+    },
+    instructions: '1. Set the water bath temperature.<br>2. Click a bottle to fill its measuring cylinder.<br>3. Drag cylinder over the beaker or click <strong style="color:var(--accent)">Pour →</strong>.<br>4. Start stopwatch (or enable auto-start).<br>5. Watch for the sudden colour change!',
+    questions: [
+      { q:'What did you observe when solutions A and B were mixed? Describe what happened over time.', ph:'Describe the colour changes you saw...' },
+      { q:'How does increasing the volume of Solution A (while keeping B and water constant) affect the time to colour change? What does this tell you about concentration?', ph:'Write your observation and explanation...' },
+      { q:'How does temperature affect the reaction rate? Suggest a particle-level explanation.', ph:'Use ideas about particle collision and energy...' },
+      { q:'What is the role of the catalyst? How does it affect the time to colour change?', ph:'Write your observation and explanation...' },
+    ],
+    col2: 'Vol A (mL)', col3: 'Vol B (mL)',
+  },
+  cross: {
+    name: 'Disappearing Cross',
+    hint: '<strong>Disappearing Cross:</strong> Mix Na₂S₂O₃ and HCl. Sulfur precipitate forms and slowly obscures the cross beneath the conical flask.',
+    reagents: [
+      { id:'thio', label:'Na₂S₂O₃', sublabel:'Sodium thiosulfate', color:'rgba(220,230,255,0.6)', colorHex:'#dce6ff', maxVol:50 },
+      { id:'hcl',  label:'HCl', sublabel:'Dilute hydrochloric acid', color:'rgba(255,220,180,0.55)', colorHex:'#ffdcb4', maxVol:50 },
+      { id:'water', label:'Distilled Water', sublabel:'H₂O', color:'rgba(200,230,255,0.55)', colorHex:'#c8e6ff', maxVol:80 },
+    ],
+    catalystId: null,
+    endColor: 'rgba(230,210,160,0.82)',  // cloudy sulfur yellow-white
+    progressColor: (p) => {
+      // Gradual cloudiness increase from the start
+      const alpha = p * 0.82;
+      return `rgba(230,210,160,${alpha.toFixed(2)})`;
+    },
+    crossVisible: true,
+    instructions: '1. Place a conical flask over the cross drawn on paper.<br>2. Measure and add the reagents.<br>3. Start the stopwatch.<br>4. Record the time when you can no longer see the cross.',
+    questions: [
+      { q:'Describe what you observed in the flask over time. Why does the solution become cloudy?', ph:'Na₂S₂O₃ + HCl → ...' },
+      { q:'How does the volume of Na₂S₂O₃ (concentration) affect the time for the cross to disappear?', ph:'Write your observation...' },
+      { q:'How does temperature change the rate of this reaction? How can you tell from the cross?', ph:'Describe what happened at different temperatures...' },
+      { q:'Write the word equation and symbol equation for this reaction.', ph:'Na₂S₂O₃ + HCl →...' },
+    ],
+    col2: 'Vol Thio (mL)', col3: 'Vol HCl (mL)',
+  },
+  marble: {
+    name: 'Marble Chips + HCl',
+    hint: '<strong>Marble Chips + HCl:</strong> CaCO₃ + 2HCl → CaCl₂ + H₂O + CO₂. Watch the bubbles and observe how particle size affects the rate.',
+    reagents: [
+      { id:'hcl',   label:'HCl', sublabel:'Dilute hydrochloric acid', color:'rgba(255,220,180,0.55)', colorHex:'#ffdcb4', maxVol:60 },
+      { id:'water', label:'Distilled Water', sublabel:'H₂O', color:'rgba(200,230,255,0.55)', colorHex:'#c8e6ff', maxVol:80 },
+    ],
+    catalystId: null,
+    showParticleSize: true,
+    endColor: 'rgba(200,230,255,0.3)',
+    progressColor: (p) => null, // bubbles shown instead
+    instructions: '1. Select the particle size (powder, chips, or lumps).<br>2. Add marble chips to the vessel (they are added automatically when you pour HCl).<br>3. Measure and pour HCl into the beaker.<br>4. Observe the rate of CO₂ bubbling.',
+    questions: [
+      { q:'How did the rate of bubbling differ between powder, chips, and lumps? Why?', ph:'Describe the bubble rates and explain using surface area...' },
+      { q:'How does increasing HCl concentration (more HCl, less water) change the rate?', ph:'Write your observation and a particle-level explanation...' },
+      { q:'Sketch a graph of "amount of CO₂ produced" vs "time" for the three particle sizes on the same axes.', ph:'Describe the shape of each curve...' },
+      { q:'Which factor (particle size or concentration) had a bigger effect on rate in your experiments? Justify your answer with data.', ph:'Quote specific time values to support your answer...' },
+    ],
+    col2: 'Vol HCl (mL)', col3: 'Particle Size',
+  },
+};
+
+// ─── DOM REFS ──────────────────────────────────────────────────────────────
+
+const els = {
+  reactionStatus: document.getElementById('reactionStatus'),
+  reagentShelf:   document.getElementById('reagentShelf'),
+  cylinderArea:   document.getElementById('cylinderArea'),
+  vesselArea:     document.getElementById('vesselArea'),
+  vesselWrap:     document.getElementById('vesselWrap'),
+  beakerLiquid:   document.getElementById('beakerLiquid'),
+  beakerMeniscus: document.getElementById('beakerMeniscus'),
+  reactionOverlay:document.getElementById('reactionOverlay'),
+  crossContainer: document.getElementById('crossContainer'),
+  crossH:         document.getElementById('crossH'),
+  crossV:         document.getElementById('crossV'),
+  bathLiquid:     document.getElementById('bathLiquid'),
+  bathTempDisplay:document.getElementById('bathTempDisplay'),
+  tempSlider:     document.getElementById('tempSlider'),
+  tempDisplay:    document.getElementById('tempDisplay'),
+  swDisplay:      document.getElementById('swDisplay'),
+  swStartBtn:     document.getElementById('swStartBtn'),
+  swResetBtn:     document.getElementById('swResetBtn'),
+  swAutoCheck:    document.getElementById('swAutoCheck'),
+  expHint:        document.getElementById('expHint'),
+  expInstructions:document.getElementById('expInstructions'),
+  particleSection:document.getElementById('particleSizeSection'),
+  catalystSection:document.getElementById('catalystSection'),
+  catalystName:   document.getElementById('catalystName'),
+  catalystSub:    document.getElementById('catalystSub'),
+  catToggle:      document.getElementById('catToggle'),
+  psizeSelect:    document.getElementById('psizeSelect'),
+  resetBtn:       document.getElementById('resetBtn'),
+  recordBtn:      document.getElementById('recordBtn'),
+  clearTableBtn:  document.getElementById('clearTableBtn'),
+  resultsBody:    document.getElementById('resultsBody'),
+  col2Hdr:        document.getElementById('col2Hdr'),
+  col3Hdr:        document.getElementById('col3Hdr'),
+  questionsContent:document.getElementById('questionsContent'),
+  labBench:       document.getElementById('labBench'),
+  tabSetup:       document.getElementById('tabSetup'),
+  tabData:        document.getElementById('tabData'),
+  tabQuestions:   document.getElementById('tabQuestions'),
+};
+
+// ─── STOPWATCH ─────────────────────────────────────────────────────────────
+
+function swFormat(ms) {
+  const total = ms / 1000;
+  const m = Math.floor(total / 60).toString().padStart(2, '0');
+  const s = Math.floor(total % 60).toString().padStart(2, '0');
+  const d = Math.floor((total % 1) * 10);
+  return `${m}:${s}.${d}`;
+}
+
+function swTick() {
+  if (!state.swRunning) return;
+  const now = performance.now();
+  state.swElapsed = now - state.swStartTime;
+  els.swDisplay.textContent = swFormat(state.swElapsed);
+  state.swRaf = requestAnimationFrame(swTick);
+}
+
+function swStart() {
+  if (state.swRunning) return;
+  state.swRunning = true;
+  state.swStartTime = performance.now() - state.swElapsed;
+  els.swDisplay.classList.add('running');
+  els.swStartBtn.textContent = 'STOP';
+  els.swStartBtn.className = 'sw-btn stop';
+  els.swStartBtn.onclick = swStop;
+  state.swRaf = requestAnimationFrame(swTick);
+}
+
+function swStop() {
+  if (!state.swRunning) return;
+  state.swRunning = false;
+  cancelAnimationFrame(state.swRaf);
+  els.swDisplay.classList.remove('running');
+  els.swStartBtn.textContent = 'START';
+  els.swStartBtn.className = 'sw-btn start';
+  els.swStartBtn.onclick = swStart;
+}
+
+function swReset() {
+  swStop();
+  state.swElapsed = 0;
+  els.swDisplay.textContent = '00:00.0';
+}
+
+els.swStartBtn.onclick = swStart;
+els.swResetBtn.onclick  = swReset;
+els.swAutoCheck.onchange = e => { state.swAutoStart = e.target.checked; };
+
+// ─── TEMPERATURE ───────────────────────────────────────────────────────────
+
+function updateTemp(val) {
+  state.temperature = parseInt(val);
+  els.tempDisplay.textContent = `${state.temperature} °C`;
+  els.bathTempDisplay.textContent = `${state.temperature} °C`;
+  // Bath liquid colour: cold=blue, warm=orange-red
+  const t = (state.temperature - 10) / 60; // 0→1
+  const r = Math.round(30 + t * 200);
+  const g = Math.round(100 + t * 60);
+  const b = Math.round(220 - t * 150);
+  els.bathLiquid.style.background = `linear-gradient(to top, rgba(${r},${g},${b},0.45), rgba(${r},${g},${b},0.2))`;
+}
+els.tempSlider.oninput = e => updateTemp(e.target.value);
+updateTemp(25);
+
+// Bath bubbles canvas
+const bathCtx = document.getElementById('bathBubbles').getContext('2d');
+const bubbles = [];
+function spawnBubble() {
+  bubbles.push({ x: 10 + Math.random() * 60, y: 70, r: 1.5 + Math.random() * 2, vy: 0.4 + Math.random() * 0.4, alpha: 0.5 });
+}
+function drawBubbles() {
+  bathCtx.clearRect(0, 0, 80, 70);
+  const rate = (state.temperature - 10) / 60; // 0→1
+  if (rate > 0.15 && Math.random() < rate * 0.3) spawnBubble();
+  for (let i = bubbles.length - 1; i >= 0; i--) {
+    const b = bubbles[i];
+    b.y -= b.vy;
+    b.alpha -= 0.008;
+    if (b.y < 5 || b.alpha <= 0) { bubbles.splice(i, 1); continue; }
+    bathCtx.beginPath();
+    bathCtx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    bathCtx.strokeStyle = `rgba(180,220,255,${b.alpha})`;
+    bathCtx.lineWidth = 0.8;
+    bathCtx.stroke();
+  }
+  requestAnimationFrame(drawBubbles);
+}
+drawBubbles();
+
+// ─── EXPERIMENT SWITCH ─────────────────────────────────────────────────────
+
+function switchExperiment(expId) {
+  state.experiment = expId;
+  resetExperiment(false);
+
+  const def = EXPERIMENTS[expId];
+
+  // Tab buttons
+  document.querySelectorAll('.exp-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.exp === expId);
+  });
+
+  // Hint & instructions
+  els.expHint.innerHTML = def.hint;
+  els.expInstructions.innerHTML = def.instructions;
+
+  // Particle size / catalyst sections
+  els.particleSection.style.display = def.showParticleSize ? '' : 'none';
+  els.catalystSection.style.display = def.catalystId ? '' : 'none';
+  if (def.catalystId) {
+    els.catalystName.textContent = def.catalystName;
+    els.catalystSub.textContent  = def.catalystSub;
+  }
+
+  // Table headers
+  els.col2Hdr.textContent = def.col2;
+  els.col3Hdr.textContent = def.col3;
+
+  // Cross visibility
+  if (def.crossVisible) {
+    els.vesselArea.classList.add('cross-mode');
+    els.crossContainer.style.display = 'block';
+  } else {
+    els.vesselArea.classList.remove('cross-mode');
+    els.crossContainer.style.display = 'none';
+  }
+
+  // Questions
+  renderQuestions(def);
+
+  // Build shelf & cylinders
+  buildShelf(def);
+}
+
+document.querySelectorAll('.exp-tab').forEach(t => {
+  t.onclick = () => switchExperiment(t.dataset.exp);
+});
+
+// ─── SHELF & CYLINDERS ─────────────────────────────────────────────────────
+
+const BOTTLE_COLORS = {
+  'rgba(255,245,180,0.7)': ['#e8d060','#fff5b4'],
+  'rgba(180,200,255,0.7)': ['#6090e0','#b4c8ff'],
+  'rgba(200,230,255,0.55)':['#70b0e0','#c8e6ff'],
+  'rgba(180,255,180,0.7)': ['#50c050','#b4ffb4'],
+  'rgba(220,230,255,0.6)': ['#8090d0','#dce6ff'],
+  'rgba(255,220,180,0.55)':['#e09050','#ffdcb4'],
+};
+
+function bottleSvg(reagent, idx) {
+  const [dark, light] = BOTTLE_COLORS[reagent.color] || ['#888','#ccc'];
+  const gradId = `bgrad${idx}`;
+  return `<svg class="bottle-svg" viewBox="0 0 54 90" width="54" height="90" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%"   stop-color="${dark}" stop-opacity="0.9"/>
+        <stop offset="50%"  stop-color="${light}" stop-opacity="0.7"/>
+        <stop offset="100%" stop-color="${dark}" stop-opacity="0.8"/>
+      </linearGradient>
+    </defs>
+    <!-- Neck -->
+    <rect x="20" y="4" width="14" height="22" rx="3" fill="url(#${gradId})" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <!-- Cap -->
+    <rect x="18" y="1" width="18" height="8" rx="3" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+    <!-- Body -->
+    <path d="M14 26 Q10 34 10 50 L10 78 Q10 86 18 86 L36 86 Q44 86 44 78 L44 50 Q44 34 40 26 Z"
+          fill="url(#${gradId})" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <!-- Liquid -->
+    <clipPath id="bclip${idx}"><path d="M14 26 Q10 34 10 50 L10 78 Q10 86 18 86 L36 86 Q44 86 44 78 L44 50 Q44 34 40 26 Z"/></clipPath>
+    <rect x="10" y="45" width="34" height="41" fill="${dark}" opacity="0.55" clip-path="url(#bclip${idx})"/>
+    <!-- Shine -->
+    <path d="M16 32 Q15 50 16 68" stroke="rgba(255,255,255,0.25)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function buildShelf(def) {
+  els.reagentShelf.innerHTML = '';
+  els.cylinderArea.innerHTML = '';
+  state.cylinders = {};
+  state.volumes = {};
+
+  // Don't show catalyst bottle if catalyst is a toggle-only item
+  const reagents = def.catalystId
+    ? def.reagents.filter(r => r.id !== def.catalystId)
+    : def.reagents;
+
+  reagents.forEach((r, i) => {
+    // Bottle on shelf
+    const bottle = document.createElement('div');
+    bottle.className = 'bottle';
+    bottle.dataset.reagentId = r.id;
+    bottle.innerHTML = `${bottleSvg(r, i)}<div class="bottle-label">${r.label}</div>`;
+    bottle.title = `Click to fill measuring cylinder for ${r.label}`;
+    bottle.onclick = () => fillCylinder(r.id);
+    els.reagentShelf.appendChild(bottle);
+
+    // Cylinder state
+    state.cylinders[r.id] = { vol: 0, max: r.maxVol, poured: false };
+    state.volumes[r.id] = 0;
+
+    // Measuring cylinder DOM
+    const wrap = document.createElement('div');
+    wrap.className = 'cylinder-wrap';
+    wrap.dataset.reagentId = r.id;
+    wrap.id = `cyl_${r.id}`;
+    const [dark, light] = BOTTLE_COLORS[r.color] || ['#888','#ccc'];
+    wrap.innerHTML = `
+      <div class="cyl-label">${r.label}</div>
+      <div class="cylinder-outer" id="cylo_${r.id}">
+        <div class="cyl-body" id="cylbody_${r.id}">
+          <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;" viewBox="0 0 32 130">
+            ${[0,25,50,75,100].map(p => {
+              const y = 130 - (p / r.maxVol) * 110;
+              return `<line x1="0" y1="${y}" x2="${p%50===0?10:6}" y2="${y}" stroke="rgba(180,220,255,0.25)" stroke-width="0.8"/>
+                      ${p%25===0?`<text x="12" y="${y+3}" font-size="6" fill="rgba(180,220,255,0.25)" font-family="monospace">${Math.round(p/r.maxVol*r.maxVol)}</text>`:''}`;
+            }).join('')}
+          </svg>
+          <div class="cyl-liquid" id="cyllib_${r.id}" style="background:linear-gradient(to top,${dark},${light});height:0%;"></div>
+          <div class="cyl-meniscus" id="cylmen_${r.id}" style="background:${light};top:calc(100% - 0%);"></div>
+        </div>
+        <span class="cyl-reading" id="cylread_${r.id}" style="top:calc(100% - 2px);">0 mL</span>
+      </div>
+      <div class="cyl-vol" id="cylvol_${r.id}">0 / ${r.maxVol} mL</div>
+      <button class="cyl-pour-btn" id="cylpour_${r.id}" disabled>Pour →</button>
+    `;
+    // Drag to pour
+    wrap.draggable = true;
+    wrap.addEventListener('dragstart', e => onCylDragStart(e, r.id));
+    els.cylinderArea.appendChild(wrap);
+
+    // Pour button
+    document.getElementById(`cylpour_${r.id}`).onclick = () => pourIntoBaker(r.id);
+
+    // Click-drag on cylinder outer to set volume
+    setupCylinderInteraction(r.id, r.maxVol);
+  });
+
+  // Vessel as drop target
+  els.vesselWrap.ondragover = e => { e.preventDefault(); els.vesselWrap.classList.add('drag-over'); };
+  els.vesselWrap.ondragleave = () => els.vesselWrap.classList.remove('drag-over');
+  els.vesselWrap.ondrop = e => {
+    e.preventDefault();
+    els.vesselWrap.classList.remove('drag-over');
+    const id = e.dataTransfer.getData('reagentId');
+    if (id) pourIntoBaker(id);
+  };
+}
+
+function onCylDragStart(e, reagentId) {
+  e.dataTransfer.setData('reagentId', reagentId);
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function setupCylinderInteraction(reagentId, maxVol) {
+  const outer = document.getElementById(`cylo_${reagentId}`);
+  if (!outer) return;
+  let dragging = false;
+  let startY, startVol;
+
+  outer.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragging = true;
+    startY   = e.clientY;
+    startVol = state.cylinders[reagentId].vol;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', () => {
+      dragging = false;
+      document.removeEventListener('mousemove', onMove);
+    }, { once: true });
+  });
+
+  function onMove(e) {
+    if (!dragging) return;
+    const dy   = startY - e.clientY;           // up = more volume
+    const delta = (dy / 130) * maxVol;
+    const newVol = Math.max(0, Math.min(maxVol, startVol + delta));
+    setCylinderVol(reagentId, newVol);
+  }
+
+  // Touch support
+  outer.addEventListener('touchstart', e => {
+    startY   = e.touches[0].clientY;
+    startVol = state.cylinders[reagentId].vol;
+  }, { passive: true });
+  outer.addEventListener('touchmove', e => {
+    const dy    = startY - e.touches[0].clientY;
+    const delta = (dy / 130) * maxVol;
+    const newVol = Math.max(0, Math.min(maxVol, startVol + delta));
+    setCylinderVol(reagentId, newVol);
+  }, { passive: true });
+}
+
+function fillCylinder(reagentId) {
+  const cyl = state.cylinders[reagentId];
+  if (!cyl) return;
+  // Show cylinder
+  const wrap = document.getElementById(`cyl_${reagentId}`);
+  if (wrap) wrap.classList.add('visible');
+  // Set to half-full as default
+  if (cyl.vol === 0) setCylinderVol(reagentId, Math.round(cyl.max * 0.5));
+}
+
+function setCylinderVol(reagentId, vol) {
+  const cyl = state.cylinders[reagentId];
+  cyl.vol = Math.round(vol * 10) / 10;
+  const pct = (cyl.vol / cyl.max) * 100;
+
+  const liqu = document.getElementById(`cyllib_${reagentId}`);
+  const men  = document.getElementById(`cylmen_${reagentId}`);
+  const read = document.getElementById(`cylread_${reagentId}`);
+  const volD = document.getElementById(`cylvol_${reagentId}`);
+  const pour = document.getElementById(`cylpour_${reagentId}`);
+  const wrap = document.getElementById(`cyl_${reagentId}`);
+
+  if (liqu) liqu.style.height = `${pct}%`;
+  if (men)  men.style.top = `calc(${100 - pct}% - 3px)`;
+  if (read) { read.textContent = `${cyl.vol.toFixed(1)} mL`; read.style.top = `calc(${100 - pct}% - 8px)`; }
+  if (volD) volD.textContent = `${cyl.vol.toFixed(1)} / ${cyl.max} mL`;
+  if (pour) pour.disabled = cyl.vol <= 0;
+  if (wrap) { if (cyl.vol > 0) wrap.classList.add('visible'); }
+}
+
+// ─── POUR ──────────────────────────────────────────────────────────────────
+
+function pourIntoBaker(reagentId) {
+  const cyl = state.cylinders[reagentId];
+  if (!cyl || cyl.vol <= 0) return;
+  if (state.reactionDone) return;
+
+  const prevTotal = Object.values(state.volumes).reduce((a, b) => a + b, 0);
+  state.volumes[reagentId] = (state.volumes[reagentId] || 0) + cyl.vol;
+  const newTotal = Object.values(state.volumes).reduce((a, b) => a + b, 0);
+
+  // Update beaker fill
+  const fillPct = Math.min(newTotal / state.totalVolumeTarget, 1);
+  const liquidTop = 205 - fillPct * 165;   // SVG coords: bottom=205
+  const liquidH   = fillPct * 165;
+  els.beakerLiquid.setAttribute('y', liquidTop.toFixed(1));
+  els.beakerLiquid.setAttribute('height', liquidH.toFixed(1));
+  els.beakerMeniscus.setAttribute('cy', liquidTop.toFixed(1));
+
+  // Drain cylinder
+  setCylinderVol(reagentId, 0);
+  cyl.poured = true;
+
+  // Auto-start stopwatch on first pour
+  if (state.swAutoStart && prevTotal === 0 && newTotal > 0 && !state.swRunning) swStart();
+
+  // Check if enough reagents to start reaction
+  checkStartReaction();
+}
+
+// ─── REACTION SIMULATION ───────────────────────────────────────────────────
+
+function checkStartReaction() {
+  if (state.reactionStarted) return;
+  const def = EXPERIMENTS[state.experiment];
+
+  // Need at least the first two non-water reagents poured
+  const nonWater = def.reagents.filter(r => r.id !== 'water' && r.id !== def.catalystId);
+  const poured = nonWater.filter(r => (state.volumes[r.id] || 0) > 0);
+  if (poured.length < Math.min(2, nonWater.length)) return;
+
+  startReaction();
+}
+
+function startReaction() {
+  if (state.reactionStarted) return;
+  state.reactionStarted = true;
+  state.reactionProgress = 0;
+  state.reactionDone = false;
+
+  const def = EXPERIMENTS[state.experiment];
+  const t = state.temperature;
+
+  // Calculate reaction duration based on volumes and temperature
+  const vol = state.volumes;
+
+  let duration;
+  if (state.experiment === 'iodine') {
+    const vA = Math.max(vol.solA || 0, 1);
+    const vB = Math.max(vol.solB || 0, 1);
+    const vW = vol.water || 0;
+    const total = vA + vB + vW;
+    // More dilute → slower. Temperature effect doubles rate per 10°C above 25
+    const concFactor = (vA * vB) / (total * total) * 10000;
+    const tempFactor  = Math.pow(2, (t - 25) / 10);
+    const catalystFac = (state.catalystOn && vol.catalyst > 0) ? 3 : 1;
+    duration = Math.max(2, 80 / (concFactor * tempFactor * catalystFac));
+  } else if (state.experiment === 'cross') {
+    const vT = Math.max(vol.thio || 0, 1);
+    const vH = Math.max(vol.hcl  || 0, 1);
+    const vW = vol.water || 0;
+    const total = vT + vH + vW;
+    const concFactor = (vT * vH) / (total * total) * 10000;
+    const tempFactor  = Math.pow(2, (t - 25) / 10);
+    duration = Math.max(3, 120 / (concFactor * tempFactor));
+  } else {
+    // Marble
+    const vH = Math.max(vol.hcl || 0, 1);
+    const vW = vol.water || 0;
+    const total = vH + vW;
+    const concFactor = vH / total;
+    const tempFactor  = Math.pow(2, (t - 25) / 10);
+    const sizeFactor = { powder: 6, chips: 2, lumps: 0.7 }[state.particleSize] || 1;
+    duration = Math.max(3, 30 / (concFactor * tempFactor * sizeFactor));
+  }
+
+  state.reactionDuration = duration;
+  setStatus('reacting', 'Reacting…');
+
+  const startTime = performance.now();
+  function tick() {
+    if (!state.reactionStarted) return;
+    const elapsed = (performance.now() - startTime) / 1000;
+    state.reactionProgress = Math.min(elapsed / duration, 1);
+
+    // Update colour
+    const col = def.progressColor(state.reactionProgress);
+    if (col) els.reactionOverlay.setAttribute('fill', col);
+
+    // Cross opacity (for cross experiment)
+    if (def.crossVisible && els.crossH && els.crossV) {
+      const crossAlpha = Math.max(0, 1 - state.reactionProgress * 1.3);
+      els.crossH.setAttribute('stroke', `rgba(200,200,200,${crossAlpha.toFixed(2)})`);
+      els.crossV.setAttribute('stroke', `rgba(200,200,200,${crossAlpha.toFixed(2)})`);
+    }
+
+    // Marble bubbles — draw on beaker
+    if (state.experiment === 'marble') drawMarbleBubbles(state.reactionProgress);
+
+    if (state.reactionProgress >= 1) {
+      state.reactionDone = true;
+      const col = def.endColor;
+      els.reactionOverlay.setAttribute('fill', col);
+      if (state.experiment === 'iodine') setStatus('done', 'Colour change!');
+      else if (state.experiment === 'cross') setStatus('done', 'Cross obscured');
+      else setStatus('done', 'Reaction complete');
+      if (state.swRunning) swStop();
+      return;
+    }
+    state.reactionTimer = requestAnimationFrame(tick);
+  }
+  state.reactionTimer = requestAnimationFrame(tick);
+}
+
+// Marble CO₂ bubbles on beaker SVG using a canvas overlay
+let marbleCanvas = null;
+let marbleBubbles = [];
+function drawMarbleBubbles(progress) {
+  if (!marbleCanvas) {
+    marbleCanvas = document.createElement('canvas');
+    marbleCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+    marbleCanvas.width = 180; marbleCanvas.height = 220;
+    els.vesselWrap.appendChild(marbleCanvas);
+  }
+  const ctx = marbleCanvas.getContext('2d');
+  ctx.clearRect(0, 0, 180, 220);
+
+  const rate = progress * 0.8 + 0.1;
+  if (Math.random() < rate * 0.4) {
+    marbleBubbles.push({ x: 50 + Math.random() * 80, y: 185, vy: 0.6 + Math.random() * 1, r: 2 + Math.random() * 2.5, a: 0.5 });
+  }
+  for (let i = marbleBubbles.length - 1; i >= 0; i--) {
+    const b = marbleBubbles[i];
+    b.y -= b.vy; b.a -= 0.005;
+    if (b.y < 25 || b.a <= 0) { marbleBubbles.splice(i, 1); continue; }
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(200,230,255,${b.a})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+function setStatus(type, text) {
+  els.reactionStatus.className = 'reaction-status ' + type;
+  els.reactionStatus.textContent = text;
+}
+
+// ─── CATALYST TOGGLE ───────────────────────────────────────────────────────
+
+els.catToggle.onclick = () => {
+  state.catalystOn = !state.catalystOn;
+  els.catToggle.classList.toggle('on', state.catalystOn);
+  const def = EXPERIMENTS[state.experiment];
+  if (def.catalystId) {
+    // Sync catalyst cylinder visibility and auto-fill
+    const cylId = def.catalystId;
+    const cyl = state.cylinders[cylId];
+    if (cyl) {
+      const vol = state.catalystOn ? 5 : 0;
+      state.volumes[cylId] = 0;
+      // Show bottle glow
+      document.querySelectorAll('.bottle').forEach(b => {
+        if (b.dataset.reagentId === cylId) b.style.filter = state.catalystOn ? 'drop-shadow(0 0 8px rgba(77,240,176,0.5))' : '';
+      });
+    }
+  }
+};
+
+// ─── PARTICLE SIZE ─────────────────────────────────────────────────────────
+
+document.querySelectorAll('.psize-opt').forEach(opt => {
+  opt.onclick = () => {
+    document.querySelectorAll('.psize-opt').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    state.particleSize = opt.dataset.size;
+  };
+});
+
+// ─── RESET ─────────────────────────────────────────────────────────────────
+
+function resetExperiment(keepTable = true) {
+  // Stop reaction
+  if (state.reactionTimer) cancelAnimationFrame(state.reactionTimer);
+  state.reactionStarted = false;
+  state.reactionProgress = 0;
+  state.reactionDone = false;
+  state.catalystOn = false;
+  els.catToggle.classList.remove('on');
+
+  // Reset beaker
+  els.beakerLiquid.setAttribute('y', '205');
+  els.beakerLiquid.setAttribute('height', '0');
+  els.beakerMeniscus.setAttribute('cy', '205');
+  els.reactionOverlay.setAttribute('fill', 'transparent');
+
+  // Reset cross
+  if (els.crossH) els.crossH.setAttribute('stroke', 'rgba(200,200,200,0.85)');
+  if (els.crossV) els.crossV.setAttribute('stroke', 'rgba(200,200,200,0.85)');
+
+  // Remove marble canvas
+  if (marbleCanvas) { marbleCanvas.remove(); marbleCanvas = null; }
+  marbleBubbles = [];
+
+  setStatus('', 'Add reagents to begin');
+
+  // Reset volumes & cylinders
+  if (state.cylinders) {
+    Object.keys(state.cylinders).forEach(id => {
+      state.cylinders[id].vol = 0;
+      state.cylinders[id].poured = false;
+      setCylinderVol(id, 0);
+      const wrap = document.getElementById(`cyl_${id}`);
+      if (wrap) wrap.classList.remove('visible');
+    });
+  }
+  Object.keys(state.volumes).forEach(k => state.volumes[k] = 0);
+
+  swReset();
+}
+
+els.resetBtn.onclick = () => resetExperiment(true);
+
+// ─── DATA TABLE ────────────────────────────────────────────────────────────
+
+let tableRows = [];
+
+function recordResult() {
+  const def = EXPERIMENTS[state.experiment];
+  const vol = state.volumes;
+  const elapsed = state.swElapsed / 1000;
+
+  let col2Val, col3Val;
+  if (state.experiment === 'iodine') {
+    col2Val = (vol.solA || 0).toFixed(1);
+    col3Val = (vol.solB || 0).toFixed(1);
+  } else if (state.experiment === 'cross') {
+    col2Val = (vol.thio || 0).toFixed(1);
+    col3Val = (vol.hcl  || 0).toFixed(1);
+  } else {
+    col2Val = (vol.hcl  || 0).toFixed(1);
+    col3Val = state.particleSize;
+  }
+
+  tableRows.push({
+    n: tableRows.length + 1,
+    col2: col2Val,
+    col3: col3Val,
+    water: (vol.water || 0).toFixed(1),
+    temp: state.temperature,
+    time: elapsed.toFixed(1),
+  });
+  renderTable();
+}
+
+function renderTable() {
+  if (tableRows.length === 0) {
+    els.resultsBody.innerHTML = '<tr><td colspan="6" style="color:var(--text-dim);text-align:center;padding:16px 8px;">No results yet. Run an experiment and click Record.</td></tr>';
+    return;
+  }
+  els.resultsBody.innerHTML = tableRows.map((r, i) => `
+    <tr>
+      <td>${r.n}</td>
+      <td>${r.col2}</td>
+      <td>${r.col3}</td>
+      <td>${r.water}</td>
+      <td>${r.temp}</td>
+      <td class="${i === tableRows.length - 1 ? 'td-new' : ''}">${r.time}</td>
+    </tr>
+  `).join('');
+}
+
+els.recordBtn.onclick = recordResult;
+els.clearTableBtn.onclick = () => { if (confirm('Clear all recorded results?')) { tableRows = []; renderTable(); } };
+
+// ─── QUESTIONS ─────────────────────────────────────────────────────────────
+
+function renderQuestions(def) {
+  if (!def.questions) { els.questionsContent.innerHTML = ''; return; }
+  els.questionsContent.innerHTML = def.questions.map((q, i) => `
+    <div class="question-block" style="${i > 0 ? 'margin-top:16px;' : ''}">
+      <div class="q-num">Q${i + 1}</div>
+      <div class="q-text">${q.q}</div>
+      <textarea class="q-input" placeholder="${q.ph}" rows="3"></textarea>
+    </div>
+  `).join('');
+}
+
+// ─── PANEL TABS ────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.ptab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.ptab').forEach(p => p.classList.remove('active'));
+    t.classList.add('active');
+    els.tabSetup.style.display     = t.dataset.tab === 'setup'     ? 'flex' : 'none';
+    els.tabData.style.display      = t.dataset.tab === 'data'      ? 'flex' : 'none';
+    els.tabQuestions.style.display = t.dataset.tab === 'questions' ? 'flex' : 'none';
+  };
+});
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+
+switchExperiment('iodine');
+</script>
+</body>
+</html>
