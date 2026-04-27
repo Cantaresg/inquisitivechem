@@ -1652,3 +1652,41 @@ nav {
   line-height: 1.5;
 }
 
+/* ── Responsive breakpoints ─────────────────────────────────────────────── */
+
+/* Large laptop — modest sidebar reduction */
+@media (max-width: 1400px) {
+  :root { --store-w: 210px; --obs-w: 260px; }
+}
+
+/* 1280px minimum target — sidebars narrowed, nav tightened */
+@media (max-width: 1280px) {
+  :root { --store-w: 188px; --obs-w: 224px; }
+  nav { padding: 0 16px; }
+  .nav-links { gap: 16px; }
+}
+
+/* Small laptop — further reduction, hide tools hint to save bar height */
+@media (max-width: 1100px) {
+  :root { --store-w: 164px; --obs-w: 192px; }
+  html, body { font-size: 14px; }
+  .lab-tools-hint { display: none; }
+  #lab-tools { flex-wrap: wrap; min-height: auto; gap: 6px; padding: 6px 12px; }
+}
+
+/* Tablet / small screen — collapse sidebars entirely, single-column bench */
+@media (max-width: 900px) {
+  :root { --store-w: 0px; --obs-w: 0px; }
+  html, body { font-size: 13px; }
+  #chem-store { display: none; }
+  #obs-panel  { display: none; }
+  #chem-lab-app {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "testbar"
+      "bench"
+      "tools";
+  }
+}
+
