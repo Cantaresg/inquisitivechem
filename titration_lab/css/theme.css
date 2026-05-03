@@ -38,7 +38,8 @@ html, body {
   font-family: var(--font-body);
   font-size: 13px;
   line-height: 1.5;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* ── Typography ─────────────────────────────────────────────── */
@@ -53,7 +54,8 @@ strong { color: var(--text); font-weight: 700; }
 #app {
   display: grid;
   grid-template-rows: 48px 1fr 56px;
-  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
   overflow: hidden;
 }
 
@@ -136,8 +138,9 @@ strong { color: var(--text); font-weight: 700; }
 /* ── Main content area ──────────────────────────────────────── */
 #main {
   display: grid;
-  grid-template-columns: 220px 1fr 280px;
+  grid-template-columns: minmax(180px, 220px) 1fr minmax(220px, 280px);
   overflow: hidden;
+  position: relative;
 }
 
 /* Wide-layout stages collapse the side panels to give the centre full width */
@@ -684,6 +687,49 @@ strong { color: var(--text); font-weight: 700; }
   white-space: nowrap;
 }
 
+/* ── Drawer toggle buttons (tablet only — hidden at desktop) ─── */
+.panel-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 15px;
+  flex-shrink: 0;
+  user-select: none;
+  transition: background 0.15s, color 0.15s;
+}
+.panel-toggle:hover  { background: var(--border); color: var(--text); }
+.panel-toggle.active {
+  background: rgba(92,184,255,0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Backdrop that dims the centre when a drawer is open */
+#panel-backdrop {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 99;
+  cursor: pointer;
+}
+#panel-backdrop.visible { display: block; }
+
+/* ── Touch target sizing ────────────────────────────────────── */
+@media (pointer: coarse) {
+  .btn         { min-height: 40px; padding: 8px 16px; }
+  .btn.sm      { min-height: 32px; padding: 5px 11px; }
+  .right-tab   { padding: 14px 6px; }
+  .stage-pill  { padding: 5px 12px; font-size: 12px; }
+}
+
 /* ── Responsive breakpoints ─────────────────────────────────── */
 
 @media (max-width: 1400px) {
@@ -698,12 +744,55 @@ strong { color: var(--text); font-weight: 700; }
   #main { grid-template-columns: 158px 1fr 190px; }
 }
 
-/* Collapse side panels at tablet width — mirrors the JS wide-stage pattern */
+/* ── Tablet (≤900px): side panels become slide-in drawers ───── */
 @media (max-width: 900px) {
-  #main:not(.wide-stage) { grid-template-columns: 0px 1fr 0px; }
-  #main:not(.wide-stage) #left-panel,
-  #main:not(.wide-stage) #right-panel {
-    width: 0; overflow: hidden; padding: 0; border: none;
+  /* Grid gives all space to centre — panels overlay via absolute */
+  #main:not(.wide-stage) {
+    grid-template-columns: 0px 1fr 0px;
   }
+
+  /* Show the drawer toggle buttons in the header */
+  .panel-toggle { display: flex; }
+
+  /* Shrink stage nav to reclaim header space */
+  #chem-list   { display: none; }
+  #stage-nav   { margin-left: 8px; }
+  .stage-pill  { padding: 3px 7px; font-size: 10px; }
+  .stage-sep   { margin: 0; font-size: 9px; }
+
+  /* Panels become absolute slide-in drawers */
+  #left-panel,
+  #right-panel {
+    position: absolute !important;
+    top: 0;
+    height: 100% !important;
+    width: 260px !important;
+    overflow-y: auto !important;
+    z-index: 100;
+    transition: transform 0.25s ease;
+    padding: 16px 12px !important;
+    border: none !important;
+  }
+  #left-panel {
+    left: 0;
+    transform: translateX(-100%);
+    border-right: 1px solid var(--border) !important;
+  }
+  #right-panel {
+    right: 0;
+    transform: translateX(100%);
+    border-left: 1px solid var(--border) !important;
+  }
+  #left-panel.drawer-open  { transform: translateX(0); }
+  #right-panel.drawer-open { transform: translateX(0); }
+
+  /* Override wide-stage panel collapse — drawers handle it at this width */
+  #main.wide-stage #left-panel,
+  #main.wide-stage #right-panel {
+    width: 260px !important;
+    overflow-y: auto !important;
+    padding: 16px 12px !important;
+  }
+
   .reading-box { min-width: min(360px, 90vw); }
 }

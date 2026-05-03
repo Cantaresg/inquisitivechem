@@ -26,9 +26,9 @@
   --glow-strong: rgba(77,240,176,0.32);
   --btn-hover: rgba(255,255,255,0.04);
   --nav-h: 58px;
-  --comp-panel-w: 260px;
-  --test-panel-w: 340px;
-  --obs-panel-w: 380px;
+  --comp-panel-w: clamp(180px, 18vw, 260px);
+  --test-panel-w: clamp(240px, 24vw, 340px);
+  --obs-panel-w: clamp(260px, 28vw, 380px);
   --electrolyte-h: 126px;
   --danger: #ff6b6b;
   --beaker-glass: rgba(200,220,255,0.16);
@@ -51,7 +51,8 @@ body {
   font-size: 14px;
   color: var(--text);
   background: var(--bg);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* ── Nav bar ──────────────────────────────────────────────────────────────── */
@@ -93,7 +94,8 @@ nav {
 /* ── App shell ────────────────────────────────────────────────────────────── */
 #echem-app {
   display: flex;
-  height: calc(100vh - var(--nav-h));
+  height: calc(100dvh - var(--nav-h));
+  min-height: calc(100vh - var(--nav-h));
   margin-top: var(--nav-h);
   overflow: hidden;
 }
@@ -1652,6 +1654,33 @@ kbd {
 
 /* Collapse left panel at tablet width */
 @media (max-width: 900px) {
-  :root { --comp-panel-w: 0px; --test-panel-w: 220px; --obs-panel-w: 240px; }
+  :root { --comp-panel-w: 0px; --test-panel-w: 240px; --obs-panel-w: 260px; }
   #component-panel { display: none; }
+  #test-panel { width: min(280px, 44vw); }
+  #obs-panel.open { width: min(300px, 52vw); }
+  #obs-panel-inner { width: min(300px, 52vw); }
+}
+
+@media (max-width: 760px) {
+  #echem-app {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+
+  #center-area {
+    min-width: 0;
+  }
+
+  #test-panel {
+    width: 100%;
+    max-height: 42dvh;
+    border-left: none;
+    border-top: 1px solid var(--panel-border);
+  }
+
+  #obs-toggle,
+  #obs-panel {
+    display: none;
+  }
 }

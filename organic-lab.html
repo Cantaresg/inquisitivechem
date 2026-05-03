@@ -34,8 +34,9 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: 'JetBrains Mono', monospace;
-  min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Dark grid background matching chem-lab */
@@ -55,7 +56,7 @@ body::before {
 
 /* ===================== HOME SCREEN ===================== */
 #screen-home {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -178,7 +179,7 @@ body::before {
 .btn.sm { padding: 5px 10px; font-size: 10px; }
 
 /* ===================== APP SHELL ===================== */
-#screen-app { display: none; flex-direction: column; height: 100vh; }
+#screen-app { display: none; flex-direction: column; height: 100dvh; min-height: 100vh; }
 
 .app-header {
   border-bottom: 1px solid var(--border);
@@ -875,7 +876,7 @@ body::before {
 /* ===================== TEACHER DESIGNER ===================== */
 #screen-teacher {
   display: none;
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 40px;
   background: var(--bg);
 }

@@ -10,8 +10,8 @@
 
 :root {
   /* Layout */
-  --store-w:      240px;
-  --obs-w:        300px;
+  --store-w:      clamp(160px, 18vw, 240px);
+  --obs-w:        clamp(190px, 22vw, 300px);
 
   /* Token palette — matches InquisitivePhysics */
   --bg:           #07090f;
@@ -43,7 +43,8 @@ html, body {
   font-size: 15px;
   color: var(--text);
   background: var(--bg);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* ── Nav bar ─────────────────────────────────────────────────────────────── */
@@ -88,7 +89,8 @@ nav {
 /* ── App shell ───────────────────────────────────────────────────────────── */
 #chem-lab-app {
   display: grid;
-  height: calc(100vh - 52px);
+  height: calc(100dvh - 52px);
+  min-height: calc(100vh - 52px);
   margin-top: 52px;
   grid-template-columns: var(--store-w) 1fr var(--obs-w);
   grid-template-rows: 44px auto 1fr auto;

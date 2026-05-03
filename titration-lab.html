@@ -43,8 +43,9 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Inconsolata', monospace;
-  min-height: 100vh;
-  overflow: hidden;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 body::before {
@@ -58,7 +59,7 @@ body::before {
   z-index: 0;
 }
 
-.app { position: relative; z-index: 1; height: 100vh; display: flex; flex-direction: column; }
+.app { position: relative; z-index: 1; height: 100dvh; min-height: 100vh; display: flex; flex-direction: column; }
 
 /* ── HEADER ── */
 header {
